@@ -96,6 +96,7 @@ export interface CharacterArtDef {
   attackFrames: string[];
   textureKey: string;
   attackFrameKeys: string[];
+  animations?: Partial<Record<CharacterAnimationId, CharacterAnimationDef>>;
   battleScale?: number;
   anchor: {
     x: number;
@@ -107,6 +108,15 @@ export interface CharacterArtDef {
     accent: string;
   };
   playable: boolean;
+}
+
+export type CharacterAnimationId = "idle" | "run" | "attack";
+
+export interface CharacterAnimationDef {
+  framePaths: string[];
+  frameKeys: string[];
+  frameRate: number;
+  repeat: number;
 }
 
 export interface CollectionEntry {

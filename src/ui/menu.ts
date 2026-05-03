@@ -2,15 +2,19 @@ import { loadCollection } from "../game/collection/collectionStore";
 import { bondById, characterArtById, characterArts } from "../game/content/characterArt";
 import { factions } from "../game/content/factions";
 import { heroes } from "../game/content/heroes";
+import type { DisplaySettings } from "../game/display/settings";
 import type { CharacterArtDef, CharacterId, CollectionState, FactionId, HeroId } from "../game/types";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { createUiLayer, removeUiLayer } from "./layer";
+import { bindSettingsPanel, renderSettingsPanel } from "./settingsPanel";
 
 interface MenuCallbacks extends AudioControlCallbacks {
+  getDisplaySettings: () => DisplaySettings;
+  onDisplaySettingsChange: (settings: DisplaySettings) => void;
   onStart: (heroId: HeroId) => void;
 }
 
-type MenuMode = "select" | "collection";
+type MenuMode = "select" | "collection" | "settings";
 
 export class MenuController {
   private readonly root = createUiLayer("menu-ui");
@@ -28,7 +32,12 @@ export class MenuController {
   }
 
   private render(): void {
+    this.root.style.setProperty("--ui-scale", this.callbacks.getDisplaySettings().uiScale.toString());
     const collection = loadCollection();
+    if (this.mode === "settings") {
+      this.renderSettings();
+      return;
+    }
     if (this.mode === "collection") {
       this.renderCollection(collection);
       return;
@@ -111,6 +120,7 @@ export class MenuController {
           ${renderAudioControls(this.callbacks.getAudioSettings())}
           <div class="menu-actions">
             <button class="codex-button" data-collection="true">武將圖鑑</button>
+            <button class="codex-button" data-settings="true">設定</button>
             <button class="start-button" data-start="true">開戰</button>
           </div>
         </section>
@@ -138,10 +148,34 @@ export class MenuController {
       this.mode = "collection";
       this.render();
     });
+    this.root.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
+      this.mode = "settings";
+      this.render();
+    });
     this.root.querySelector<HTMLButtonElement>("[data-start]")?.addEventListener("click", () => {
       this.callbacks.onStart(this.selectedHero);
     });
     bindAudioControls(this.root, this.callbacks);
+  }
+
+  private renderSettings(): void {
+    this.root.innerHTML = `
+      <main class="settings-stage">
+        ${renderSettingsPanel(this.callbacks.getAudioSettings(), this.callbacks.getDisplaySettings(), {
+          kicker: "系統",
+          title: "設定",
+          closeLabel: "返回",
+          closeData: "settings-back"
+        })}
+      </main>
+    `;
+    bindSettingsPanel(this.root, this.callbacks, () => this.renderSettings());
+    this.root.querySelector<HTMLButtonElement>("[data-settings-back]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
+      this.mode = "select";
+      this.render();
+    });
   }
 
   private renderCollection(collection: CollectionState): void {

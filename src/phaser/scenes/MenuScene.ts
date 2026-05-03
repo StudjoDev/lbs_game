@@ -1,16 +1,19 @@
 import Phaser from "phaser";
+import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import type { HeroId } from "../../game/types";
 import { getAudioController } from "../audio/AudioController";
 import { MenuController } from "../../ui/menu";
 
 export class MenuScene extends Phaser.Scene {
   private menu?: MenuController;
+  private displaySettings: DisplaySettings = loadDisplaySettings();
 
   constructor() {
     super("MenuScene");
   }
 
   create(): void {
+    this.displaySettings = loadDisplaySettings();
     const audio = getAudioController(this);
     audio.bindUnlock(this);
     audio.playMusic(this, "music_menu");
@@ -18,6 +21,10 @@ export class MenuScene extends Phaser.Scene {
       getAudioSettings: () => audio.getSettings(),
       onAudioSettingsChange: (settings) => {
         audio.updateSettings(this, settings);
+      },
+      getDisplaySettings: () => this.displaySettings,
+      onDisplaySettingsChange: (settings) => {
+        this.displaySettings = saveDisplaySettings(settings);
       },
       onAudioCue: (key) => {
         audio.playSfx(this, key);

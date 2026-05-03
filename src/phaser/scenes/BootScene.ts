@@ -1,6 +1,23 @@
 import Phaser from "phaser";
-import { audioAssetEntries, slashAnimationFrames, slashAnimationKey, visualAssetEntries } from "../../game/assets/manifest";
+import {
+  audioAssetEntries,
+  enemyBaseAssetEntries,
+  enemyAnimationAssetEntries,
+  enemyAnimationsById,
+  enemyAnimationKey,
+  hitRadialAnimationKey,
+  hitRadialSpritesheet,
+  hitSparkAnimationKey,
+  hitSparkSpritesheet,
+  slashAnimationFrames,
+  slashAnimationKey,
+  visualAssetEntries,
+  visualSpritesheetEntries,
+  type EnemyAnimationDef,
+  type EnemyAnimationId
+} from "../../game/assets/manifest";
 import { characterArts } from "../../game/content/characterArt";
+import type { CharacterAnimationDef } from "../../game/types";
 
 interface HeroLook {
   key: string;
@@ -44,8 +61,26 @@ export class BootScene extends Phaser.Scene {
       art.attackFrames.forEach((framePath, index) => {
         this.load.image(art.attackFrameKeys[index], framePath);
       });
+      for (const animation of Object.values(art.animations ?? {})) {
+        animation.framePaths.forEach((framePath, index) => {
+          this.load.image(animation.frameKeys[index], framePath);
+        });
+      }
     }
     for (const asset of visualAssetEntries) {
+      this.load.image(asset.key, asset.path);
+    }
+    for (const asset of visualSpritesheetEntries) {
+      this.load.spritesheet(asset.key, asset.path, {
+        frameWidth: asset.frameWidth,
+        frameHeight: asset.frameHeight,
+        endFrame: asset.endFrame
+      });
+    }
+    for (const asset of enemyBaseAssetEntries) {
+      this.load.image(asset.key, asset.path);
+    }
+    for (const asset of enemyAnimationAssetEntries) {
       this.load.image(asset.key, asset.path);
     }
   }
@@ -55,6 +90,9 @@ export class BootScene extends Phaser.Scene {
     this.createBattlefieldTextures();
     this.createFxTextures();
     this.createSlashAnimation();
+    this.createHitFxAnimations();
+    this.createCharacterAnimations();
+    this.createEnemyAnimations();
     for (const look of heroLooks) {
       if (!this.textures.exists(look.key)) {
         this.createHeroTexture(look);
@@ -122,8 +160,10 @@ export class BootScene extends Phaser.Scene {
 
   private createBattlefieldTextures(): void {
     this.createBattlefieldDetailTile();
-    this.createBannerTexture("battle_banner_red", "#7d2626", "#ffd36a");
-    this.createBannerTexture("battle_banner_jade", "#23614c", "#dffade");
+    this.createGroundClothTexture("battle_cloth_red", "#7d2626", "#ffd36a");
+    this.createGroundClothTexture("battle_cloth_jade", "#23614c", "#dffade");
+    this.createBannerTexture("battle_legacy_banner_red", "#7d2626", "#ffd36a");
+    this.createBannerTexture("battle_legacy_banner_jade", "#23614c", "#dffade");
     this.createPropTexture("battle_spear_prop", "#3a271e", "#e2b55f", "spear");
     this.createPropTexture("battle_stone_prop", "#2e2830", "#8b7b77", "stone");
   }
@@ -158,6 +198,44 @@ export class BootScene extends Phaser.Scene {
       ctx.fillRect(-9, -2, 18, 4);
       ctx.restore();
     }
+    texture.refresh();
+  }
+
+  private createGroundClothTexture(key: string, cloth: string, trim: string): void {
+    const texture = this.textures.createCanvas(key, 128, 74)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 128, 74);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(64, 55, 44, 10, -0.08, 0, Math.PI * 2);
+    ctx.fill();
+    const gradient = ctx.createLinearGradient(22, 18, 106, 62);
+    gradient.addColorStop(0, cloth);
+    gradient.addColorStop(0.58, "#3a1720");
+    gradient.addColorStop(1, "#161012");
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = trim;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(24, 22);
+    ctx.lineTo(103, 15);
+    ctx.lineTo(94, 34);
+    ctx.lineTo(108, 52);
+    ctx.lineTo(32, 61);
+    ctx.lineTo(42, 43);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 0.55;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(255, 242, 201, 0.22)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(35, 31);
+    ctx.bezierCurveTo(54, 25, 72, 29, 96, 24);
+    ctx.moveTo(36, 48);
+    ctx.bezierCurveTo(59, 43, 75, 45, 98, 39);
+    ctx.stroke();
     texture.refresh();
   }
 
@@ -224,17 +302,22 @@ export class BootScene extends Phaser.Scene {
       ctx.lineWidth = 2;
       ctx.stroke();
     } else {
-      ctx.fillStyle = primary;
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 3;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+      ctx.beginPath();
+      ctx.ellipse(48, 63, 24, 7, -0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(139, 123, 119, 0.28)";
       for (let index = 0; index < 4; index += 1) {
-        const x = 24 + index * 14;
-        const y = 50 + (index % 2) * 8;
+        const x = 28 + index * 13;
+        const y = 56 + (index % 2) * 4;
         ctx.beginPath();
-        ctx.ellipse(x, y, 12 + index * 1.5, 8 + (index % 2) * 3, index * 0.5, 0, Math.PI * 2);
+        ctx.ellipse(x, y, 9 + index, 3.5 + (index % 2), index * 0.45, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
       }
+      ctx.fillStyle = "rgba(255, 229, 167, 0.07)";
+      ctx.beginPath();
+      ctx.ellipse(43, 52, 8, 2, 0.2, 0, Math.PI * 2);
+      ctx.fill();
     }
     texture.refresh();
   }
@@ -494,6 +577,67 @@ export class BootScene extends Phaser.Scene {
       frameRate: 28,
       repeat: 0
     });
+  }
+
+  private createHitFxAnimations(): void {
+    if (!this.anims.exists(hitSparkAnimationKey) && this.textures.exists(hitSparkSpritesheet.key)) {
+      this.anims.create({
+        key: hitSparkAnimationKey,
+        frames: this.anims.generateFrameNumbers(hitSparkSpritesheet.key, { start: 0, end: hitSparkSpritesheet.endFrame }),
+        frameRate: 32,
+        repeat: 0
+      });
+    }
+    if (!this.anims.exists(hitRadialAnimationKey) && this.textures.exists(hitRadialSpritesheet.key)) {
+      this.anims.create({
+        key: hitRadialAnimationKey,
+        frames: this.anims.generateFrameNumbers(hitRadialSpritesheet.key, { start: 0, end: hitRadialSpritesheet.endFrame }),
+        frameRate: 24,
+        repeat: 0
+      });
+    }
+  }
+
+  private createCharacterAnimations(): void {
+    for (const art of characterArts) {
+      for (const [animationId, animation] of Object.entries(art.animations ?? {}) as [string, CharacterAnimationDef][]) {
+        const key = `${art.textureKey}_${animationId}`;
+        if (this.anims.exists(key)) {
+          continue;
+        }
+        const frames = animation.frameKeys.filter((frameKey) => this.textures.exists(frameKey)).map((frameKey) => ({ key: frameKey }));
+        if (frames.length !== animation.frameKeys.length) {
+          continue;
+        }
+        this.anims.create({
+          key,
+          frames,
+          frameRate: animation.frameRate,
+          repeat: animation.repeat
+        });
+      }
+    }
+  }
+
+  private createEnemyAnimations(): void {
+    for (const [enemyId, animations] of Object.entries(enemyAnimationsById)) {
+      for (const [animationId, animation] of Object.entries(animations) as [EnemyAnimationId, EnemyAnimationDef][]) {
+        const key = enemyAnimationKey(enemyId as keyof typeof enemyAnimationsById, animationId);
+        if (this.anims.exists(key)) {
+          continue;
+        }
+        const frames = animation.frameKeys.filter((frameKey) => this.textures.exists(frameKey)).map((frameKey) => ({ key: frameKey }));
+        if (frames.length !== animation.frameKeys.length) {
+          continue;
+        }
+        this.anims.create({
+          key,
+          frames,
+          frameRate: animation.frameRate,
+          repeat: animation.repeat
+        });
+      }
+    }
   }
 
   private createStreakTexture(key: string, color: string, width: number, height: number): void {

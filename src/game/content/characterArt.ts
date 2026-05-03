@@ -1,4 +1,4 @@
-import type { BondDef, CharacterArtDef, CharacterId } from "../types";
+import type { BondDef, CharacterAnimationId, CharacterArtDef, CharacterId } from "../types";
 
 export const bonds: BondDef[] = [
   {
@@ -49,6 +49,54 @@ function attackFrameKeys(textureKey: string): string[] {
   return [0, 1, 2, 3].map((frame) => `${textureKey}_attack_${frame}`);
 }
 
+const animationFrameCounts = {
+  idle: 6,
+  run: 6,
+  attack: 8
+} as const satisfies Record<CharacterAnimationId, number>;
+
+const animationFrameRates = {
+  idle: 8,
+  run: 12,
+  attack: 18
+} as const satisfies Record<CharacterAnimationId, number>;
+
+function animationFramePaths(id: CharacterId, animation: CharacterAnimationId): string[] {
+  return Array.from({ length: animationFrameCounts[animation] }, (_, index) =>
+    artPath(id, `anim/${animation}/${(index + 1).toString().padStart(2, "0")}.png`)
+  );
+}
+
+function animationFrameKeys(textureKey: string, animation: CharacterAnimationId): string[] {
+  return Array.from(
+    { length: animationFrameCounts[animation] },
+    (_, index) => `${textureKey}_${animation}_${(index + 1).toString().padStart(2, "0")}`
+  );
+}
+
+function heroAnimations(id: CharacterId, textureKey: string): CharacterArtDef["animations"] {
+  return {
+    idle: {
+      framePaths: animationFramePaths(id, "idle"),
+      frameKeys: animationFrameKeys(textureKey, "idle"),
+      frameRate: animationFrameRates.idle,
+      repeat: -1
+    },
+    run: {
+      framePaths: animationFramePaths(id, "run"),
+      frameKeys: animationFrameKeys(textureKey, "run"),
+      frameRate: animationFrameRates.run,
+      repeat: -1
+    },
+    attack: {
+      framePaths: animationFramePaths(id, "attack"),
+      frameKeys: animationFrameKeys(textureKey, "attack"),
+      frameRate: animationFrameRates.attack,
+      repeat: 0
+    }
+  };
+}
+
 export const characterArts: CharacterArtDef[] = [
   {
     id: "guanyu",
@@ -67,6 +115,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("guanyu"),
     textureKey: "hero_guanyu",
     attackFrameKeys: attackFrameKeys("hero_guanyu"),
+    animations: heroAnimations("guanyu", "hero_guanyu"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#2dc77d", secondary: "#123626", accent: "#ffd36a" },
@@ -89,6 +138,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("zhaoyun"),
     textureKey: "hero_zhaoyun",
     attackFrameKeys: attackFrameKeys("hero_zhaoyun"),
+    animations: heroAnimations("zhaoyun", "hero_zhaoyun"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#45c7df", secondary: "#113d49", accent: "#dffaff" },
@@ -111,6 +161,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("caocao"),
     textureKey: "hero_caocao",
     attackFrameKeys: attackFrameKeys("hero_caocao"),
+    animations: heroAnimations("caocao", "hero_caocao"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#6d8cff", secondary: "#171c3a", accent: "#e8edff" },
@@ -133,6 +184,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("xiahoudun"),
     textureKey: "hero_xiahoudun",
     attackFrameKeys: attackFrameKeys("hero_xiahoudun"),
+    animations: heroAnimations("xiahoudun", "hero_xiahoudun"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#526ab7", secondary: "#17182a", accent: "#ff6963" },
@@ -155,6 +207,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("zhouyu"),
     textureKey: "hero_zhouyu",
     attackFrameKeys: attackFrameKeys("hero_zhouyu"),
+    animations: heroAnimations("zhouyu", "hero_zhouyu"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#ff6f67", secondary: "#451915", accent: "#ffc15f" },
@@ -177,6 +230,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("sunshangxiang"),
     textureKey: "hero_sunshangxiang",
     attackFrameKeys: attackFrameKeys("hero_sunshangxiang"),
+    animations: heroAnimations("sunshangxiang", "hero_sunshangxiang"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#ff7b8d", secondary: "#431726", accent: "#ffd37f" },
@@ -199,6 +253,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("diaochan"),
     textureKey: "hero_diaochan",
     attackFrameKeys: attackFrameKeys("hero_diaochan"),
+    animations: heroAnimations("diaochan", "hero_diaochan"),
     battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#ff78b7", secondary: "#4c1834", accent: "#ffd98a" },
@@ -220,6 +275,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("lubu"),
     textureKey: "enemy_lubu",
     attackFrameKeys: attackFrameKeys("enemy_lubu"),
+    animations: heroAnimations("lubu", "enemy_lubu"),
     anchor: { x: 0.5, y: 0.9 },
     palette: { primary: "#7f45b7", secondary: "#1b1022", accent: "#ff4e74" },
     playable: false

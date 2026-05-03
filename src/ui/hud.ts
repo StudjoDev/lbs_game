@@ -1,9 +1,13 @@
 import { upgradeById } from "../game/content/upgrades";
+import type { DisplaySettings } from "../game/display/settings";
 import type { RunState, UpgradeDef, Vector2 } from "../game/types";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { createUiLayer, removeUiLayer } from "./layer";
+import { bindSettingsPanel, renderSettingsPanel } from "./settingsPanel";
 
 interface HudCallbacks extends AudioControlCallbacks {
+  getDisplaySettings: () => DisplaySettings;
+  onDisplaySettingsChange: (settings: DisplaySettings) => void;
   onManual: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -47,6 +51,7 @@ export class BattleHud {
   }
 
   update(state: RunState): void {
+    this.root.style.setProperty("--ui-scale", this.callbacks.getDisplaySettings().uiScale.toString());
     const hpPercent = Math.max(0, state.player.hp / state.player.maxHp);
     const xpPercent = Math.max(0, state.player.xp / state.player.nextXp);
     const moralePercent = Math.max(0, state.player.morale / state.player.maxMorale);
@@ -89,6 +94,9 @@ export class BattleHud {
     if (state.status === "levelUp") {
       this.renderUpgradeModal(state);
     } else if (state.status === "paused") {
+      if (this.lastResult === "settings") {
+        return;
+      }
       this.renderPauseModal();
     } else if (state.status === "won" || state.status === "lost") {
       this.renderResultModal(state);
@@ -191,13 +199,31 @@ export class BattleHud {
         ${renderAudioControls(this.callbacks.getAudioSettings())}
         <div class="pause-actions">
           <button data-resume="true">繼續</button>
+          <button data-settings="true">設定</button>
           <button data-menu="true">回主選單</button>
         </div>
       </section>
     `;
     bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-resume]"), this.callbacks.onResume);
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-settings]"), () => this.renderSettingsModal());
     bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-menu]"), this.callbacks.onMenu);
     bindAudioControls(this.modal, this.callbacks);
+  }
+
+  private renderSettingsModal(): void {
+    this.lastResult = "settings";
+    this.modal.className = "hud-modal is-open";
+    this.modal.innerHTML = renderSettingsPanel(this.callbacks.getAudioSettings(), this.callbacks.getDisplaySettings(), {
+      kicker: "戰鬥設定",
+      title: "設定",
+      closeLabel: "返回暫停",
+      closeData: "settings-back"
+    });
+    bindSettingsPanel(this.modal, this.callbacks, () => this.renderSettingsModal());
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-settings-back]"), () => {
+      this.lastResult = "";
+      this.renderPauseModal();
+    });
   }
 
   private renderResultModal(state: RunState): void {

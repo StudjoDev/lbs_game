@@ -43,10 +43,17 @@ export const textureKeys = {
 } as const;
 
 const visualBasePath = `${import.meta.env.BASE_URL}assets/visual`;
+const enemyAssetBasePath = `${import.meta.env.BASE_URL}assets/enemies`;
 
 export interface VisualAssetEntry {
   key: string;
   path: string;
+}
+
+export interface VisualSpritesheetEntry extends VisualAssetEntry {
+  frameWidth: number;
+  frameHeight: number;
+  endFrame: number;
 }
 
 export interface VfxProfile {
@@ -71,8 +78,18 @@ export interface EnemyVisualProfile {
   hitTint: number;
   deathFxKey: string;
   baseScale: number;
+  animationScale?: number;
   eliteFrame?: number;
   outlineColor?: number;
+}
+
+export type EnemyAnimationId = "walk" | "hit" | "death";
+
+export interface EnemyAnimationDef {
+  framePaths: string[];
+  frameKeys: string[];
+  frameRate: number;
+  repeat: number;
 }
 
 export const visualParticleAssets = [
@@ -84,13 +101,93 @@ export const visualParticleAssets = [
 ] as const satisfies readonly VisualAssetEntry[];
 
 export const slashAnimationKey = "fx_slash_arc";
+export const hitSparkAnimationKey = "fx_hit_spark";
+export const hitRadialAnimationKey = "fx_hit_radial";
 
 export const slashAnimationFrames = [1, 2, 3, 4, 5, 6].map((frame) => ({
   key: `fx_slash_${frame.toString().padStart(2, "0")}`,
   path: `${visualBasePath}/fx/slash/classic-${frame.toString().padStart(2, "0")}.png`
 })) as readonly VisualAssetEntry[];
 
+export const hitSparkSpritesheet = {
+  key: "fx_hit_spark_sheet",
+  path: `${visualBasePath}/fx/hit/oga-spark-strip9.png`,
+  frameWidth: 32,
+  frameHeight: 32,
+  endFrame: 8
+} as const satisfies VisualSpritesheetEntry;
+
+export const hitRadialSpritesheet = {
+  key: "fx_hit_radial_sheet",
+  path: `${visualBasePath}/fx/hit/oga-radial-lightning.png`,
+  frameWidth: 256,
+  frameHeight: 256,
+  endFrame: 7
+} as const satisfies VisualSpritesheetEntry;
+
 export const visualAssetEntries = [...visualParticleAssets, ...slashAnimationFrames] as const;
+export const visualSpritesheetEntries = [hitSparkSpritesheet, hitRadialSpritesheet] as const;
+
+const animatedEnemyIds = ["infantry", "archer", "shield", "cavalry", "captain", "lubu"] as const satisfies readonly EnemyId[];
+const enemyAnimationIds = ["walk", "hit", "death"] as const satisfies readonly EnemyAnimationId[];
+const enemyAnimationFrameCounts: Record<EnemyAnimationId, number> = {
+  walk: 4,
+  hit: 3,
+  death: 5
+};
+const enemyAnimationFrameRates: Record<EnemyAnimationId, number> = {
+  walk: 8,
+  hit: 14,
+  death: 12
+};
+const enemyAnimationRepeats: Record<EnemyAnimationId, number> = {
+  walk: -1,
+  hit: 0,
+  death: 0
+};
+
+export function enemyAnimationKey(enemyId: EnemyId, animationId: EnemyAnimationId): string {
+  return `enemy_${enemyId}_${animationId}`;
+}
+
+function enemyAnimationFrameKey(enemyId: EnemyId, animationId: EnemyAnimationId, frame: number): string {
+  return `${enemyAnimationKey(enemyId, animationId)}_${frame.toString().padStart(2, "0")}`;
+}
+
+function createEnemyAnimationDef(enemyId: EnemyId, animationId: EnemyAnimationId): EnemyAnimationDef {
+  const frameCount = enemyAnimationFrameCounts[animationId];
+  const framePaths = Array.from({ length: frameCount }, (_, index) => {
+    const frame = (index + 1).toString().padStart(2, "0");
+    return `${enemyAssetBasePath}/${enemyId}/${animationId}/${frame}.png`;
+  });
+  return {
+    framePaths,
+    frameKeys: Array.from({ length: frameCount }, (_, index) => enemyAnimationFrameKey(enemyId, animationId, index + 1)),
+    frameRate: enemyAnimationFrameRates[animationId],
+    repeat: enemyAnimationRepeats[animationId]
+  };
+}
+
+export const enemyAnimationsById = Object.fromEntries(
+  animatedEnemyIds.map((enemyId) => [
+    enemyId,
+    Object.fromEntries(enemyAnimationIds.map((animationId) => [animationId, createEnemyAnimationDef(enemyId, animationId)]))
+  ])
+) as Record<EnemyId, Record<EnemyAnimationId, EnemyAnimationDef>>;
+
+export const enemyAnimationAssetEntries = animatedEnemyIds.flatMap((enemyId) =>
+  enemyAnimationIds.flatMap((animationId) =>
+    enemyAnimationsById[enemyId][animationId].frameKeys.map((key, index) => ({
+      key,
+      path: enemyAnimationsById[enemyId][animationId].framePaths[index]
+    }))
+  )
+) satisfies readonly VisualAssetEntry[];
+
+export const enemyBaseAssetEntries = animatedEnemyIds.map((enemyId) => ({
+  key: `enemy_${enemyId}`,
+  path: `${enemyAssetBasePath}/${enemyId}/walk/01.png`
+})) satisfies readonly VisualAssetEntry[];
 
 export const defaultVfxProfile: VfxProfile = {
   textureKey: "command",
@@ -490,6 +587,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xfff1cf,
     deathFxKey: "particle_dirt",
     baseScale: 1,
+    animationScale: 0.72,
     outlineColor: 0xded0b0
   },
   archer: {
@@ -498,6 +596,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xffdf91,
     deathFxKey: "particle_dirt",
     baseScale: 0.96,
+    animationScale: 0.7,
     outlineColor: 0xd6c17a
   },
   shield: {
@@ -506,6 +605,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xdfe8ff,
     deathFxKey: "particle_dirt",
     baseScale: 1.04,
+    animationScale: 0.76,
     outlineColor: 0xc5cbd6
   },
   cavalry: {
@@ -514,6 +614,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xffcf86,
     deathFxKey: "particle_dirt",
     baseScale: 1.06,
+    animationScale: 0.74,
     outlineColor: 0xe0b16b
   },
   captain: {
@@ -522,6 +623,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xffdc86,
     deathFxKey: "particle_smoke",
     baseScale: 1.12,
+    animationScale: 0.78,
     eliteFrame: 1,
     outlineColor: 0xe2b55f
   },
@@ -531,6 +633,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     hitTint: 0xff7bb4,
     deathFxKey: "particle_magic",
     baseScale: 1.14,
+    animationScale: 0.82,
     eliteFrame: 2,
     outlineColor: 0xff4e74
   }

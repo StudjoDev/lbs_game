@@ -1,14 +1,22 @@
 import Phaser from "phaser";
 import {
   defaultVfxProfile,
+  enemyAnimationsById,
+  enemyAnimationKey,
   enemyVisualProfiles,
+  hitRadialAnimationKey,
+  hitRadialSpritesheet,
+  hitSparkAnimationKey,
+  hitSparkSpritesheet,
   vfxProfiles,
+  type EnemyAnimationId,
   type EnemyVisualProfile,
   type VfxProfile
 } from "../../game/assets/manifest";
 import type { MusicKey } from "../../game/audio/catalog";
 import { revealBossDefeat } from "../../game/collection/collectionStore";
 import { characterArtById } from "../../game/content/characterArt";
+import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import { ultimateByHeroId } from "../../game/content/ultimates";
 import { createKeyboardBindings, readInput, type KeyboardBindings } from "../../game/input/bindings";
 import { applyUpgrade } from "../../game/simulation/combat";
@@ -17,14 +25,18 @@ import { collectDebugXp, setPaused, updateRun } from "../../game/simulation/upda
 import type {
   AreaState,
   CombatEventState,
+  EnemyId,
   EnemyState,
   FloatingTextState,
+  CharacterAnimationId,
   HeroId,
   ProjectileState,
   RunState,
   XpOrbState
 } from "../../game/types";
 import { getAudioController } from "../audio/AudioController";
+import { CombatJuiceEffects } from "../effects/CombatJuiceEffects";
+import { XpPickupEffects } from "../effects/XpPickupEffects";
 import { BattleHud } from "../../ui/hud";
 
 interface BattleData {
@@ -38,6 +50,7 @@ interface PlayerVisualState {
   bobOffset: number;
   attackTimer: number;
   castTimer: number;
+  moveBlend: number;
   squashScale: number;
 }
 
@@ -58,6 +71,7 @@ const baseBattleViewport = {
   width: 860,
   height: 680,
   minZoom: 0.5,
+  minFinalZoom: 0.32,
   maxZoom: 1
 };
 
@@ -70,6 +84,8 @@ export class BattleScene extends Phaser.Scene {
   private unitLayer?: Phaser.GameObjects.Layer;
   private projectileLayer?: Phaser.GameObjects.Layer;
   private impactLayer?: Phaser.GameObjects.Layer;
+  private xpPickupEffects?: XpPickupEffects;
+  private combatJuiceEffects?: CombatJuiceEffects;
   private playerSprite?: Phaser.GameObjects.Sprite;
   private playerGroundAura?: Phaser.GameObjects.Graphics;
   private manualQueued = false;
@@ -80,6 +96,7 @@ export class BattleScene extends Phaser.Scene {
     bobOffset: 0,
     attackTimer: 0,
     castTimer: 0,
+    moveBlend: 0,
     squashScale: 1
   };
   private lastPlayerPosition?: Phaser.Math.Vector2;
@@ -89,6 +106,9 @@ export class BattleScene extends Phaser.Scene {
   private enemyShadows = new Map<number, Phaser.GameObjects.Ellipse>();
   private enemyFrames = new Map<number, Phaser.GameObjects.Graphics>();
   private enemyPool: Phaser.GameObjects.Sprite[] = [];
+  private enemyHitEffectTimestamps = new Map<number, number>();
+  private enemyDeathSprites = new Set<Phaser.GameObjects.Sprite>();
+  private hitFxSprites = new Set<Phaser.GameObjects.Sprite>();
   private projectileSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private projectileTrailTimestamps = new Map<number, number>();
   private meleeProjectileTimestamps = new Map<number, number>();
@@ -100,9 +120,12 @@ export class BattleScene extends Phaser.Scene {
   private floatingTexts = new Map<number, Phaser.GameObjects.Text>();
   private playerAttackTimers: Phaser.Time.TimerEvent[] = [];
   private playerAttackActive = false;
+  private playerAttackAnimUntil = 0;
+  private lastAutoCooldown = 0;
   private bossUnlockSaved = false;
   private lastResultSfx?: "won" | "lost";
   private cameraBaseZoom = 1;
+  private displaySettings: DisplaySettings = loadDisplaySettings();
 
   constructor() {
     super("BattleScene");
@@ -110,6 +133,7 @@ export class BattleScene extends Phaser.Scene {
 
   create(data: BattleData): void {
     const heroId = data.heroId ?? "guanyu";
+    this.displaySettings = loadDisplaySettings();
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
     this.playerAttackTimers = [];
     this.playerAttackActive = false;
@@ -124,14 +148,17 @@ export class BattleScene extends Phaser.Scene {
       bobOffset: 0,
       attackTimer: 0,
       castTimer: 0,
+      moveBlend: 0,
       squashScale: 1
     };
+    this.lastAutoCooldown = this.run.player.autoCooldown;
     this.keys = createKeyboardBindings(this);
     const audio = getAudioController(this);
     audio.bindUnlock(this);
     audio.playMusic(this, "music_battle", 360);
     this.cameras.main.setBounds(0, 0, this.run.world.width, this.run.world.height);
     this.createRenderLayers();
+    this.createPresentationEffects();
     this.createBattlefield();
     const art = characterArtById[this.run.hero.artId];
     this.playerSprite = this.add
@@ -149,6 +176,11 @@ export class BattleScene extends Phaser.Scene {
       getAudioSettings: () => audio.getSettings(),
       onAudioSettingsChange: (settings) => {
         audio.updateSettings(this, settings);
+      },
+      getDisplaySettings: () => this.displaySettings,
+      onDisplaySettingsChange: (settings) => {
+        this.displaySettings = saveDisplaySettings(settings);
+        this.applyResponsiveCameraZoom();
       },
       onAudioCue: (key) => {
         audio.playSfx(this, key);
@@ -242,18 +274,21 @@ export class BattleScene extends Phaser.Scene {
     const baseScale = art.battleScale ?? 1;
     const ultimateActive = state.player.ultimateTimer > 0;
     const visual = this.playerVisualState;
-    const powerScale = (state.player.berserkTimer > 0 ? 1.14 : 1) * (ultimateActive ? 1.08 : 1);
-    const squashX = 1 + (1 - visual.squashScale) * 0.52;
-    const squashY = visual.squashScale;
-    this.playerSprite.setPosition(visual.visualX, visual.visualY + visual.bobOffset);
+    const hasFrameAnimation = hasCharacterAnimation(this, art.textureKey, "idle");
+    if (state.player.autoCooldown > this.lastAutoCooldown + 0.12) {
+      this.playHeroAttackAnimation(false);
+    }
+    this.lastAutoCooldown = state.player.autoCooldown;
+    const powerScale = hasFrameAnimation ? 1 : (state.player.berserkTimer > 0 ? 1.14 : 1) * (ultimateActive ? 1.08 : 1);
+    const squashX = hasFrameAnimation ? 1 : 1 + (1 - visual.squashScale) * 0.52;
+    const squashY = hasFrameAnimation ? 1 : visual.squashScale;
+    this.playerSprite.setPosition(visual.visualX, visual.visualY + (hasFrameAnimation ? 0 : visual.bobOffset));
     this.playerSprite.setDepth(state.player.y);
     this.playerSprite.setFlipX(Math.cos(visual.facingAngle) < -0.08);
-    this.playerSprite.setRotation(Math.sin(visual.facingAngle) * 0.025 + visual.attackTimer * 0.04);
+    this.playerSprite.setRotation(hasFrameAnimation ? 0 : Math.sin(visual.facingAngle) * 0.025 + visual.attackTimer * 0.04);
     this.playerSprite.setScale(baseScale * powerScale * squashX, baseScale * powerScale * squashY);
     this.playerSprite.setTint(ultimateActive ? areaColor(ultimateByHeroId[state.hero.id].vfxKey) : state.player.berserkTimer > 0 ? 0xff9b80 : 0xffffff);
-    if (!this.playerAttackActive && this.playerSprite.texture.key !== state.hero.spriteKey) {
-      this.playerSprite.setTexture(state.hero.spriteKey);
-    }
+    this.syncPlayerAnimation(state);
     this.syncPlayerGroundAura(state, baseScale);
   }
 
@@ -280,7 +315,34 @@ export class BattleScene extends Phaser.Scene {
     this.playerVisualState.visualX = state.player.x + Math.cos(this.playerVisualState.facingAngle) * lunge;
     this.playerVisualState.visualY = state.player.y + Math.sin(this.playerVisualState.facingAngle) * lunge + castLift;
     this.playerVisualState.bobOffset = breath + step;
+    this.playerVisualState.moveBlend = moveBlend;
     this.playerVisualState.squashScale = 1 + Math.sin(this.time.now / 360) * 0.018 - this.playerVisualState.attackTimer * 0.08 + moveBlend * 0.018;
+  }
+
+  private syncPlayerAnimation(state: RunState): void {
+    if (!this.playerSprite) {
+      return;
+    }
+    const art = characterArtById[state.hero.artId];
+    const idleKey = characterAnimationKey(art.textureKey, "idle");
+    const runKey = characterAnimationKey(art.textureKey, "run");
+    const hasIdleRun = this.anims.exists(idleKey) && this.anims.exists(runKey);
+    if (this.playerAttackActive && this.time.now >= this.playerAttackAnimUntil) {
+      this.playerAttackActive = false;
+    }
+    if (this.playerAttackActive) {
+      return;
+    }
+    if (!hasIdleRun) {
+      if (this.playerSprite.texture.key !== state.hero.spriteKey) {
+        this.playerSprite.setTexture(state.hero.spriteKey);
+      }
+      return;
+    }
+    const nextKey = this.playerVisualState.moveBlend > 0.12 ? runKey : idleKey;
+    if (this.playerSprite.anims.currentAnim?.key !== nextKey) {
+      this.playerSprite.play(nextKey);
+    }
   }
 
   private syncPlayerGroundAura(state: RunState, baseScale: number): void {
@@ -327,10 +389,17 @@ export class BattleScene extends Phaser.Scene {
     const liveIds = new Set<number>();
     for (const enemy of enemies) {
       liveIds.add(enemy.uid);
+      const visual = enemyVisualProfiles[enemy.defId];
       let sprite = this.enemySprites.get(enemy.uid);
       if (!sprite) {
-        sprite = this.acquireEnemySprite(enemyVisualProfiles[enemy.defId].spriteKey);
+        sprite = this.acquireEnemySprite(enemyInitialTextureKey(this, enemy.defId, visual.spriteKey));
+        sprite.setData("enemyDefId", enemy.defId);
+        sprite.setData("baseTextureKey", visual.spriteKey);
+        this.playEnemyAnimation(sprite, enemy.defId, "walk", true);
         this.enemySprites.set(enemy.uid, sprite);
+      } else {
+        sprite.setData("enemyDefId", enemy.defId);
+        sprite.setData("baseTextureKey", visual.spriteKey);
       }
       let shadow = this.enemyShadows.get(enemy.uid);
       if (!shadow) {
@@ -344,25 +413,41 @@ export class BattleScene extends Phaser.Scene {
         this.areaLayer?.add(frame);
         this.enemyFrames.set(enemy.uid, frame);
       }
-      const visual = enemyVisualProfiles[enemy.defId];
       const healthRatio = Math.max(0, enemy.hp / enemy.maxHp);
       const flash = enemy.flashTimer > 0;
-      const wobble = Math.sin(this.time.now / 180 + enemy.uid) * 0.025;
-      const baseScale = visual.baseScale * (flash ? 1.1 : 1) * (enemy.stunTimer > 0 ? 0.97 : 1);
+      const hasAnimatedEnemy = hasEnemyAnimation(this, enemy.defId, "walk");
+      const wobble = hasAnimatedEnemy ? 0 : Math.sin(this.time.now / 180 + enemy.uid) * 0.025;
+      const hitScale = flash ? (hasAnimatedEnemy ? 1.06 : 1.1) : 1;
+      const baseScale = enemyRenderScale(visual, hasAnimatedEnemy) * hitScale * (enemy.stunTimer > 0 ? 0.97 : 1);
       sprite.setPosition(enemy.x, enemy.y);
       sprite.setDepth(enemy.y - 5);
-      sprite.setTexture(visual.spriteKey);
+      if (hasAnimatedEnemy) {
+        this.syncEnemyAnimation(sprite, enemy, flash);
+      } else {
+        sprite.setTexture(enemyInitialTextureKey(this, enemy.defId, visual.spriteKey));
+      }
       sprite.setScale(baseScale + wobble);
       sprite.setAlpha(0.78 + healthRatio * 0.22);
-      sprite.setFlipX(enemy.x < (this.run?.player.x ?? enemy.x));
+      sprite.setFlipX(enemyShouldFlipX(enemy, this.run?.player.x ?? enemy.x));
       shadow.setPosition(enemy.x, enemy.y + enemy.radius * 0.78);
       shadow.setSize(enemy.radius * 2.5 * visual.shadowScale, enemy.radius * 0.82);
       shadow.setDepth(enemy.y - 18);
       shadow.setAlpha(0.24 + healthRatio * 0.18);
       if (flash) {
-        sprite.setTint(visual.hitTint);
-        if (enemy.flashTimer > 0.09) {
-          this.emitParticleBurst(enemy.x, enemy.y - enemy.radius * 0.2, vfxProfile("hit_spark"), enemy.defId === "lubu" ? 4 : 1, enemy.radius * 1.2, enemy.y + 80);
+        sprite.setTint(hasAnimatedEnemy ? 0xffffff : visual.hitTint);
+        const lastHitEffectAt = this.enemyHitEffectTimestamps.get(enemy.uid) ?? 0;
+        if (enemy.flashTimer > 0.09 && lastHitEffectAt + 120 < this.time.now) {
+          this.enemyHitEffectTimestamps.set(enemy.uid, this.time.now);
+          this.spawnHitFx({
+            x: enemy.x,
+            y: enemy.y - enemy.radius * 0.15,
+            angle: this.run ? Math.atan2(enemy.y - this.run.player.y, enemy.x - this.run.player.x) : 0,
+            radius: enemy.radius,
+            intensity: enemy.defId === "lubu" ? 1.6 : visual.eliteFrame ? 1.25 : 0.85,
+            color: 0xfff1cf,
+            critical: visual.eliteFrame !== undefined,
+            depth: enemy.y + 90
+          });
         }
       } else {
         sprite.setTint(enemy.burnTimer > 0 ? 0xff9e57 : 0xffffff);
@@ -373,14 +458,35 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const [id, sprite] of this.enemySprites) {
       if (!liveIds.has(id)) {
-        const profile = this.lastEnemyProfile(sprite.texture.key);
+        const defId = this.enemyIdFromSprite(sprite);
+        const profile = enemyVisualProfiles[defId] ?? this.lastEnemyProfile(sprite.getData("baseTextureKey") ?? sprite.texture.key);
         this.emitParticleBurst(sprite.x, sprite.y, vfxProfile(profile.deathFxKey), profile.eliteFrame ? 10 : 4, 42 * profile.shadowScale, sprite.y + 120);
+        if (profile.eliteFrame) {
+          this.combatJuiceEffects?.renderEliteDeathBurst({
+            x: sprite.x,
+            y: sprite.y,
+            radius: defId === "lubu" ? 72 : 46,
+            intensity: defId === "lubu" ? 1.6 : 1.15,
+            color: profile.outlineColor,
+            depth: sprite.y + 130
+          });
+        } else {
+          this.combatJuiceEffects?.renderDeathPuff({
+            x: sprite.x,
+            y: sprite.y,
+            radius: 28 * profile.shadowScale,
+            intensity: 0.9,
+            depth: sprite.y + 110
+          });
+        }
+        this.spawnEnemyDeathAnimation(defId, sprite, profile);
         this.releaseEnemySprite(sprite);
         this.enemySprites.delete(id);
         this.enemyShadows.get(id)?.destroy();
         this.enemyShadows.delete(id);
         this.enemyFrames.get(id)?.destroy();
         this.enemyFrames.delete(id);
+        this.enemyHitEffectTimestamps.delete(id);
       }
     }
   }
@@ -441,6 +547,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private syncXpOrbs(orbs: XpOrbState[]): void {
+    if (this.xpPickupEffects) {
+      this.xpPickupEffects.syncOrbs(orbs, { x: this.playerVisualState.visualX, y: this.playerVisualState.visualY }, this.time.now);
+      return;
+    }
     const liveIds = new Set<number>();
     for (const orb of orbs) {
       liveIds.add(orb.uid);
@@ -508,15 +618,18 @@ export class BattleScene extends Phaser.Scene {
       liveIds.add(event.uid);
       let graphics = this.combatEventGraphics.get(event.uid);
       const progress = Phaser.Math.Clamp(1 - event.ttl / eventLifetime(event), 0, 1);
+      const profile = vfxProfile(event.vfxKey);
       if (!graphics) {
         graphics = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(5200);
         this.impactLayer?.add(graphics);
         this.combatEventGraphics.set(event.uid, graphics);
         getAudioController(this).playCombatEvent(this, event);
         this.playEventImpulse(event);
-        this.emitParticleBurst(event.x, event.y, vfxProfile(event.vfxKey), particleCountForEvent(event), 54 * event.intensity, 5300);
+        this.renderCombatJuiceEvent(event, profile);
+        if (!usesGraphicsOnlyHitEvent(event)) {
+          this.emitParticleBurst(event.x, event.y, profile, particleCountForEvent(event), 54 * event.intensity, 5300);
+        }
       }
-      const profile = vfxProfile(event.vfxKey);
       graphics.clear();
       drawCombatEvent(graphics, event, profile, progress, this.time.now);
     }
@@ -535,7 +648,10 @@ export class BattleScene extends Phaser.Scene {
     const duration = event.type === "evolution" || event.type === "boss" || event.type === "ultimate" ? 260 : 90;
     const intensity =
       event.type === "crit" ? 0.0045 : event.type === "playerHit" ? 0.006 : event.type === "ultimate" ? 0.0042 : 0.003 * event.intensity;
-    this.cameras.main.shake(duration, intensity);
+    const shakeScale = Phaser.Math.Clamp(this.displaySettings.screenShake, 0, 1.25);
+    if (shakeScale > 0) {
+      this.cameras.main.shake(duration, intensity * shakeScale);
+    }
     if (event.type === "manual" || event.type === "evolution" || event.type === "morale" || event.type === "ultimate") {
       this.cameras.main.flash(event.type === "evolution" || event.type === "ultimate" ? 160 : 80, 255, 225, 160, false);
       const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" ? 1.035 : 1.018);
@@ -547,30 +663,202 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  private createPresentationEffects(): void {
+    if (this.projectileLayer && this.impactLayer) {
+      this.xpPickupEffects = new XpPickupEffects({
+        scene: this,
+        orbLayer: this.projectileLayer,
+        effectLayer: this.impactLayer
+      });
+      this.combatJuiceEffects = new CombatJuiceEffects(this, {
+        layer: this.impactLayer,
+        depth: 3600
+      });
+    }
+  }
+
+  private renderCombatJuiceEvent(event: CombatEventState, profile: VfxProfile): void {
+    if (event.type === "hit" || event.type === "crit" || event.type === "playerHit") {
+      const directionAngle =
+        event.type === "playerHit" && this.run
+          ? Math.atan2(this.run.player.y - event.y, this.run.player.x - event.x)
+          : this.run
+            ? Math.atan2(event.y - this.run.player.y, event.x - this.run.player.x)
+            : 0;
+      this.spawnHitFx({
+        x: event.x,
+        y: event.y,
+        angle: directionAngle,
+        radius: event.type === "crit" ? 34 : event.type === "playerHit" ? 30 : 22,
+        intensity: event.intensity,
+        color: profile.color,
+        critical: event.type === "crit",
+        depth: 5350
+      });
+      return;
+    }
+    if (event.type === "kill") {
+      this.combatJuiceEffects?.renderCollapseBurst({
+        x: event.x,
+        y: event.y,
+        radius: 28 * event.intensity,
+        intensity: event.intensity,
+        color: profile.color,
+        depth: 5350
+      });
+      return;
+    }
+    if (event.type === "levelUp" || event.type === "evolution") {
+      this.xpPickupEffects?.emitPickupPulse({
+        playerPosition: { x: this.playerVisualState.visualX, y: this.playerVisualState.visualY },
+        now: this.time.now,
+        count: event.type === "evolution" ? 4 : 2,
+        intensity: event.type === "evolution" ? 1.8 : 1.15
+      });
+    }
+  }
+
+  private spawnHitFx(options: {
+    x: number;
+    y: number;
+    angle: number;
+    radius: number;
+    intensity: number;
+    color: number;
+    critical: boolean;
+    depth: number;
+  }): void {
+    const animationKey = options.critical ? hitRadialAnimationKey : hitSparkAnimationKey;
+    const spritesheet = options.critical ? hitRadialSpritesheet : hitSparkSpritesheet;
+    if (!this.anims.exists(animationKey) || !this.textures.exists(spritesheet.key)) {
+      return;
+    }
+    const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.5, 1.25);
+    const scaleBase = options.critical
+      ? Phaser.Math.Clamp((options.radius / 72) * options.intensity, 0.36, 0.78)
+      : Phaser.Math.Clamp((options.radius / 16) * options.intensity, 1.25, 2.8);
+    const scale = scaleBase * effectScale;
+    const sprite = this.add
+      .sprite(options.x, options.y, spritesheet.key, 0)
+      .setOrigin(0.5)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(options.depth)
+      .setAlpha(Phaser.Math.Clamp((options.critical ? 0.76 : 0.88) * (0.78 + effectScale * 0.22), 0.36, 1))
+      .setRotation(options.critical ? options.angle * 0.25 : options.angle)
+      .setScale(scale);
+    if (options.critical) {
+      sprite.setTint(options.color);
+    }
+    this.impactLayer?.add(sprite);
+    this.hitFxSprites.add(sprite);
+    sprite.once(Phaser.GameObjects.Events.DESTROY, () => this.hitFxSprites.delete(sprite));
+    sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sprite.destroy());
+    sprite.play(animationKey);
+  }
+
+  private syncEnemyAnimation(sprite: Phaser.GameObjects.Sprite, enemy: EnemyState, flash: boolean): void {
+    const walkKey = enemyAnimationKey(enemy.defId, "walk");
+    const hitKey = enemyAnimationKey(enemy.defId, "hit");
+    const currentKey = sprite.anims.currentAnim?.key;
+    const playingHit = currentKey === hitKey && sprite.anims.isPlaying;
+    if (flash && !playingHit && this.anims.exists(hitKey) && (this.enemyHitEffectTimestamps.get(enemy.uid) ?? 0) + 120 < this.time.now) {
+      this.playEnemyAnimation(sprite, enemy.defId, "hit", true);
+      return;
+    }
+    if (!playingHit && (currentKey !== walkKey || !sprite.anims.isPlaying)) {
+      this.playEnemyAnimation(sprite, enemy.defId, "walk");
+    }
+  }
+
+  private playEnemyAnimation(
+    sprite: Phaser.GameObjects.Sprite,
+    enemyId: EnemyId,
+    animationId: EnemyAnimationId,
+    restart = false
+  ): void {
+    const key = enemyAnimationKey(enemyId, animationId);
+    if (!this.anims.exists(key)) {
+      return;
+    }
+    if (restart || sprite.anims.currentAnim?.key !== key) {
+      sprite.play(key, restart);
+    }
+  }
+
+  private spawnEnemyDeathAnimation(
+    enemyId: EnemyId,
+    source: Phaser.GameObjects.Sprite,
+    profile: EnemyVisualProfile
+  ): void {
+    const key = enemyAnimationKey(enemyId, "death");
+    const frameKey = enemyAnimationsById[enemyId]?.death.frameKeys[0] ?? profile.spriteKey;
+    if (!this.anims.exists(key) || !this.textures.exists(frameKey)) {
+      return;
+    }
+    const sprite = this.add
+      .sprite(source.x, source.y, frameKey)
+      .setOrigin(0.5, 0.82)
+      .setDepth(source.depth + 2)
+      .setFlipX(source.flipX)
+      .setScale(enemyRenderScale(profile, true))
+      .setAlpha(source.alpha);
+    this.unitLayer?.add(sprite);
+    this.enemyDeathSprites.add(sprite);
+    sprite.once(Phaser.GameObjects.Events.DESTROY, () => this.enemyDeathSprites.delete(sprite));
+    sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        y: sprite.y + 8,
+        duration: 120,
+        ease: "Quad.easeOut",
+        onComplete: () => sprite.destroy()
+      });
+    });
+    sprite.play(key);
+  }
+
   private applyResponsiveCameraZoom(): void {
     const { width, height } = this.scale.gameSize;
-    const nextZoom = Phaser.Math.Clamp(
+    const responsiveZoom = Phaser.Math.Clamp(
       Math.min(width / baseBattleViewport.width, height / baseBattleViewport.height, baseBattleViewport.maxZoom),
       baseBattleViewport.minZoom,
+      baseBattleViewport.maxZoom
+    );
+    const nextZoom = Phaser.Math.Clamp(
+      responsiveZoom / this.displaySettings.viewScale,
+      baseBattleViewport.minFinalZoom,
       baseBattleViewport.maxZoom
     );
     this.cameraBaseZoom = nextZoom;
     this.cameras.main.setZoom(nextZoom);
   }
 
-  private playHeroAttackAnimation(): void {
+  private playHeroAttackAnimation(includeManualFx = true): void {
     if (!this.run || !this.playerSprite) {
       return;
     }
     const art = characterArtById[this.run.hero.artId];
     const profile = vfxProfile(this.run.hero.manualAbility.vfxKey);
-    this.playerVisualState.castTimer = Math.max(this.playerVisualState.castTimer, 0.7);
-    if (isMeleeProfile(profile) || profile.presentationKind === "dash" || profile.presentationKind === "aura") {
+    this.playerVisualState.attackTimer = Math.max(this.playerVisualState.attackTimer, includeManualFx ? 1 : 0.58);
+    if (includeManualFx) {
+      this.playerVisualState.castTimer = Math.max(this.playerVisualState.castTimer, 0.7);
+    }
+    if (includeManualFx && (isMeleeProfile(profile) || profile.presentationKind === "dash" || profile.presentationKind === "aura")) {
       this.spawnMeleeFx(profile, this.playerVisualState.facingAngle, this.run.hero.manualAbility.radius * 1.15, true);
     }
+    const attackAnimation = art.animations?.attack;
+    const attackAnimationKey = characterAnimationKey(art.textureKey, "attack");
     const frameKeys = art.attackFrameKeys.filter((key) => this.textures.exists(key));
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
     this.playerAttackTimers = [];
+
+    if (attackAnimation && this.anims.exists(attackAnimationKey)) {
+      this.playerAttackActive = true;
+      this.playerAttackAnimUntil = this.time.now + (attackAnimation.frameKeys.length / attackAnimation.frameRate) * 1000;
+      this.playerSprite.play(attackAnimationKey);
+      return;
+    }
 
     if (frameKeys.length < 4) {
       const baseScale = art.battleScale ?? 1;
@@ -597,13 +885,15 @@ export class BattleScene extends Phaser.Scene {
           this.playerSprite.setTexture(this.run.hero.spriteKey);
         }
         this.playerAttackActive = false;
+        this.playerAttackAnimUntil = 0;
       })
     );
   }
 
   private syncFloatingTexts(texts: FloatingTextState[]): void {
     const liveIds = new Set<number>();
-    for (const item of texts) {
+    const visibleTexts = this.displaySettings.showDamageNumbers ? texts : texts.filter((item) => item.tone !== "damage");
+    for (const item of visibleTexts) {
       liveIds.add(item.uid);
       let text = this.floatingTexts.get(item.uid);
       if (!text) {
@@ -682,8 +972,8 @@ export class BattleScene extends Phaser.Scene {
       }
       if (fx.followPlayer) {
         const spin = fx.profile.motionStyle === "spin" ? progress * Math.PI * 1.45 : 0;
-        const x = this.playerVisualState.visualX + fx.offsetX * (1 - progress * 0.18);
-        const y = this.playerVisualState.visualY + fx.offsetY * (1 - progress * 0.18);
+        const x = this.playerVisualState.visualX + fx.offsetX;
+        const y = this.playerVisualState.visualY + fx.offsetY;
         fx.sprite.setPosition(x, y + this.playerVisualState.bobOffset * 0.45);
         fx.sprite.setDepth(y + 230);
         fx.sprite.setRotation(fx.baseRotation + spin);
@@ -706,26 +996,36 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private emitParticleBurst(x: number, y: number, profile: VfxProfile, count: number, spread: number, depth: number): void {
+    const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.5, 1.25);
+    const adjustedCount = count > 0 ? Math.max(1, Math.round(count * effectScale)) : 0;
+    if (adjustedCount <= 0) {
+      return;
+    }
     const particleKey = profile.particleKey ?? "particle_spark";
     const textureKey = this.textures.exists(particleKey) ? particleKey : "xp_orb";
-    for (let index = 0; index < count; index += 1) {
-      const angle = (Math.PI * 2 * (index + 0.5)) / Math.max(1, count) + ((this.time.now + index * 97) % 360) * Phaser.Math.DEG_TO_RAD;
-      const distance = spread * (0.35 + ((index * 29 + Math.floor(this.time.now)) % 70) / 100);
+    const staticBurst = usesStaticParticleBurst(profile);
+    for (let index = 0; index < adjustedCount; index += 1) {
+      const angle =
+        (Math.PI * 2 * (index + 0.5)) / Math.max(1, adjustedCount) + ((this.time.now + index * 97) % 360) * Phaser.Math.DEG_TO_RAD;
+      const distance = staticBurst ? Math.min(10, spread * 0.16) : spread * (0.18 + ((index * 17 + Math.floor(this.time.now)) % 32) / 100);
+      const startX = x + (staticBurst ? Math.cos(angle) * distance : 0);
+      const startY = y + (staticBurst ? Math.sin(angle) * distance * 0.62 : 0);
       const sprite = this.add
-        .sprite(x, y, textureKey)
+        .sprite(startX, startY, textureKey)
         .setBlendMode(blendMode(profile))
         .setTint(profile.color)
         .setDepth(depth)
-        .setAlpha(0.72)
-        .setScale(profile.scale * (0.035 + (index % 3) * 0.012));
+        .setAlpha(Phaser.Math.Clamp(0.56 + effectScale * 0.16, 0.42, 0.82))
+        .setScale(profile.scale * effectScale * (0.035 + (index % 3) * 0.012));
       this.impactLayer?.add(sprite);
       this.tweens.add({
         targets: sprite,
-        x: x + Math.cos(angle) * distance,
-        y: y + Math.sin(angle) * distance * 0.68,
+        x: staticBurst ? startX : x + Math.cos(angle) * distance,
+        y: staticBurst ? startY : y + Math.sin(angle) * distance * 0.68,
         alpha: 0,
-        scale: sprite.scaleX * (1.7 + (index % 3) * 0.28),
-        duration: 260 + profile.lifetime * 260,
+        rotation: sprite.rotation + (staticBurst ? 0.35 : 0),
+        scale: sprite.scaleX * (staticBurst ? 2.4 : 1.55 + (index % 3) * 0.22),
+        duration: staticBurst ? 150 + profile.lifetime * 180 : 240 + profile.lifetime * 220,
         ease: "Quad.easeOut",
         onComplete: () => sprite.destroy()
       });
@@ -736,17 +1036,34 @@ export class BattleScene extends Phaser.Scene {
     return Object.values(enemyVisualProfiles).find((profile) => profile.spriteKey === textureKey) ?? enemyVisualProfiles.infantry;
   }
 
+  private enemyIdFromSprite(sprite: Phaser.GameObjects.Sprite): EnemyId {
+    const enemyId = sprite.getData("enemyDefId") as EnemyId | undefined;
+    if (enemyId && enemyId in enemyVisualProfiles) {
+      return enemyId;
+    }
+    const baseTextureKey = sprite.getData("baseTextureKey") ?? sprite.texture.key;
+    return (
+      (Object.entries(enemyVisualProfiles).find(([, profile]) => profile.spriteKey === baseTextureKey)?.[0] as EnemyId | undefined) ??
+      "infantry"
+    );
+  }
+
   private acquireEnemySprite(textureKey: string): Phaser.GameObjects.Sprite {
     const sprite = this.enemyPool.pop() ?? this.add.sprite(0, 0, textureKey);
+    sprite.stop();
     sprite.setTexture(textureKey);
     sprite.setOrigin(0.5, 0.82);
     sprite.setVisible(true);
     sprite.setActive(true);
+    sprite.setAlpha(1);
+    sprite.clearTint();
     this.unitLayer?.add(sprite);
     return sprite;
   }
 
   private releaseEnemySprite(sprite: Phaser.GameObjects.Sprite): void {
+    sprite.stop();
+    sprite.clearTint();
     sprite.setVisible(false);
     sprite.setActive(false);
     this.enemyPool.push(sprite);
@@ -789,13 +1106,22 @@ export class BattleScene extends Phaser.Scene {
     for (let index = 0; index < 42; index += 1) {
       const x = 180 + ((index * 577) % (this.run.world.width - 360));
       const y = 180 + ((index * 821) % (this.run.world.height - 360));
-      const texture = index % 7 === 0 ? "battle_banner_red" : index % 7 === 3 ? "battle_banner_jade" : index % 3 === 0 ? "battle_spear_prop" : "battle_stone_prop";
+      const texture =
+        index % 9 === 0
+          ? "battle_cloth_red"
+          : index % 9 === 4
+            ? "battle_cloth_jade"
+            : index % 3 === 0
+              ? "battle_spear_prop"
+              : "battle_stone_prop";
+      const isCloth = texture.includes("cloth");
+      const isSpear = texture.includes("spear");
       const sprite = this.add
         .sprite(x, y, texture)
-        .setDepth(y - 120)
-        .setAlpha(texture.includes("banner") ? 0.64 : 0.48)
-        .setScale(texture.includes("banner") ? 0.78 + (index % 4) * 0.08 : 0.55 + (index % 5) * 0.07)
-        .setRotation(texture.includes("spear") ? -0.6 + (index % 5) * 0.25 : 0);
+        .setDepth(y - 180)
+        .setAlpha(isCloth ? 0.2 : isSpear ? 0.28 : 0.18)
+        .setScale(isCloth ? 0.72 + (index % 3) * 0.05 : isSpear ? 0.5 + (index % 4) * 0.04 : 0.46 + (index % 5) * 0.04)
+        .setRotation(isCloth ? -0.28 + (index % 5) * 0.14 : isSpear ? -0.88 + (index % 7) * 0.22 : -0.18 + (index % 4) * 0.12);
       this.backgroundLayer?.add(sprite);
     }
   }
@@ -877,6 +1203,11 @@ export class BattleScene extends Phaser.Scene {
     this.enemySprites.clear();
     this.enemyShadows.clear();
     this.enemyFrames.clear();
+    this.enemyHitEffectTimestamps.clear();
+    this.enemyDeathSprites.forEach((sprite) => sprite.destroy());
+    this.enemyDeathSprites.clear();
+    this.hitFxSprites.forEach((sprite) => sprite.destroy());
+    this.hitFxSprites.clear();
     this.enemyPool = [];
     this.projectileSprites.clear();
     this.projectileTrailTimestamps.clear();
@@ -895,10 +1226,16 @@ export class BattleScene extends Phaser.Scene {
     this.unitLayer = undefined;
     this.projectileLayer = undefined;
     this.impactLayer = undefined;
+    this.xpPickupEffects?.destroy();
+    this.xpPickupEffects = undefined;
+    this.combatJuiceEffects?.cleanup();
+    this.combatJuiceEffects = undefined;
     this.playerGroundAura?.destroy();
     this.playerGroundAura = undefined;
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
     this.playerAttackTimers = [];
+    this.playerAttackActive = false;
+    this.playerAttackAnimUntil = 0;
   }
 }
 
@@ -910,8 +1247,37 @@ function blendMode(profile: VfxProfile): Phaser.BlendModes {
   return profile.blendMode === "add" ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
 }
 
+function characterAnimationKey(textureKey: string, animationId: CharacterAnimationId): string {
+  return `${textureKey}_${animationId}`;
+}
+
+function hasCharacterAnimation(scene: Phaser.Scene, textureKey: string, animationId: CharacterAnimationId): boolean {
+  return scene.anims.exists(characterAnimationKey(textureKey, animationId));
+}
+
+function hasEnemyAnimation(scene: Phaser.Scene, enemyId: EnemyId, animationId: EnemyAnimationId): boolean {
+  return scene.anims.exists(enemyAnimationKey(enemyId, animationId));
+}
+
+function enemyInitialTextureKey(scene: Phaser.Scene, enemyId: EnemyId, fallbackKey: string): string {
+  const frameKey = enemyAnimationsById[enemyId]?.walk.frameKeys[0];
+  return frameKey && scene.textures.exists(frameKey) ? frameKey : fallbackKey;
+}
+
+function enemyShouldFlipX(enemy: EnemyState, playerX: number): boolean {
+  return enemy.defId === "archer" ? enemy.x > playerX : enemy.x < playerX;
+}
+
+function enemyRenderScale(visual: EnemyVisualProfile, animated: boolean): number {
+  return animated ? (visual.animationScale ?? visual.baseScale * 0.72) : visual.baseScale;
+}
+
 function isMeleeProfile(profile: VfxProfile): boolean {
   return profile.presentationKind === "meleeArc" || profile.originMode === "playerAnchored";
+}
+
+function usesStaticParticleBurst(profile: VfxProfile): boolean {
+  return isMeleeProfile(profile) || profile.textureKey === "melee_arc" || profile.particleKey === "particle_spark";
 }
 
 function meleeScale(profile: VfxProfile, radius: number): number {
@@ -1037,11 +1403,14 @@ function drawCombatEvent(
 ): void {
   const color = profile.color;
   const fade = 1 - progress;
-  if (event.type === "hit" || event.type === "crit" || event.type === "kill" || event.type === "playerHit") {
-    const radius = (event.type === "crit" ? 38 : event.type === "kill" ? 26 : 18) * event.intensity * (1 + progress * 0.85);
+  if (event.type === "hit" || event.type === "crit" || event.type === "playerHit") {
+    return;
+  }
+  if (event.type === "kill") {
+    const radius = 26 * event.intensity * (1 + progress * 0.85);
     graphics.fillStyle(color, 0.3 * fade);
     graphics.fillCircle(event.x, event.y, radius);
-    graphics.lineStyle(event.type === "crit" ? 4 : 2, color, 0.86 * fade);
+    graphics.lineStyle(2, color, 0.86 * fade);
     for (let index = 0; index < 8; index += 1) {
       const angle = (Math.PI * 2 * index) / 8 + progress * 1.9;
       const inner = radius * 0.45;
@@ -1075,6 +1444,10 @@ function particleCountForEvent(event: CombatEventState): number {
     return 10;
   }
   return event.type === "hit" ? 2 : 5;
+}
+
+function usesGraphicsOnlyHitEvent(event: CombatEventState): boolean {
+  return event.type === "hit" || event.type === "crit" || event.type === "playerHit";
 }
 
 function areaColor(vfxKey: string): number {
