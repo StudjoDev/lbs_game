@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "assets:audio": "node scripts/generate-audio-assets.mjs",
     "assets:characters": "node scripts/generate-character-bitmaps.mjs",
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",

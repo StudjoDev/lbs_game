@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const outputRoot = join(root, "public", "assets", "characters");
+const outputRoot = join(root, "public", "assets", "characters-legacy");
 const sourceRoot = join(root, "scripts", "source");
 
 const characters = [
