@@ -1,0 +1,40 @@
+export const textureKeys = {
+  heroes: ["hero_guanyu", "hero_zhaoyun", "hero_caocao", "hero_xiahoudun", "hero_zhouyu", "hero_sunshangxiang"],
+  heroAttackFrames: [
+    "hero_guanyu_attack_0",
+    "hero_guanyu_attack_1",
+    "hero_guanyu_attack_2",
+    "hero_guanyu_attack_3",
+    "hero_zhaoyun_attack_0",
+    "hero_zhaoyun_attack_1",
+    "hero_zhaoyun_attack_2",
+    "hero_zhaoyun_attack_3",
+    "hero_caocao_attack_0",
+    "hero_caocao_attack_1",
+    "hero_caocao_attack_2",
+    "hero_caocao_attack_3",
+    "hero_xiahoudun_attack_0",
+    "hero_xiahoudun_attack_1",
+    "hero_xiahoudun_attack_2",
+    "hero_xiahoudun_attack_3",
+    "hero_zhouyu_attack_0",
+    "hero_zhouyu_attack_1",
+    "hero_zhouyu_attack_2",
+    "hero_zhouyu_attack_3",
+    "hero_sunshangxiang_attack_0",
+    "hero_sunshangxiang_attack_1",
+    "hero_sunshangxiang_attack_2",
+    "hero_sunshangxiang_attack_3"
+  ],
+  portraits: [
+    "portrait_guanyu",
+    "portrait_zhaoyun",
+    "portrait_caocao",
+    "portrait_xiahoudun",
+    "portrait_zhouyu",
+    "portrait_sunshangxiang"
+  ],
+  enemies: ["enemy_infantry", "enemy_archer", "enemy_shield", "enemy_cavalry", "enemy_captain", "enemy_lubu"],
+  enemyAttackFrames: ["enemy_lubu_attack_0", "enemy_lubu_attack_1", "enemy_lubu_attack_2", "enemy_lubu_attack_3"],
+  fx: ["slash", "spear", "fire", "arrow", "command", "shock", "xp_orb", "shadow"]
+} as const;

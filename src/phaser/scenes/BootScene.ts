@@ -1,0 +1,387 @@
+import Phaser from "phaser";
+import { characterArts } from "../../game/content/characterArt";
+
+interface HeroLook {
+  key: string;
+  portrait: string;
+  glyph: string;
+  primary: string;
+  accent: string;
+  weapon: "glaive" | "spear" | "sword" | "blade" | "fan" | "bow";
+}
+
+const heroLooks: HeroLook[] = [
+  { key: "hero_guanyu", portrait: "portrait_guanyu", glyph: "關", primary: "#28634d", accent: "#d6a23b", weapon: "glaive" },
+  { key: "hero_zhaoyun", portrait: "portrait_zhaoyun", glyph: "趙", primary: "#2f8d76", accent: "#e7e8df", weapon: "spear" },
+  { key: "hero_caocao", portrait: "portrait_caocao", glyph: "曹", primary: "#365d9f", accent: "#d7dbe9", weapon: "sword" },
+  { key: "hero_xiahoudun", portrait: "portrait_xiahoudun", glyph: "夏", primary: "#2f4778", accent: "#c9473b", weapon: "blade" },
+  { key: "hero_zhouyu", portrait: "portrait_zhouyu", glyph: "周", primary: "#9f3b31", accent: "#f0b15f", weapon: "fan" },
+  { key: "hero_sunshangxiang", portrait: "portrait_sunshangxiang", glyph: "香", primary: "#b4473d", accent: "#f6c779", weapon: "bow" },
+  { key: "hero_diaochan", portrait: "portrait_diaochan", glyph: "貂", primary: "#ff78b7", accent: "#ffd98a", weapon: "fan" }
+];
+
+const enemyLooks = [
+  { key: "enemy_infantry", glyph: "卒", primary: "#6c5a4d", accent: "#ded0b0", size: 58 },
+  { key: "enemy_archer", glyph: "弓", primary: "#6b7042", accent: "#d6c17a", size: 54 },
+  { key: "enemy_shield", glyph: "盾", primary: "#59606a", accent: "#c5cbd6", size: 64 },
+  { key: "enemy_cavalry", glyph: "騎", primary: "#7d4c34", accent: "#e0b16b", size: 62 },
+  { key: "enemy_captain", glyph: "將", primary: "#73444d", accent: "#e2b55f", size: 74 },
+  { key: "enemy_lubu", glyph: "呂", primary: "#4b2c5c", accent: "#f04e4e", size: 112 }
+];
+
+export class BootScene extends Phaser.Scene {
+  constructor() {
+    super("BootScene");
+  }
+
+  preload(): void {
+    for (const art of characterArts) {
+      this.load.image(art.textureKey, art.battleImage);
+      art.attackFrames.forEach((framePath, index) => {
+        this.load.image(art.attackFrameKeys[index], framePath);
+      });
+    }
+  }
+
+  create(): void {
+    this.createGroundTile();
+    this.createFxTextures();
+    for (const look of heroLooks) {
+      if (!this.textures.exists(look.key)) {
+        this.createHeroTexture(look);
+      }
+      if (!this.textures.exists(look.portrait)) {
+        this.createPortraitTexture(look);
+      }
+    }
+    for (const enemy of enemyLooks) {
+      if (!this.textures.exists(enemy.key)) {
+        this.createEnemyTexture(enemy.key, enemy.glyph, enemy.primary, enemy.accent, enemy.size);
+      }
+    }
+    this.scene.start("MenuScene");
+  }
+
+  private createGroundTile(): void {
+    const texture = this.textures.createCanvas("ground_tile", 192, 192)!;
+    const ctx = texture.getContext();
+    const gradient = ctx.createLinearGradient(0, 0, 192, 192);
+    gradient.addColorStop(0, "#3a1d30");
+    gradient.addColorStop(0.5, "#1d121d");
+    gradient.addColorStop(1, "#4a2636");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 192, 192);
+    ctx.strokeStyle = "rgba(255, 217, 138, 0.2)";
+    ctx.lineWidth = 1;
+    for (let x = -64; x < 224; x += 32) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 64, 192);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(255, 120, 183, 0.1)";
+    for (let y = 16; y < 192; y += 48) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(192, y + 18);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(255, 229, 167, 0.12)";
+    for (let index = 0; index < 24; index += 1) {
+      ctx.beginPath();
+      ctx.arc((index * 47) % 192, (index * 83) % 192, 1 + (index % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255, 154, 203, 0.16)";
+    for (let index = 0; index < 8; index += 1) {
+      const x = (index * 59) % 192;
+      const y = (index * 97) % 192;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 7, 3, index * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    texture.refresh();
+  }
+
+  private createHeroTexture(look: HeroLook): void {
+    const texture = this.textures.createCanvas(look.key, 128, 150)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 128, 150);
+    drawShadow(ctx, 64, 132, 44, 12);
+    ctx.fillStyle = look.primary;
+    ctx.strokeStyle = look.accent;
+    ctx.lineWidth = 4;
+    drawCape(ctx, look.primary);
+    drawArmor(ctx, look.primary, look.accent);
+    drawHead(ctx, look.accent);
+    drawWeapon(ctx, look.weapon, look.accent);
+    ctx.fillStyle = "rgba(255, 246, 214, 0.92)";
+    ctx.font = "700 24px serif";
+    ctx.textAlign = "center";
+    ctx.fillText(look.glyph, 64, 82);
+    texture.refresh();
+  }
+
+  private createPortraitTexture(look: HeroLook): void {
+    const texture = this.textures.createCanvas(look.portrait, 320, 420)!;
+    const ctx = texture.getContext();
+    const gradient = ctx.createLinearGradient(0, 0, 320, 420);
+    gradient.addColorStop(0, look.primary);
+    gradient.addColorStop(0.52, "#17120f");
+    gradient.addColorStop(1, look.accent);
+    ctx.fillStyle = gradient;
+    roundRect(ctx, 0, 0, 320, 420, 22);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 244, 207, 0.13)";
+    ctx.font = "700 190px serif";
+    ctx.textAlign = "center";
+    ctx.fillText(look.glyph, 160, 250);
+    ctx.strokeStyle = "rgba(255, 242, 201, 0.44)";
+    ctx.lineWidth = 8;
+    roundRect(ctx, 18, 18, 284, 384, 18);
+    ctx.stroke();
+    texture.refresh();
+  }
+
+  private createEnemyTexture(key: string, glyph: string, primary: string, accent: string, size: number): void {
+    const texture = this.textures.createCanvas(key, size, size + 20)!;
+    const ctx = texture.getContext();
+    const mid = size / 2;
+    drawShadow(ctx, mid, size + 12, size * 0.33, size * 0.12);
+    const boss = key === "enemy_lubu";
+    ctx.fillStyle = primary;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = Math.max(3, size * 0.045);
+    ctx.beginPath();
+    ctx.ellipse(mid, size * 0.47, size * 0.32, size * 0.36, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = boss ? "#352044" : "#f2c79b";
+    ctx.beginPath();
+    ctx.ellipse(mid, size * 0.46, size * 0.24, size * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 245, 218, 0.34)";
+    ctx.lineWidth = Math.max(2, size * 0.024);
+    ctx.stroke();
+    ctx.fillStyle = primary;
+    ctx.beginPath();
+    ctx.moveTo(mid - size * 0.36, size * 0.34);
+    ctx.lineTo(mid - size * 0.18, size * 0.08);
+    ctx.lineTo(mid + size * 0.18, size * 0.08);
+    ctx.lineTo(mid + size * 0.36, size * 0.34);
+    ctx.lineTo(mid + size * 0.24, size * 0.28);
+    ctx.lineTo(mid - size * 0.24, size * 0.28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = Math.max(3, size * 0.045);
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.ellipse(mid, size * 0.22, size * 0.08, size * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+    drawCuteEye(ctx, mid - size * 0.09, size * 0.47, size * 0.11, boss ? "#ff5f9e" : "#5a3b2e");
+    drawCuteEye(ctx, mid + size * 0.09, size * 0.47, size * 0.11, boss ? "#ff5f9e" : "#5a3b2e");
+    ctx.strokeStyle = boss ? "#ffd98a" : "#6d3a2c";
+    ctx.lineWidth = Math.max(2, size * 0.025);
+    ctx.beginPath();
+    ctx.arc(mid, size * 0.57, size * 0.07, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+    ctx.fillStyle = primary;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = Math.max(3, size * 0.04);
+    roundRect(ctx, mid - size * 0.22, size * 0.69, size * 0.44, size * 0.26, size * 0.07);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 238, 194, 0.88)";
+    ctx.font = `700 ${Math.floor(size * 0.2)}px serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(glyph, mid, size * 0.87);
+    texture.refresh();
+  }
+
+  private createFxTextures(): void {
+    this.createStreakTexture("qinglong_arc", "#7bf0af", 96, 28);
+    this.createStreakTexture("dragon_slash", "#86ffc6", 150, 32);
+    this.createStreakTexture("spear_flash", "#dffcff", 120, 18);
+    this.createStreakTexture("dragon_dash", "#9bf3ff", 130, 24);
+    this.createStreakTexture("wei_swords", "#d6ddff", 102, 20);
+    this.createStreakTexture("tiger_cavalry", "#a8bdff", 150, 30);
+    this.createStreakTexture("iron_cleave", "#d9dde8", 96, 30);
+    this.createStreakTexture("blood_rage", "#ff5548", 104, 36);
+    this.createStreakTexture("fire_note", "#ff8d3e", 82, 26);
+    this.createStreakTexture("red_cliff_fire", "#ff6a35", 122, 40);
+    this.createStreakTexture("crossbow_fan", "#ffd36a", 82, 14);
+    this.createStreakTexture("arrow_rain", "#ffc759", 72, 16);
+    this.createStreakTexture("petal_waltz", "#ff9acb", 92, 24);
+    this.createStreakTexture("allure_dance", "#ffd98a", 124, 34);
+    this.createStreakTexture("moon_blades", "#fff1a8", 104, 20);
+    this.createStreakTexture("frost_lotus", "#9eefff", 110, 28);
+    this.createStreakTexture("phoenix_feathers", "#ff8a4f", 104, 20);
+    this.createStreakTexture("thunder_charm", "#c9a8ff", 118, 26);
+    this.createStreakTexture("shadow_clones", "#c7d2ff", 124, 22);
+    this.createStreakTexture("siege_drums", "#ffd98a", 132, 34);
+    this.createStreakTexture("enemy_arrow", "#e7c27b", 62, 12);
+    this.createOrbTexture("xp_orb", "#75e8ff", "#f7f8cc");
+  }
+
+  private createStreakTexture(key: string, color: string, width: number, height: number): void {
+    const texture = this.textures.createCanvas(key, width, height)!;
+    const ctx = texture.getContext();
+    const gradient = ctx.createLinearGradient(0, height / 2, width, height / 2);
+    gradient.addColorStop(0, "rgba(255,255,255,0)");
+    gradient.addColorStop(0.34, color);
+    gradient.addColorStop(0.7, "rgba(255,255,255,0.9)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.ellipse(width / 2, height / 2, width * 0.45, height * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    texture.refresh();
+  }
+
+  private createOrbTexture(key: string, color: string, core: string): void {
+    const texture = this.textures.createCanvas(key, 32, 32)!;
+    const ctx = texture.getContext();
+    const gradient = ctx.createRadialGradient(16, 16, 2, 16, 16, 16);
+    gradient.addColorStop(0, core);
+    gradient.addColorStop(0.35, color);
+    gradient.addColorStop(1, "rgba(117,232,255,0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+    texture.refresh();
+  }
+}
+
+function drawArmor(ctx: CanvasRenderingContext2D, primary: string, accent: string): void {
+  ctx.fillStyle = primary;
+  ctx.beginPath();
+  ctx.moveTo(42, 58);
+  ctx.lineTo(86, 58);
+  ctx.lineTo(102, 118);
+  ctx.quadraticCurveTo(64, 138, 26, 118);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255, 244, 210, 0.45)";
+  ctx.lineWidth = 2;
+  for (let x = 43; x <= 84; x += 14) {
+    ctx.beginPath();
+    ctx.moveTo(x, 63);
+    ctx.lineTo(x + 6, 121);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = accent;
+}
+
+function drawCape(ctx: CanvasRenderingContext2D, primary: string): void {
+  ctx.fillStyle = primary;
+  ctx.globalAlpha = 0.58;
+  ctx.beginPath();
+  ctx.moveTo(44, 54);
+  ctx.bezierCurveTo(9, 82, 11, 118, 32, 136);
+  ctx.bezierCurveTo(54, 120, 72, 83, 84, 56);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawHead(ctx: CanvasRenderingContext2D, accent: string): void {
+  ctx.fillStyle = "#241813";
+  ctx.beginPath();
+  ctx.arc(64, 42, 20, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(44, 35);
+  ctx.quadraticCurveTo(64, 16, 84, 35);
+  ctx.stroke();
+}
+
+function drawWeapon(ctx: CanvasRenderingContext2D, weapon: HeroLook["weapon"], accent: string): void {
+  ctx.strokeStyle = accent;
+  ctx.fillStyle = accent;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  if (weapon === "glaive") {
+    ctx.beginPath();
+    ctx.moveTo(28, 122);
+    ctx.lineTo(102, 24);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(103, 24, 8, 20, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (weapon === "spear") {
+    ctx.beginPath();
+    ctx.moveTo(24, 118);
+    ctx.lineTo(104, 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(104, 20);
+    ctx.lineTo(99, 41);
+    ctx.lineTo(117, 31);
+    ctx.closePath();
+    ctx.fill();
+  } else if (weapon === "bow") {
+    ctx.beginPath();
+    ctx.arc(92, 74, 42, -1.25, 1.25);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(90, 34);
+    ctx.lineTo(90, 114);
+    ctx.stroke();
+  } else if (weapon === "fan") {
+    for (let angle = -0.6; angle <= 0.6; angle += 0.3) {
+      ctx.beginPath();
+      ctx.moveTo(38, 96);
+      ctx.lineTo(38 + Math.cos(angle) * 62, 96 + Math.sin(angle) * 62);
+      ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(100, 118);
+    ctx.lineTo(38, 38);
+    ctx.stroke();
+  }
+}
+
+function drawShadow(ctx: CanvasRenderingContext2D, x: number, y: number, radiusX: number, radiusY: number): void {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCuteEye(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string): void {
+  ctx.fillStyle = "rgba(255, 248, 235, 0.98)";
+  ctx.beginPath();
+  ctx.ellipse(x, y, radius * 0.86, radius * 1.08, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x, y + radius * 0.08, radius * 0.48, radius * 0.72, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(35, 15, 20, 0.95)";
+  ctx.beginPath();
+  ctx.ellipse(x + radius * 0.08, y + radius * 0.16, radius * 0.24, radius * 0.44, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.beginPath();
+  ctx.arc(x - radius * 0.18, y - radius * 0.28, radius * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}

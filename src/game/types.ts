@@ -1,0 +1,321 @@
+export type FactionId = "shu" | "wei" | "wu" | "qun";
+export type HeroId = "guanyu" | "zhaoyun" | "caocao" | "xiahoudun" | "zhouyu" | "sunshangxiang" | "diaochan";
+export type CharacterId = HeroId | "lubu";
+export type EnemyId = "infantry" | "archer" | "shield" | "cavalry" | "captain" | "lubu";
+export type AbilityTrigger = "auto" | "manual" | "ultimate";
+export type DamageTag = "blade" | "pierce" | "fire" | "command" | "shock" | "arrow" | "charm";
+export type RunStatus = "playing" | "levelUp" | "paused" | "won" | "lost";
+export type UpgradeRarity = "common" | "technique" | "faction" | "hero" | "evolution" | "relic";
+export type CombatEventType =
+  | "hit"
+  | "crit"
+  | "kill"
+  | "levelUp"
+  | "manual"
+  | "evolution"
+  | "morale"
+  | "boss"
+  | "playerHit";
+
+export interface Vector2 {
+  x: number;
+  y: number;
+}
+
+export interface FactionDef {
+  id: FactionId;
+  name: string;
+  subtitle: string;
+  passiveName: string;
+  passiveText: string;
+  palette: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+}
+
+export interface AbilityDef {
+  id: string;
+  name: string;
+  description: string;
+  trigger: AbilityTrigger;
+  cooldown: number;
+  range: number;
+  radius: number;
+  damage: number;
+  damageTags: DamageTag[];
+  vfxKey: string;
+  effectId: string;
+}
+
+export interface HeroDef {
+  id: HeroId;
+  artId: CharacterId;
+  factionId: FactionId;
+  name: string;
+  title: string;
+  role: string;
+  passiveName: string;
+  passiveText: string;
+  baseStats: {
+    maxHp: number;
+    moveSpeed: number;
+    armor: number;
+    pickupRadius: number;
+  };
+  autoAbility: AbilityDef;
+  manualAbility: AbilityDef;
+  portraitKey: string;
+  spriteKey: string;
+}
+
+export interface BondDef {
+  id: string;
+  name: string;
+  description: string;
+  characterIds: CharacterId[];
+}
+
+export interface CharacterArtDef {
+  id: CharacterId;
+  factionId?: FactionId;
+  name: string;
+  title: string;
+  rarityLabel: string;
+  stars: number;
+  role: string;
+  quote: string;
+  biography: string;
+  bondIds: string[];
+  cardImage: string;
+  battleImage: string;
+  attackStrip: string;
+  attackFrames: string[];
+  textureKey: string;
+  attackFrameKeys: string[];
+  battleScale?: number;
+  anchor: {
+    x: number;
+    y: number;
+  };
+  palette: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  playable: boolean;
+}
+
+export interface CollectionEntry {
+  characterId: CharacterId;
+  owned: boolean;
+  revealed: boolean;
+  stars: number;
+  bondIds: string[];
+  defeatedAt?: string;
+}
+
+export type CollectionState = Record<CharacterId, CollectionEntry>;
+
+export interface EnemyDef {
+  id: EnemyId;
+  name: string;
+  maxHp: number;
+  speed: number;
+  radius: number;
+  damage: number;
+  xp: number;
+  score: number;
+  attackRange: number;
+  attackCooldown: number;
+  spriteKey: string;
+  tags: string[];
+}
+
+export interface UpgradeDef {
+  id: string;
+  name: string;
+  description: string;
+  rarity: UpgradeRarity;
+  maxStacks: number;
+  factionId?: FactionId;
+  heroId?: HeroId;
+  requires?: {
+    level?: number;
+    upgradeId?: string;
+    stacks?: number;
+  };
+  unlockId?: string;
+  apply: UpgradeEffect[];
+}
+
+export interface UpgradeEffect {
+  stat:
+    | "damageScale"
+    | "cooldownScale"
+    | "areaScale"
+    | "moveSpeed"
+    | "maxHp"
+    | "armor"
+    | "pickupRadius"
+    | "regen"
+    | "critChance"
+    | "critDamage"
+    | "xpScale"
+    | "companionDamage"
+    | "evolvedPower"
+    | "bossDamage";
+  amount: number;
+}
+
+export interface PlayerState {
+  id: "player";
+  heroId: HeroId;
+  factionId: FactionId;
+  x: number;
+  y: number;
+  radius: number;
+  hp: number;
+  maxHp: number;
+  moveSpeed: number;
+  armor: number;
+  pickupRadius: number;
+  damageScale: number;
+  cooldownScale: number;
+  areaScale: number;
+  burnScale: number;
+  comboScale: number;
+  guardChance: number;
+  critChance: number;
+  critDamage: number;
+  xpScale: number;
+  companionDamage: number;
+  evolvedPower: number;
+  bossDamage: number;
+  regen: number;
+  morale: number;
+  maxMorale: number;
+  level: number;
+  xp: number;
+  nextXp: number;
+  autoCooldown: number;
+  manualCooldown: number;
+  companionCooldown: number;
+  berserkTimer: number;
+}
+
+export interface EnemyState {
+  uid: number;
+  defId: EnemyId;
+  x: number;
+  y: number;
+  radius: number;
+  hp: number;
+  maxHp: number;
+  speed: number;
+  damage: number;
+  attackCooldown: number;
+  burnTimer: number;
+  burnDps: number;
+  stunTimer: number;
+  flashTimer: number;
+  phase: number;
+}
+
+export interface ProjectileState {
+  uid: number;
+  source: "player" | "enemy";
+  target: "enemy" | "player";
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  damage: number;
+  ttl: number;
+  pierce: number;
+  hitIds: number[];
+  tags: DamageTag[];
+  vfxKey: string;
+}
+
+export interface AreaState {
+  uid: number;
+  source: "player" | "enemy";
+  target: "enemy" | "player";
+  x: number;
+  y: number;
+  radius: number;
+  damagePerSecond: number;
+  ttl: number;
+  tickTimer: number;
+  tickEvery: number;
+  tags: DamageTag[];
+  vfxKey: string;
+}
+
+export interface FloatingTextState {
+  uid: number;
+  x: number;
+  y: number;
+  text: string;
+  ttl: number;
+  tone: "damage" | "heal" | "xp" | "alert";
+}
+
+export interface XpOrbState {
+  uid: number;
+  x: number;
+  y: number;
+  value: number;
+  radius: number;
+}
+
+export interface CombatEventState {
+  uid: number;
+  type: CombatEventType;
+  x: number;
+  y: number;
+  ttl: number;
+  intensity: number;
+  vfxKey: string;
+  text?: string;
+}
+
+export interface InputState {
+  move: Vector2;
+  manualPressed: boolean;
+  pausePressed: boolean;
+}
+
+export interface RunState {
+  status: RunStatus;
+  hero: HeroDef;
+  faction: FactionDef;
+  player: PlayerState;
+  enemies: EnemyState[];
+  projectiles: ProjectileState[];
+  areas: AreaState[];
+  floatingTexts: FloatingTextState[];
+  combatEvents: CombatEventState[];
+  xpOrbs: XpOrbState[];
+  upgrades: Record<string, number>;
+  unlocks: Record<string, boolean>;
+  techniqueCooldowns: Record<string, number>;
+  pendingUpgradeIds: string[];
+  elapsed: number;
+  duration: number;
+  bossSpawnTime: number;
+  bossSpawned: boolean;
+  kills: number;
+  score: number;
+  world: {
+    width: number;
+    height: number;
+  };
+  spawnTimer: number;
+  nextUid: number;
+  rngSeed: number;
+  lastFacing: Vector2;
+}

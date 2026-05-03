@@ -1,0 +1,62 @@
+{
+  "style": "Bright chibi Japanese mobile card-game promo art, original Three Kingdoms inspired generals, big expressive glossy eyes, cute Q-version proportions, ornate oversized helmets and weapons, saturated vertical character-panel composition, no text, no logo, no watermark, no existing commercial game or anime likeness.",
+  "outputRoot": "public/assets/characters",
+  "characters": [
+    {
+      "id": "guanyu",
+      "cardPrompt": "Guan Yu inspired original chibi warrior, oversized emerald-gold helmet, round heroic face, huge glossy amber eyes, cute confident smile, large crescent glaive, jade-gold vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Guan Yu inspired warrior, big head, readable glaive silhouette, emerald and gold faction colors, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, glaive wind-up to slash, transparent background, no text."
+    },
+    {
+      "id": "zhaoyun",
+      "cardPrompt": "Zhao Yun inspired original chibi spear hero, silver-blue circlet, wind-swept pale hair, huge glossy cyan eyes, agile bright expression, oversized spear, cyan vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Zhao Yun inspired spear hero, big head, clear spear silhouette, cyan and silver colors, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, spear thrust sequence, transparent background, no text."
+    },
+    {
+      "id": "caocao",
+      "cardPrompt": "Cao Cao inspired original chibi strategist king, gold crown, blue-silver imperial armor, huge glossy violet-blue eyes, sly confident smile, command sword and cape, cool royal vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Cao Cao inspired commander, big head, sword and cape readable, blue silver palette, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, command sword slash, transparent background, no text."
+    },
+    {
+      "id": "xiahoudun",
+      "cardPrompt": "Xiahou Dun inspired original chibi one-eyed heavy warrior, dark blue armor, red helm crest, cute fierce face, one eyepatch and one huge glossy crimson eye, oversized heavy blade, crimson vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Xiahou Dun inspired warrior, big head, heavy blade silhouette, blue and crimson colors, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, heavy blade cleave sequence, transparent background, no text."
+    },
+    {
+      "id": "zhouyu",
+      "cardPrompt": "Zhou Yu inspired original chibi elegant fire tactician, jade crown, flowing dark hair, red-gold armor robe, huge glossy amber eyes, refined smile, feather fan and flame motifs, warm vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Zhou Yu inspired fire tactician, big head, fan silhouette, red gold palette, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, fan casting fire sequence, transparent background, no text."
+    },
+    {
+      "id": "sunshangxiang",
+      "cardPrompt": "Sun Shangxiang inspired original chibi crossbow heroine, blue jewel tiara, twin side hair volume, red-gold light armor, huge glossy honey eyes, playful confident smile, twin crossbows, sparkle vertical promo panel lighting, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Sun Shangxiang inspired crossbow heroine, big head, twin crossbow silhouette, red gold palette, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, twin crossbow firing sequence, transparent background, no text."
+    },
+    {
+      "id": "diaochan",
+      "cardPrompt": "Diaochan inspired original chibi idol dancer support heroine, high-quality Japanese mobile RPG avatar art, big glossy pink eyes, round cute face, sweet smile, pink and gold flower ornaments, delicate dancer ribbons, dreamy pink-gold gem light background, square 1:1 head avatar composition, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Diaochan inspired dancer, big head, pink-gold flower ornaments and ribbon silhouette, readable dance fan, cute but battle-ready, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, petal dance spin sequence with pink-gold ribbons, transparent background, no text."
+    },
+    {
+      "id": "lubu",
+      "cardPrompt": "Lu Bu inspired original chibi mythic boss warrior, black-purple horned helmet, crimson plume, cute but intimidating fierce face, huge glossy red eyes, massive halberd, violet-crimson vertical promo panel lightning, no text.",
+      "battlePrompt": "Larger 2.5D transparent chibi battle cutout of the same original Lu Bu inspired boss, big head, huge halberd silhouette, purple crimson palette, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, halberd sweeping sequence, transparent background, no text."
+    }
+  ],
+  "avoid": [
+    "No text inside image",
+    "No watermark",
+    "No existing game, anime, film, or actor likeness",
+    "No photorealism",
+    "No SVG-only placeholder style",
+    "Do not copy the supplied reference image, characters, logo, typography, or exact composition"
+  ]
+}
