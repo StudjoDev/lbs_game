@@ -54,6 +54,13 @@ interface ActiveMeleeFx {
   baseScale: number;
 }
 
+const baseBattleViewport = {
+  width: 860,
+  height: 680,
+  minZoom: 0.5,
+  maxZoom: 1
+};
+
 export class BattleScene extends Phaser.Scene {
   private run?: RunState;
   private keys?: KeyboardBindings;
@@ -95,6 +102,7 @@ export class BattleScene extends Phaser.Scene {
   private playerAttackActive = false;
   private bossUnlockSaved = false;
   private lastResultSfx?: "won" | "lost";
+  private cameraBaseZoom = 1;
 
   constructor() {
     super("BattleScene");
@@ -135,7 +143,8 @@ export class BattleScene extends Phaser.Scene {
     this.playerGroundAura = this.add.graphics();
     this.areaLayer?.add(this.playerGroundAura);
     this.cameras.main.startFollow(this.playerSprite, true, 0.11, 0.11);
-    this.cameras.main.setZoom(1);
+    this.applyResponsiveCameraZoom();
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.applyResponsiveCameraZoom, this);
     this.hud = new BattleHud({
       getAudioSettings: () => audio.getSettings(),
       onAudioSettingsChange: (settings) => {
@@ -529,12 +538,24 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.shake(duration, intensity);
     if (event.type === "manual" || event.type === "evolution" || event.type === "morale" || event.type === "ultimate") {
       this.cameras.main.flash(event.type === "evolution" || event.type === "ultimate" ? 160 : 80, 255, 225, 160, false);
-      this.cameras.main.zoomTo(event.type === "ultimate" || event.type === "evolution" ? 1.035 : 1.018, 80);
-      this.time.delayedCall(120, () => this.cameras.main.zoomTo(1, 160));
+      const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" ? 1.035 : 1.018);
+      this.cameras.main.zoomTo(impulseZoom, 80);
+      this.time.delayedCall(120, () => this.cameras.main.zoomTo(this.cameraBaseZoom, 160));
     }
     if (event.type === "manual") {
       this.playHeroAttackAnimation();
     }
+  }
+
+  private applyResponsiveCameraZoom(): void {
+    const { width, height } = this.scale.gameSize;
+    const nextZoom = Phaser.Math.Clamp(
+      Math.min(width / baseBattleViewport.width, height / baseBattleViewport.height, baseBattleViewport.maxZoom),
+      baseBattleViewport.minZoom,
+      baseBattleViewport.maxZoom
+    );
+    this.cameraBaseZoom = nextZoom;
+    this.cameras.main.setZoom(nextZoom);
   }
 
   private playHeroAttackAnimation(): void {
@@ -806,6 +827,13 @@ export class BattleScene extends Phaser.Scene {
           xp: Math.round(state.player.xp),
           nextXp: state.player.nextXp
         },
+        camera: {
+          zoom: Number(this.cameraBaseZoom.toFixed(3)),
+          screenWidth: Math.round(this.scale.gameSize.width),
+          screenHeight: Math.round(this.scale.gameSize.height),
+          worldViewWidth: Math.round(this.scale.gameSize.width / this.cameraBaseZoom),
+          worldViewHeight: Math.round(this.scale.gameSize.height / this.cameraBaseZoom)
+        },
         enemies: state.enemies.length,
         xpOrbs: state.xpOrbs.length,
         pendingUpgradeIds: state.pendingUpgradeIds,
@@ -844,6 +872,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.applyResponsiveCameraZoom, this);
     this.hud?.destroy();
     this.enemySprites.clear();
     this.enemyShadows.clear();
