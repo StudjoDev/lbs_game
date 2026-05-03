@@ -25,23 +25,26 @@ export const audioKeys = {
   sfx: sfxKeys
 } as const;
 
+/** Must respect Vite `base` (e.g. GitHub Pages project site under /<repo>/) */
+const audioBasePath = `${import.meta.env.BASE_URL}assets/audio`;
+
 export const audioPaths: Record<AudioKey, string> = {
-  music_menu: "/assets/audio/music-menu.wav",
-  music_battle: "/assets/audio/music-battle.wav",
-  music_boss: "/assets/audio/music-boss.wav",
-  sfx_hit: "/assets/audio/sfx-hit.wav",
-  sfx_crit: "/assets/audio/sfx-crit.wav",
-  sfx_kill: "/assets/audio/sfx-kill.wav",
-  sfx_level_up: "/assets/audio/sfx-level-up.wav",
-  sfx_manual: "/assets/audio/sfx-manual.wav",
-  sfx_evolution: "/assets/audio/sfx-evolution.wav",
-  sfx_morale: "/assets/audio/sfx-morale.wav",
-  sfx_boss: "/assets/audio/sfx-boss.wav",
-  sfx_player_hit: "/assets/audio/sfx-player-hit.wav",
-  sfx_victory: "/assets/audio/sfx-victory.wav",
-  sfx_defeat: "/assets/audio/sfx-defeat.wav",
-  sfx_ui_select: "/assets/audio/sfx-ui-select.wav",
-  sfx_ui_confirm: "/assets/audio/sfx-ui-confirm.wav"
+  music_menu: `${audioBasePath}/music-menu.wav`,
+  music_battle: `${audioBasePath}/music-battle.wav`,
+  music_boss: `${audioBasePath}/music-boss.wav`,
+  sfx_hit: `${audioBasePath}/sfx-hit.wav`,
+  sfx_crit: `${audioBasePath}/sfx-crit.wav`,
+  sfx_kill: `${audioBasePath}/sfx-kill.wav`,
+  sfx_level_up: `${audioBasePath}/sfx-level-up.wav`,
+  sfx_manual: `${audioBasePath}/sfx-manual.wav`,
+  sfx_evolution: `${audioBasePath}/sfx-evolution.wav`,
+  sfx_morale: `${audioBasePath}/sfx-morale.wav`,
+  sfx_boss: `${audioBasePath}/sfx-boss.wav`,
+  sfx_player_hit: `${audioBasePath}/sfx-player-hit.wav`,
+  sfx_victory: `${audioBasePath}/sfx-victory.wav`,
+  sfx_defeat: `${audioBasePath}/sfx-defeat.wav`,
+  sfx_ui_select: `${audioBasePath}/sfx-ui-select.wav`,
+  sfx_ui_confirm: `${audioBasePath}/sfx-ui-confirm.wav`
 };
 
 export const audioAssetEntries = Object.entries(audioPaths).map(([key, path]) => ({
