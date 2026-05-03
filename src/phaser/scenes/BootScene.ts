@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { audioAssetEntries } from "../../game/assets/manifest";
+import { audioAssetEntries, slashAnimationFrames, slashAnimationKey, visualAssetEntries } from "../../game/assets/manifest";
 import { characterArts } from "../../game/content/characterArt";
 
 interface HeroLook {
@@ -45,11 +45,16 @@ export class BootScene extends Phaser.Scene {
         this.load.image(art.attackFrameKeys[index], framePath);
       });
     }
+    for (const asset of visualAssetEntries) {
+      this.load.image(asset.key, asset.path);
+    }
   }
 
   create(): void {
     this.createGroundTile();
+    this.createBattlefieldTextures();
     this.createFxTextures();
+    this.createSlashAnimation();
     for (const look of heroLooks) {
       if (!this.textures.exists(look.key)) {
         this.createHeroTexture(look);
@@ -70,12 +75,12 @@ export class BootScene extends Phaser.Scene {
     const texture = this.textures.createCanvas("ground_tile", 192, 192)!;
     const ctx = texture.getContext();
     const gradient = ctx.createLinearGradient(0, 0, 192, 192);
-    gradient.addColorStop(0, "#3a1d30");
-    gradient.addColorStop(0.5, "#1d121d");
-    gradient.addColorStop(1, "#4a2636");
+    gradient.addColorStop(0, "#2d1824");
+    gradient.addColorStop(0.45, "#191017");
+    gradient.addColorStop(1, "#3f2230");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 192, 192);
-    ctx.strokeStyle = "rgba(255, 217, 138, 0.2)";
+    ctx.strokeStyle = "rgba(255, 217, 138, 0.13)";
     ctx.lineWidth = 1;
     for (let x = -64; x < 224; x += 32) {
       ctx.beginPath();
@@ -83,26 +88,153 @@ export class BootScene extends Phaser.Scene {
       ctx.lineTo(x + 64, 192);
       ctx.stroke();
     }
-    ctx.strokeStyle = "rgba(255, 120, 183, 0.1)";
-    for (let y = 16; y < 192; y += 48) {
+    ctx.strokeStyle = "rgba(255, 120, 183, 0.08)";
+    for (let y = 12; y < 208; y += 38) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(192, y + 18);
+      ctx.moveTo(-20, y);
+      ctx.lineTo(212, y + 24);
       ctx.stroke();
     }
-    ctx.fillStyle = "rgba(255, 229, 167, 0.12)";
-    for (let index = 0; index < 24; index += 1) {
+    ctx.fillStyle = "rgba(255, 229, 167, 0.1)";
+    for (let index = 0; index < 36; index += 1) {
       ctx.beginPath();
-      ctx.arc((index * 47) % 192, (index * 83) % 192, 1 + (index % 3), 0, Math.PI * 2);
+      ctx.arc((index * 47) % 192, (index * 83) % 192, 0.9 + (index % 3) * 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = "rgba(255, 154, 203, 0.16)";
-    for (let index = 0; index < 8; index += 1) {
+    ctx.fillStyle = "rgba(255, 154, 203, 0.13)";
+    for (let index = 0; index < 14; index += 1) {
       const x = (index * 59) % 192;
       const y = (index * 97) % 192;
       ctx.beginPath();
-      ctx.ellipse(x, y, 7, 3, index * 0.7, 0, Math.PI * 2);
+      ctx.ellipse(x, y, 9, 3.5, index * 0.7, 0, Math.PI * 2);
       ctx.fill();
+    }
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    for (let index = 0; index < 10; index += 1) {
+      const x = (index * 71 + 18) % 192;
+      const y = (index * 41 + 36) % 192;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 16 + (index % 4) * 3, 5 + (index % 3), index * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    texture.refresh();
+  }
+
+  private createBattlefieldTextures(): void {
+    this.createBattlefieldDetailTile();
+    this.createBannerTexture("battle_banner_red", "#7d2626", "#ffd36a");
+    this.createBannerTexture("battle_banner_jade", "#23614c", "#dffade");
+    this.createPropTexture("battle_spear_prop", "#3a271e", "#e2b55f", "spear");
+    this.createPropTexture("battle_stone_prop", "#2e2830", "#8b7b77", "stone");
+  }
+
+  private createBattlefieldDetailTile(): void {
+    const texture = this.textures.createCanvas("ground_detail_tile", 256, 256)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 256, 256);
+    ctx.strokeStyle = "rgba(255, 229, 167, 0.18)";
+    ctx.lineWidth = 2;
+    for (let x = -96; x < 300; x += 64) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 96, 256);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(255, 120, 183, 0.1)";
+    ctx.lineWidth = 4;
+    for (let y = 32; y < 256; y += 72) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(58, y + 24, 134, y - 18, 256, y + 18);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(244, 195, 113, 0.15)";
+    for (let index = 0; index < 18; index += 1) {
+      const x = (index * 97 + 27) % 256;
+      const y = (index * 53 + 44) % 256;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(index * 0.55);
+      ctx.fillRect(-9, -2, 18, 4);
+      ctx.restore();
+    }
+    texture.refresh();
+  }
+
+  private createBannerTexture(key: string, cloth: string, trim: string): void {
+    const texture = this.textures.createCanvas(key, 96, 150)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 96, 150);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+    ctx.beginPath();
+    ctx.ellipse(44, 142, 26, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#211611";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(34, 20);
+    ctx.lineTo(34, 140);
+    ctx.stroke();
+    const gradient = ctx.createLinearGradient(36, 18, 82, 118);
+    gradient.addColorStop(0, cloth);
+    gradient.addColorStop(1, "#211018");
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = trim;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(36, 22);
+    ctx.lineTo(82, 30);
+    ctx.lineTo(72, 72);
+    ctx.lineTo(84, 114);
+    ctx.lineTo(36, 102);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 242, 201, 0.7)";
+    ctx.font = "700 28px serif";
+    ctx.textAlign = "center";
+    ctx.fillText("令", 58, 74);
+    texture.refresh();
+  }
+
+  private createPropTexture(key: string, primary: string, accent: string, kind: "spear" | "stone"): void {
+    const texture = this.textures.createCanvas(key, 96, 96)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 96, 96);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(48, 78, 30, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (kind === "spear") {
+      ctx.strokeStyle = primary;
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(26, 78);
+      ctx.lineTo(72, 16);
+      ctx.stroke();
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(72, 16);
+      ctx.lineTo(65, 36);
+      ctx.lineTo(84, 28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 244, 210, 0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = primary;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 3;
+      for (let index = 0; index < 4; index += 1) {
+        const x = 24 + index * 14;
+        const y = 50 + (index % 2) * 8;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 12 + index * 1.5, 8 + (index % 2) * 3, index * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
     }
     texture.refresh();
   }
@@ -151,15 +283,45 @@ export class BootScene extends Phaser.Scene {
     const texture = this.textures.createCanvas(key, size, size + 20)!;
     const ctx = texture.getContext();
     const mid = size / 2;
+    const role = enemyRoleFromKey(key);
     drawShadow(ctx, mid, size + 12, size * 0.33, size * 0.12);
     const boss = key === "enemy_lubu";
+    if (role === "cavalry") {
+      ctx.fillStyle = "#2a1a16";
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(2, size * 0.025);
+      ctx.beginPath();
+      ctx.ellipse(mid, size * 0.66, size * 0.4, size * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = primary;
+      ctx.beginPath();
+      ctx.ellipse(mid + size * 0.22, size * 0.58, size * 0.14, size * 0.15, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.fillStyle = primary;
     ctx.strokeStyle = accent;
     ctx.lineWidth = Math.max(3, size * 0.045);
     ctx.beginPath();
-    ctx.ellipse(mid, size * 0.47, size * 0.32, size * 0.36, 0, 0, Math.PI * 2);
+    ctx.ellipse(mid, size * 0.47, size * (role === "shield" ? 0.38 : 0.32), size * 0.36, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    if (role === "shield") {
+      const shieldGradient = ctx.createLinearGradient(mid - size * 0.28, size * 0.34, mid + size * 0.28, size * 0.74);
+      shieldGradient.addColorStop(0, "#e9edf4");
+      shieldGradient.addColorStop(1, primary);
+      ctx.fillStyle = shieldGradient;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(3, size * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(mid, size * 0.28);
+      ctx.quadraticCurveTo(mid + size * 0.31, size * 0.35, mid + size * 0.24, size * 0.68);
+      ctx.quadraticCurveTo(mid, size * 0.84, mid - size * 0.24, size * 0.68);
+      ctx.quadraticCurveTo(mid - size * 0.31, size * 0.35, mid, size * 0.28);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.fillStyle = boss ? "#352044" : "#f2c79b";
     ctx.beginPath();
     ctx.ellipse(mid, size * 0.46, size * 0.24, size * 0.25, 0, 0, Math.PI * 2);
@@ -170,8 +332,8 @@ export class BootScene extends Phaser.Scene {
     ctx.fillStyle = primary;
     ctx.beginPath();
     ctx.moveTo(mid - size * 0.36, size * 0.34);
-    ctx.lineTo(mid - size * 0.18, size * 0.08);
-    ctx.lineTo(mid + size * 0.18, size * 0.08);
+    ctx.lineTo(mid - size * (boss ? 0.28 : 0.18), size * 0.08);
+    ctx.lineTo(mid + size * (boss ? 0.28 : 0.18), size * 0.08);
     ctx.lineTo(mid + size * 0.36, size * 0.34);
     ctx.lineTo(mid + size * 0.24, size * 0.28);
     ctx.lineTo(mid - size * 0.24, size * 0.28);
@@ -184,6 +346,16 @@ export class BootScene extends Phaser.Scene {
     ctx.beginPath();
     ctx.ellipse(mid, size * 0.22, size * 0.08, size * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
+    if (boss || role === "captain") {
+      ctx.strokeStyle = boss ? "#ff4e74" : "#ffd36a";
+      ctx.lineWidth = Math.max(4, size * 0.045);
+      ctx.beginPath();
+      ctx.moveTo(mid - size * 0.23, size * 0.14);
+      ctx.lineTo(mid - size * 0.38, size * 0.02);
+      ctx.moveTo(mid + size * 0.23, size * 0.14);
+      ctx.lineTo(mid + size * 0.38, size * 0.02);
+      ctx.stroke();
+    }
     drawCuteEye(ctx, mid - size * 0.09, size * 0.47, size * 0.11, boss ? "#ff5f9e" : "#5a3b2e");
     drawCuteEye(ctx, mid + size * 0.09, size * 0.47, size * 0.11, boss ? "#ff5f9e" : "#5a3b2e");
     ctx.strokeStyle = boss ? "#ffd98a" : "#6d3a2c";
@@ -197,6 +369,7 @@ export class BootScene extends Phaser.Scene {
     roundRect(ctx, mid - size * 0.22, size * 0.69, size * 0.44, size * 0.26, size * 0.07);
     ctx.fill();
     ctx.stroke();
+    drawEnemyWeapon(ctx, role, mid, size, accent);
     ctx.fillStyle = "rgba(255, 238, 194, 0.88)";
     ctx.font = `700 ${Math.floor(size * 0.2)}px serif`;
     ctx.textAlign = "center";
@@ -205,6 +378,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createFxTextures(): void {
+    this.createMeleeFxTextures();
     this.createStreakTexture("qinglong_arc", "#7bf0af", 96, 28);
     this.createStreakTexture("dragon_slash", "#86ffc6", 150, 32);
     this.createStreakTexture("spear_flash", "#dffcff", 120, 18);
@@ -229,7 +403,103 @@ export class BootScene extends Phaser.Scene {
     this.createOrbTexture("xp_orb", "#75e8ff", "#f7f8cc");
   }
 
+  private createMeleeFxTextures(): void {
+    this.createArcTexture("melee_arc", "#fff1cf", "#75f0aa", 210, 150, 0.58);
+    this.createThrustTexture("spear_thrust", "#dffcff", "#75f0aa", 230, 58);
+    this.createArcTexture("petal_blade", "#ffd4eb", "#ff78b7", 180, 132, 0.48);
+    this.createArcTexture("heavy_cleave_wave", "#ffe2b8", "#ff7a45", 240, 170, 0.66);
+  }
+
+  private createArcTexture(key: string, core: string, edge: string, width: number, height: number, thickness: number): void {
+    if (this.textures.exists(key)) {
+      return;
+    }
+    const texture = this.textures.createCanvas(key, width, height)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, width, height);
+    const centerX = width * 0.48;
+    const centerY = height * 0.58;
+    const outer = Math.min(width, height) * thickness;
+    const inner = outer * 0.56;
+    const gradient = ctx.createRadialGradient(centerX, centerY, inner * 0.55, centerX, centerY, outer * 1.15);
+    gradient.addColorStop(0, "rgba(255,255,255,0)");
+    gradient.addColorStop(0.42, edge);
+    gradient.addColorStop(0.66, core);
+    gradient.addColorStop(0.88, "rgba(255,255,255,0.18)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.strokeStyle = gradient;
+    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(14, height * 0.2);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outer, -2.38, 0.34);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.86)";
+    ctx.lineWidth = Math.max(3, height * 0.035);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, inner, -2.18, 0.16);
+    ctx.stroke();
+    ctx.fillStyle = edge;
+    ctx.globalAlpha = 0.45;
+    for (let index = 0; index < 9; index += 1) {
+      const angle = -2.2 + index * 0.26;
+      const radius = inner + (outer - inner) * (index % 3 === 0 ? 0.3 : 0.72);
+      ctx.beginPath();
+      ctx.ellipse(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius, 6, 2, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    texture.refresh();
+  }
+
+  private createThrustTexture(key: string, core: string, edge: string, width: number, height: number): void {
+    if (this.textures.exists(key)) {
+      return;
+    }
+    const texture = this.textures.createCanvas(key, width, height)!;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, width, height);
+    const gradient = ctx.createLinearGradient(0, height / 2, width, height / 2);
+    gradient.addColorStop(0, "rgba(255,255,255,0)");
+    gradient.addColorStop(0.18, edge);
+    gradient.addColorStop(0.58, core);
+    gradient.addColorStop(0.86, "rgba(255,255,255,0.92)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.04, height * 0.5);
+    ctx.quadraticCurveTo(width * 0.42, height * 0.08, width * 0.96, height * 0.5);
+    ctx.quadraticCurveTo(width * 0.42, height * 0.92, width * 0.04, height * 0.5);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.06, height * 0.5);
+    ctx.lineTo(width * 0.95, height * 0.5);
+    ctx.stroke();
+    texture.refresh();
+  }
+
+  private createSlashAnimation(): void {
+    if (this.anims.exists(slashAnimationKey)) {
+      return;
+    }
+    for (const [index, frame] of slashAnimationFrames.entries()) {
+      if (!this.textures.exists(frame.key)) {
+        this.createStreakTexture(frame.key, index % 2 === 0 ? "#fff1cf" : "#ffd98a", 168, 82);
+      }
+    }
+    this.anims.create({
+      key: slashAnimationKey,
+      frames: slashAnimationFrames.map((frame) => ({ key: frame.key })),
+      frameRate: 28,
+      repeat: 0
+    });
+  }
+
   private createStreakTexture(key: string, color: string, width: number, height: number): void {
+    if (this.textures.exists(key)) {
+      return;
+    }
     const texture = this.textures.createCanvas(key, width, height)!;
     const ctx = texture.getContext();
     const gradient = ctx.createLinearGradient(0, height / 2, width, height / 2);
@@ -245,6 +515,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createOrbTexture(key: string, color: string, core: string): void {
+    if (this.textures.exists(key)) {
+      return;
+    }
     const texture = this.textures.createCanvas(key, 32, 32)!;
     const ctx = texture.getContext();
     const gradient = ctx.createRadialGradient(16, 16, 2, 16, 16, 16);
@@ -348,6 +621,78 @@ function drawWeapon(ctx: CanvasRenderingContext2D, weapon: HeroLook["weapon"], a
     ctx.lineTo(38, 38);
     ctx.stroke();
   }
+}
+
+function enemyRoleFromKey(key: string): "infantry" | "archer" | "shield" | "cavalry" | "captain" | "boss" {
+  if (key.includes("archer")) {
+    return "archer";
+  }
+  if (key.includes("shield")) {
+    return "shield";
+  }
+  if (key.includes("cavalry")) {
+    return "cavalry";
+  }
+  if (key.includes("captain")) {
+    return "captain";
+  }
+  if (key.includes("lubu")) {
+    return "boss";
+  }
+  return "infantry";
+}
+
+function drawEnemyWeapon(
+  ctx: CanvasRenderingContext2D,
+  role: ReturnType<typeof enemyRoleFromKey>,
+  mid: number,
+  size: number,
+  accent: string
+): void {
+  ctx.save();
+  ctx.strokeStyle = accent;
+  ctx.fillStyle = accent;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (role === "archer") {
+    ctx.lineWidth = Math.max(3, size * 0.045);
+    ctx.beginPath();
+    ctx.arc(mid + size * 0.24, size * 0.56, size * 0.25, -1.25, 1.2);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, size * 0.018);
+    ctx.beginPath();
+    ctx.moveTo(mid + size * 0.3, size * 0.35);
+    ctx.lineTo(mid + size * 0.3, size * 0.76);
+    ctx.stroke();
+  } else if (role === "captain" || role === "boss") {
+    ctx.lineWidth = Math.max(5, size * 0.055);
+    ctx.beginPath();
+    ctx.moveTo(mid - size * 0.34, size * 0.78);
+    ctx.lineTo(mid + size * 0.44, size * 0.18);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(mid + size * 0.46, size * 0.17, size * 0.09, size * 0.2, -0.55, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (role === "shield") {
+    ctx.lineWidth = Math.max(3, size * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(mid - size * 0.36, size * 0.72);
+    ctx.lineTo(mid - size * 0.12, size * 0.38);
+    ctx.stroke();
+  } else {
+    ctx.lineWidth = Math.max(4, size * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(mid - size * 0.32, size * 0.78);
+    ctx.lineTo(mid + size * 0.28, size * 0.22);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mid + size * 0.28, size * 0.22);
+    ctx.lineTo(mid + size * 0.18, size * 0.38);
+    ctx.lineTo(mid + size * 0.38, size * 0.34);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawShadow(ctx: CanvasRenderingContext2D, x: number, y: number, radiusX: number, radiusY: number): void {
