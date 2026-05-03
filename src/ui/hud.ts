@@ -1,8 +1,9 @@
 import { upgradeById } from "../game/content/upgrades";
 import type { RunState, UpgradeDef, Vector2 } from "../game/types";
+import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { createUiLayer, removeUiLayer } from "./layer";
 
-interface HudCallbacks {
+interface HudCallbacks extends AudioControlCallbacks {
   onManual: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -49,6 +50,7 @@ export class BattleHud {
     const xpPercent = Math.max(0, state.player.xp / state.player.nextXp);
     const moralePercent = Math.max(0, state.player.morale / state.player.maxMorale);
     const remaining = Math.max(0, state.duration - state.elapsed);
+    const ultimateActive = state.player.ultimateTimer > 0;
     const manualReady = state.player.manualCooldown <= 0;
     const bossText = state.bossSpawned ? "呂布已現身" : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} 呂布`;
     const buildChips = getBuildChips(state);
@@ -77,9 +79,10 @@ export class BattleHud {
     this.status.querySelector<HTMLButtonElement>("[data-pause]")?.addEventListener("click", this.callbacks.onPause);
 
     this.skill.classList.toggle("is-ready", manualReady);
+    this.skill.classList.toggle("is-ultimate", ultimateActive);
     this.skill.innerHTML = `
-      <strong>${manualReady ? state.hero.manualAbility.name : Math.ceil(state.player.manualCooldown)}</strong>
-      <span>Space / Q</span>
+      <strong>${ultimateActive ? `無雙 ${Math.ceil(state.player.ultimateTimer)}` : manualReady ? state.hero.manualAbility.name : Math.ceil(state.player.manualCooldown)}</strong>
+      <span>${ultimateActive ? "覺醒中" : "Space / Q"}</span>
     `;
 
     if (state.status === "levelUp") {
@@ -172,6 +175,7 @@ export class BattleHud {
       <section class="pause-panel">
         <span class="panel-kicker">軍令暫停</span>
         <h2>整軍再戰</h2>
+        ${renderAudioControls(this.callbacks.getAudioSettings())}
         <div class="pause-actions">
           <button data-resume="true">繼續</button>
           <button data-menu="true">回主選單</button>
@@ -180,6 +184,7 @@ export class BattleHud {
     `;
     this.modal.querySelector<HTMLButtonElement>("[data-resume]")?.addEventListener("click", this.callbacks.onResume);
     this.modal.querySelector<HTMLButtonElement>("[data-menu]")?.addEventListener("click", this.callbacks.onMenu);
+    bindAudioControls(this.modal, this.callbacks);
   }
 
   private renderResultModal(state: RunState): void {
@@ -226,6 +231,7 @@ function getBuildChips(state: RunState): Array<{ label: string; tone: string }> 
     if (
       upgrade.rarity === "evolution" ||
       upgrade.rarity === "technique" ||
+      upgrade.rarity === "hero" ||
       upgrade.rarity === "faction" ||
       upgrade.rarity === "relic"
     ) {

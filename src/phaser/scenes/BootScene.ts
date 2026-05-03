@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { audioAssetEntries } from "../../game/assets/manifest";
 import { characterArts } from "../../game/content/characterArt";
 
 interface HeroLook {
@@ -35,6 +36,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    for (const asset of audioAssetEntries) {
+      this.load.audio(asset.key, asset.path);
+    }
     for (const art of characterArts) {
       this.load.image(art.textureKey, art.battleImage);
       art.attackFrames.forEach((framePath, index) => {

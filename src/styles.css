@@ -494,6 +494,46 @@ button {
   color: rgba(245, 227, 189, 0.7);
 }
 
+.audio-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(245, 227, 189, 0.14);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.audio-row {
+  display: grid;
+  grid-template-columns: 54px minmax(96px, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: rgba(245, 227, 189, 0.76);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.audio-row input {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.mute-toggle {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(245, 227, 189, 0.18);
+  color: var(--paper);
+  background: rgba(255, 248, 220, 0.07);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.mute-toggle.is-muted {
+  border-color: rgba(217, 85, 63, 0.62);
+  color: #ffd4c8;
+}
+
 .start-button {
   min-height: 58px;
   color: #1c130d;
@@ -870,6 +910,12 @@ button {
   background: linear-gradient(145deg, rgba(255, 120, 183, 0.2), rgba(255, 217, 138, 0.12));
 }
 
+.build-strip .tone-hero,
+.upgrade-card.rarity-hero {
+  border-color: rgba(255, 221, 122, 0.86);
+  background: linear-gradient(145deg, rgba(255, 221, 122, 0.24), rgba(255, 92, 86, 0.16));
+}
+
 .build-strip .tone-relic,
 .upgrade-card.rarity-relic {
   border-color: rgba(142, 167, 216, 0.62);
@@ -900,6 +946,16 @@ button {
   box-shadow:
     0 0 24px rgba(255, 149, 72, 0.38),
     0 20px 46px rgba(0, 0, 0, 0.38);
+}
+
+.skill-button.is-ultimate {
+  border-color: rgba(255, 232, 150, 0.96);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 250, 205, 0.38), transparent 34%),
+    linear-gradient(145deg, rgba(255, 91, 67, 0.95), rgba(111, 41, 129, 0.96));
+  box-shadow:
+    0 0 34px rgba(255, 220, 115, 0.48),
+    0 20px 46px rgba(0, 0, 0, 0.42);
 }
 
 .skill-button strong,
@@ -1012,6 +1068,12 @@ button {
   justify-content: center;
 }
 
+.pause-panel .audio-controls {
+  grid-template-columns: 1fr;
+  margin: 0 0 18px;
+  text-align: left;
+}
+
 .pause-actions button {
   min-width: 132px;
   min-height: 48px;
@@ -1075,6 +1137,14 @@ button {
 
   .menu-actions {
     grid-template-columns: 1fr;
+  }
+
+  .audio-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .audio-row {
+    grid-template-columns: 50px minmax(0, 1fr);
   }
 
   .character-pick {

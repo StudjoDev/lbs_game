@@ -3,9 +3,10 @@ import { bondById, characterArtById, characterArts } from "../game/content/chara
 import { factions } from "../game/content/factions";
 import { heroes } from "../game/content/heroes";
 import type { CharacterArtDef, CharacterId, CollectionState, FactionId, HeroId } from "../game/types";
+import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { createUiLayer, removeUiLayer } from "./layer";
 
-interface MenuCallbacks {
+interface MenuCallbacks extends AudioControlCallbacks {
   onStart: (heroId: HeroId) => void;
 }
 
@@ -107,6 +108,7 @@ export class MenuController {
             <strong>${selectedHero.name} 可在局內升級並抽到專屬強化</strong>
             <span>首版先保留簡潔成長線，收藏圖鑑與羈絆展示會提供長期收集目標。</span>
           </div>
+          ${renderAudioControls(this.callbacks.getAudioSettings())}
           <div class="menu-actions">
             <button class="codex-button" data-collection="true">武將圖鑑</button>
             <button class="start-button" data-start="true">開戰</button>
@@ -117,18 +119,21 @@ export class MenuController {
 
     this.root.querySelectorAll<HTMLButtonElement>("[data-faction]").forEach((button) => {
       button.addEventListener("click", () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
         this.selectedFaction = button.dataset.faction as FactionId;
         this.render();
       });
     });
     this.root.querySelectorAll<HTMLButtonElement>("[data-hero]").forEach((button) => {
       button.addEventListener("click", () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
         this.selectedHero = button.dataset.hero as HeroId;
         this.selectedCollectionCharacter = this.selectedHero;
         this.render();
       });
     });
     this.root.querySelector<HTMLButtonElement>("[data-collection]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
       this.selectedCollectionCharacter = this.selectedHero;
       this.mode = "collection";
       this.render();
@@ -136,6 +141,7 @@ export class MenuController {
     this.root.querySelector<HTMLButtonElement>("[data-start]")?.addEventListener("click", () => {
       this.callbacks.onStart(this.selectedHero);
     });
+    bindAudioControls(this.root, this.callbacks);
   }
 
   private renderCollection(collection: CollectionState): void {
@@ -185,6 +191,7 @@ export class MenuController {
               .join("")}
           </div>
           <div class="menu-actions codex-actions">
+            ${renderAudioControls(this.callbacks.getAudioSettings())}
             ${selectedArt.playable && selectedEntry.owned ? `<button class="start-button" data-codex-start="${selectedArt.id}">使用此武將開戰</button>` : ""}
           </div>
         </section>
@@ -192,11 +199,13 @@ export class MenuController {
     `;
 
     this.root.querySelector<HTMLButtonElement>("[data-back]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
       this.mode = "select";
       this.render();
     });
     this.root.querySelectorAll<HTMLButtonElement>("[data-codex-character]").forEach((button) => {
       button.addEventListener("click", () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
         this.selectedCollectionCharacter = button.dataset.codexCharacter as CharacterId;
         this.render();
       });
@@ -205,6 +214,7 @@ export class MenuController {
       const heroId = (event.currentTarget as HTMLButtonElement).dataset.codexStart as HeroId;
       this.callbacks.onStart(heroId);
     });
+    bindAudioControls(this.root, this.callbacks);
   }
 
   private renderCollectionSkillBlock(art: CharacterArtDef, revealed: boolean): string {
