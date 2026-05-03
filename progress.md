@@ -9,6 +9,15 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Make the battle camera scale down on mobile so the player sees a wider battlefield.
+Notes:
+- BattleScene now computes a responsive camera base zoom from Phaser scale gameSize.
+- Desktop stays at 1x zoom; narrow/mobile screens zoom out down to 0.5 so more world area is visible.
+- Camera event impulses now multiply the responsive base zoom instead of temporarily snapping mobile back to 1x.
+
+TODO:
+- None for this request.
+
 Current request: Fix GitHub Pages mobile audio unlock and upgrade modal not closing after selecting a battle merit upgrade.
 Notes:
 - Mobile audio was vulnerable because Phaser input unlock only covered canvas/scene input; HTML UI gestures can own the initial touch. AudioController now also listens to DOM gestures during capture and directly resumes WebAudio before replaying desired music.
