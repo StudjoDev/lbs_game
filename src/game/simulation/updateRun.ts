@@ -1,5 +1,6 @@
 import { enemyById } from "../content/enemies";
 import { techniques } from "../content/techniques";
+import { ultimateByHeroId, type UltimateProfile } from "../content/ultimates";
 import type { AreaState, InputState, ProjectileState, RunState, XpOrbState } from "../types";
 import { addBossShockwave, addEnemyArrow, executeAbility } from "./abilities";
 import {
@@ -25,8 +26,14 @@ export function updateRun(state: RunState, input: InputState, dt: number): void 
   state.player.autoCooldown = Math.max(0, state.player.autoCooldown - safeDt);
   state.player.manualCooldown = Math.max(0, state.player.manualCooldown - safeDt);
   state.player.companionCooldown = Math.max(0, state.player.companionCooldown - safeDt);
+  state.player.ultimateTimer = Math.max(0, state.player.ultimateTimer - safeDt);
+  state.player.ultimatePulseCooldown = Math.max(0, state.player.ultimatePulseCooldown - safeDt);
   updateTechniqueCooldowns(state, safeDt);
   state.player.berserkTimer = Math.max(0, state.player.berserkTimer - safeDt);
+  if (state.player.ultimateTimer <= 0) {
+    state.player.ultimatePulseCooldown = 0;
+    state.player.ultimatePulseCount = 0;
+  }
   if (state.player.regen > 0) {
     healPlayer(state, state.player.regen * safeDt);
   }
@@ -34,6 +41,7 @@ export function updateRun(state: RunState, input: InputState, dt: number): void 
   movePlayer(state, input, safeDt);
   updateSpawner(state, safeDt);
   updateAbilities(state, input);
+  updateUltimateSupport(state);
   updateTechniqueSupport(state);
   updateCompanionSupport(state);
   updateEnemies(state, safeDt);
@@ -61,24 +69,72 @@ export function setPaused(state: RunState, paused: boolean): void {
 
 function movePlayer(state: RunState, input: InputState, dt: number): void {
   const move = normalize(input.move);
+  const profile = ultimateByHeroId[state.hero.id];
+  const ultimateMoveScale = state.player.ultimateTimer > 0 ? (profile.moveSpeedScale ?? 1) : 1;
   if (Math.hypot(move.x, move.y) > 0.01) {
     state.lastFacing = move;
   }
-  state.player.x = clamp(state.player.x + move.x * state.player.moveSpeed * dt, 48, state.world.width - 48);
-  state.player.y = clamp(state.player.y + move.y * state.player.moveSpeed * dt, 48, state.world.height - 48);
+  state.player.x = clamp(state.player.x + move.x * state.player.moveSpeed * ultimateMoveScale * dt, 48, state.world.width - 48);
+  state.player.y = clamp(state.player.y + move.y * state.player.moveSpeed * ultimateMoveScale * dt, 48, state.world.height - 48);
 }
 
 function updateAbilities(state: RunState, input: InputState): void {
   const hero = state.hero;
   if (state.player.autoCooldown <= 0) {
     executeAbility(state, hero.autoAbility);
-    state.player.autoCooldown = Math.max(0.15, hero.autoAbility.cooldown * state.player.cooldownScale);
+    const profile = ultimateByHeroId[state.hero.id];
+    const ultimateAutoScale = state.player.ultimateTimer > 0 ? (profile.autoCooldownScale ?? 0.78) : 1;
+    state.player.autoCooldown = Math.max(0.15, hero.autoAbility.cooldown * state.player.cooldownScale * ultimateAutoScale);
   }
   if (input.manualPressed && state.player.manualCooldown <= 0) {
     executeAbility(state, hero.manualAbility);
     addCombatEvent(state, "manual", state.player.x, state.player.y, 1, hero.manualAbility.vfxKey, hero.manualAbility.name);
-    state.player.manualCooldown = Math.max(0.4, hero.manualAbility.cooldown * state.player.cooldownScale);
+    const ultimateDuration = activateUltimate(state);
+    state.player.manualCooldown = Math.max(0.4, hero.manualAbility.cooldown * state.player.cooldownScale + ultimateDuration);
   }
+}
+
+function activateUltimate(state: RunState): number {
+  const profile = ultimateByHeroId[state.hero.id];
+  const duration = profile.duration + state.player.ultimateDurationBonus;
+  state.player.ultimateTimer = duration;
+  state.player.ultimatePulseCooldown = Math.min(profile.pulseEvery, 0.35);
+  state.player.ultimatePulseCount = 0;
+  if (state.hero.id === "xiahoudun") {
+    state.player.berserkTimer = Math.max(state.player.berserkTimer, duration);
+  }
+  addFloatingText(state, state.player.x, state.player.y - 92, profile.name, "xp");
+  addCombatEvent(state, "ultimate", state.player.x, state.player.y, 1.75, profile.vfxKey, profile.name);
+  return duration;
+}
+
+function updateUltimateSupport(state: RunState): void {
+  if (state.player.ultimateTimer <= 0) {
+    return;
+  }
+  const profile = ultimateByHeroId[state.hero.id];
+  while (state.player.ultimatePulseCooldown <= 0 && state.player.ultimateTimer > 0) {
+    state.player.ultimatePulseCount += 1;
+    for (const ability of pulseAbilitiesFor(state, profile)) {
+      executeAbility(state, ability);
+    }
+    if (state.player.ultimatePulseCount % 3 === 0) {
+      addCombatEvent(state, "ultimate", state.player.x, state.player.y, 0.62, profile.vfxKey, profile.name);
+    }
+    state.player.ultimatePulseCooldown += Math.max(0.3, profile.pulseEvery);
+  }
+}
+
+function pulseAbilitiesFor(state: RunState, profile: UltimateProfile) {
+  const empowered = Boolean(state.unlocks[profile.empoweredUnlockId]);
+  const abilities = [empowered && profile.empoweredPulseAbility ? profile.empoweredPulseAbility : profile.pulseAbility];
+  if (empowered && profile.alternatePulseAbility && state.player.ultimatePulseCount % 2 === 0) {
+    abilities.push(profile.alternatePulseAbility);
+  }
+  if (empowered && profile.bonusPulseAbility && profile.bonusEvery && state.player.ultimatePulseCount % profile.bonusEvery === 0) {
+    abilities.push(profile.bonusPulseAbility);
+  }
+  return abilities;
 }
 
 function updateTechniqueCooldowns(state: RunState, dt: number): void {
@@ -236,7 +292,7 @@ function updateProjectiles(state: RunState, dt: number): void {
             enemy.stunTimer = Math.max(enemy.stunTimer, 0.18);
           }
           if (projectile.tags.includes("charm")) {
-            enemy.stunTimer = Math.max(enemy.stunTimer, state.unlocks.evolution_diaochan ? 0.36 : 0.22);
+            enemy.stunTimer = Math.max(enemy.stunTimer, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.36 : 0.22));
           }
           if (projectile.hitIds.length > projectile.pierce) {
             projectile.ttl = 0;
@@ -272,7 +328,7 @@ function updateAreas(state: RunState, dt: number): void {
               enemy.stunTimer = Math.max(enemy.stunTimer, 0.14);
             }
             if (area.tags.includes("charm")) {
-              enemy.stunTimer = Math.max(enemy.stunTimer, state.unlocks.evolution_diaochan ? 0.42 : 0.24);
+              enemy.stunTimer = Math.max(enemy.stunTimer, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.42 : 0.24));
             }
           }
         }
@@ -304,6 +360,13 @@ function updateXpOrbs(state: RunState, dt: number): void {
     survivors.push(orb);
   }
   state.xpOrbs = survivors;
+}
+
+function charmStunDuration(state: RunState, baseDuration: number): number {
+  if (state.player.heroId !== "diaochan" || state.player.ultimateTimer <= 0) {
+    return baseDuration;
+  }
+  return baseDuration * (1.45 + state.player.ultimatePower);
 }
 
 function updateFloatingTexts(state: RunState, dt: number): void {

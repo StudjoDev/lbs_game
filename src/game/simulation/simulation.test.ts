@@ -1,9 +1,23 @@
 import { describe, expect, it } from "vitest";
+import { techniqueById } from "../content/techniques";
+import { ultimateByHeroId, ultimateProfiles } from "../content/ultimates";
 import { upgradeById } from "../content/upgrades";
+import type { HeroId, RunState } from "../types";
+import { executeAbility } from "./abilities";
 import { applyUpgrade, damageEnemy, damagePlayer, gainXp, resolveDeadEnemies } from "./combat";
 import { createRun } from "./createRun";
 import { spawnEnemy } from "./spawn";
 import { updateRun } from "./updateRun";
+
+function advanceRun(state: RunState, seconds: number): void {
+  for (let elapsed = 0; elapsed < seconds; elapsed += 0.05) {
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, Math.min(0.05, seconds - elapsed));
+  }
+}
+
+function heroMasteryId(heroId: HeroId): string {
+  return `hero_${heroId}_musou`;
+}
 
 describe("combat simulation", () => {
   it("applies faction and fire damage modifiers", () => {
@@ -140,6 +154,95 @@ describe("combat simulation", () => {
 
     expect(state.player.manualCooldown).toBeGreaterThan(0);
     expect(state.areas.length + state.projectiles.length).toBeGreaterThan(0);
+  });
+
+  it("opens a sustained ultimate window from manual abilities", () => {
+    const state = createRun("guanyu", 3);
+    const profile = ultimateByHeroId.guanyu;
+    state.spawnTimer = 999;
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+
+    expect(state.player.ultimateTimer).toBeGreaterThan(profile.duration - 0.1);
+    expect(state.player.manualCooldown).toBeGreaterThan(profile.duration + state.hero.manualAbility.cooldown * state.player.cooldownScale - 0.1);
+    expect(state.combatEvents.some((event) => event.type === "ultimate")).toBe(true);
+
+    advanceRun(state, profile.duration + 0.2);
+
+    expect(state.player.ultimateTimer).toBe(0);
+  });
+
+  it("gives every hero a visible ultimate pulse", () => {
+    for (const profile of ultimateProfiles) {
+      const state = createRun(profile.heroId, 101);
+      state.spawnTimer = 999;
+      spawnEnemy(state, "shield", 160);
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+      state.player.ultimatePulseCooldown = 0;
+      const before = state.projectiles.length + state.areas.length;
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+      const vfxKeys = [...state.projectiles, ...state.areas].map((effect) => effect.vfxKey);
+      expect(state.projectiles.length + state.areas.length).toBeGreaterThan(before);
+      expect(vfxKeys).toContain(profile.pulseAbility.vfxKey);
+    }
+  });
+
+  it("hero mastery upgrades extend ultimates and unlock a second pulse layer", () => {
+    for (const profile of ultimateProfiles) {
+      const state = createRun(profile.heroId, 202);
+      state.spawnTimer = 999;
+      applyUpgrade(state, heroMasteryId(profile.heroId));
+      spawnEnemy(state, "captain", 180);
+
+      expect(state.unlocks[profile.empoweredUnlockId]).toBe(true);
+      expect(state.player.ultimateDurationBonus).toBeGreaterThan(0);
+      expect(state.player.ultimatePower).toBeGreaterThan(0);
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+      state.player.ultimatePulseCooldown = 0;
+      state.player.ultimatePulseCount = profile.bonusEvery ? profile.bonusEvery - 1 : profile.alternatePulseAbility ? 1 : 0;
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+      const expectedVfx = (profile.bonusPulseAbility ?? profile.alternatePulseAbility ?? profile.empoweredPulseAbility)?.vfxKey;
+      const vfxKeys = [...state.projectiles, ...state.areas].map((effect) => effect.vfxKey);
+      expect(state.player.ultimateTimer).toBeGreaterThan(profile.duration);
+      if (expectedVfx) {
+        expect(vfxKeys).toContain(expectedVfx);
+      }
+    }
+  });
+
+  it("keeps evolved power scoped to the current hero instead of neutral techniques", () => {
+    const state = createRun("guanyu", 404);
+    state.unlocks.evolution_guanyu = true;
+    state.player.evolvedPower = 1;
+
+    executeAbility(state, techniqueById.thunder_charm.ability);
+
+    const thunderArea = state.areas.find((area) => area.vfxKey === "thunder_charm");
+    expect(thunderArea?.damagePerSecond).toBeCloseTo(72 * 1.35, 2);
+
+    executeAbility(state, state.hero.autoAbility);
+
+    const heroProjectile = state.projectiles.find((projectile) => projectile.vfxKey === "qinglong_arc");
+    expect(heroProjectile?.damage).toBeGreaterThan(28 * 2);
+  });
+
+  it("guarantees a hero mastery offer after the hero has evolved", () => {
+    const state = createRun("guanyu", 18);
+    state.player.level = 4;
+    state.player.nextXp = 1;
+    state.upgrades.wide_formation = 1;
+    applyUpgrade(state, "evo_guanyu");
+
+    gainXp(state, 1);
+
+    expect(state.status).toBe("levelUp");
+    expect(state.pendingUpgradeIds).toContain("hero_guanyu_musou");
   });
 
   it("lets Diaochan create charm dance areas with her manual skill", () => {

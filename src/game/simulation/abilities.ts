@@ -5,10 +5,12 @@ import { randomRange } from "./rng";
 
 export function executeAbility(state: RunState, ability: AbilityDef): void {
   const facing = getAbilityFacing(state, ability.range);
+  const ownedByCurrentHero = ability.ownerHeroId === state.hero.id;
   const evolved = isEvolvedHeroAbility(state, ability);
+  const ultimateScale = ownedByCurrentHero && state.player.ultimateTimer > 0 ? 1.25 + state.player.ultimatePower : 1;
   const evolutionScale = evolved ? 1.24 + state.player.evolvedPower : 1;
-  const damage = ability.damage * evolutionScale;
-  const areaRadius = ability.radius * state.player.areaScale * (evolved ? 1.16 : 1);
+  const damage = ability.damage * evolutionScale * ultimateScale;
+  const areaRadius = ability.radius * state.player.areaScale * (evolved ? 1.16 : 1) * (ownedByCurrentHero && state.player.ultimateTimer > 0 ? 1.12 : 1);
 
   if (ability.effectId === "arc_sweep") {
     const offsets = evolved ? [-0.68, -0.34, 0, 0.34, 0.68] : [-0.42, 0, 0.42];
@@ -76,7 +78,7 @@ export function executeAbility(state: RunState, ability: AbilityDef): void {
       addProjectile(state, ability, rotate(facing, offset), damage, areaRadius, 720, 1, 14);
     }
   } else if (ability.effectId === "blood_rage") {
-    state.player.berserkTimer = evolved ? 7 : 5.5;
+    state.player.berserkTimer = Math.max(state.player.berserkTimer, evolved ? 7 : 5.5);
     addArea(state, ability, state.player, damage * 2.5, areaRadius, 0.36, 0.12);
     if (evolved) {
       addArea(state, ability, state.player, damage * 1.3, areaRadius * 1.55, 1.4, 0.22);
@@ -285,5 +287,5 @@ function clampToWorld(state: RunState, point: Vector2): Vector2 {
 }
 
 function isEvolvedHeroAbility(state: RunState, ability: AbilityDef): boolean {
-  return !ability.id.startsWith("companion") && Boolean(state.unlocks[`evolution_${state.hero.id}`]);
+  return ability.ownerHeroId === state.hero.id && Boolean(state.unlocks[`evolution_${state.hero.id}`]);
 }

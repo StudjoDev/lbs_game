@@ -10,15 +10,19 @@ export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: numb
   let amount = baseDamage * player.damageScale;
 
   if (tags.includes("fire")) {
+    const zhouyuUltimateScale = player.heroId === "zhouyu" && player.ultimateTimer > 0 ? 1.18 + player.ultimatePower : 1;
     amount *= player.burnScale;
-    enemy.burnTimer = Math.max(enemy.burnTimer, state.unlocks.evolution_zhouyu ? 3.4 : 2.4);
-    enemy.burnDps = Math.max(enemy.burnDps, amount * (state.unlocks.wu_chain_fire ? 0.34 : 0.22));
+    enemy.burnTimer = Math.max(enemy.burnTimer, (state.unlocks.evolution_zhouyu ? 3.4 : 2.4) * zhouyuUltimateScale);
+    enemy.burnDps = Math.max(enemy.burnDps, amount * (state.unlocks.wu_chain_fire ? 0.34 : 0.22) * zhouyuUltimateScale);
   }
   if (tags.includes("blade") || tags.includes("pierce")) {
     amount *= player.comboScale;
   }
   if (tags.includes("command") && state.faction.id === "wei") {
     amount *= 1.1;
+  }
+  if (tags.includes("command") && player.heroId === "caocao" && player.ultimateTimer > 0) {
+    amount *= 1.12 + player.ultimatePower;
   }
   if (def.tags.includes("boss")) {
     amount *= player.bossDamage;
@@ -29,6 +33,9 @@ export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: numb
   if (player.berserkTimer > 0) {
     amount *= state.unlocks.evolution_xiahoudun ? 1.82 : 1.55;
     healPlayer(state, amount * (state.unlocks.evolution_xiahoudun ? 0.07 : 0.045));
+  }
+  if (player.heroId === "xiahoudun" && player.ultimateTimer > 0) {
+    healPlayer(state, amount * (0.025 + player.ultimatePower * 0.05));
   }
 
   const critical = nextRandom(state) < player.critChance;
@@ -128,6 +135,10 @@ export function applyUpgrade(state: RunState, upgradeId: string): UpgradeDef {
       state.player.companionDamage += effect.amount;
     } else if (effect.stat === "evolvedPower") {
       state.player.evolvedPower += effect.amount;
+    } else if (effect.stat === "ultimateDuration") {
+      state.player.ultimateDurationBonus += effect.amount;
+    } else if (effect.stat === "ultimatePower") {
+      state.player.ultimatePower += effect.amount;
     } else if (effect.stat === "bossDamage") {
       state.player.bossDamage += effect.amount;
     }
@@ -211,7 +222,7 @@ export function addCombatEvent(
     type,
     x,
     y,
-    ttl: type === "hit" ? 0.18 : 0.45,
+    ttl: type === "hit" ? 0.18 : type === "ultimate" ? 0.75 : 0.45,
     intensity,
     vfxKey,
     text
@@ -226,12 +237,20 @@ function chooseUpgradeOptions(state: RunState): string[] {
   const eligible = upgrades.filter((upgrade) => isUpgradeEligible(state, upgrade));
   const picks: string[] = [];
 
+  const heroSpecific = eligible.filter((upgrade) => upgrade.rarity === "hero" && upgrade.heroId === state.hero.id);
+  const heroPick = pickWeightedUpgrade(state, heroSpecific, picks);
+  if (heroPick) {
+    picks.push(heroPick.id);
+  }
+
   const buildChanging = eligible.filter((upgrade) =>
     ["technique", "faction", "hero", "evolution", "relic"].includes(upgrade.rarity)
   );
-  const firstPick = pickWeightedUpgrade(state, buildChanging.length > 0 ? buildChanging : eligible, picks);
-  if (firstPick) {
-    picks.push(firstPick.id);
+  if (picks.length === 0) {
+    const firstPick = pickWeightedUpgrade(state, buildChanging.length > 0 ? buildChanging : eligible, picks);
+    if (firstPick) {
+      picks.push(firstPick.id);
+    }
   }
 
   while (eligible.length > 0 && picks.length < 3) {

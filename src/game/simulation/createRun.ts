@@ -76,7 +76,12 @@ function createPlayer(heroId: HeroId): PlayerState {
     autoCooldown: 0.3,
     manualCooldown: 0,
     companionCooldown: 3.5,
-    berserkTimer: 0
+    berserkTimer: 0,
+    ultimateTimer: 0,
+    ultimatePulseCooldown: 0,
+    ultimatePulseCount: 0,
+    ultimateDurationBonus: 0,
+    ultimatePower: 0
   };
 
   if (hero.factionId === "shu") {
