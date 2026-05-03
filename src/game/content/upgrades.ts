@@ -283,6 +283,104 @@ export const upgrades: UpgradeDef[] = [
     ]
   },
   {
+    id: "hero_guanyu_musou",
+    name: "青龍無雙",
+    description: "關羽無雙延長 1.5 秒，無雙威力提升，並每第三次脈衝追加青龍斬。",
+    rarity: "hero",
+    heroId: "guanyu",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_guanyu", stacks: 1 },
+    unlockId: "ultimate_guanyu_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_zhaoyun_musou",
+    name: "龍膽無雙",
+    description: "趙雲無雙延長 1.5 秒，無雙威力提升，脈衝改為短距七進七出。",
+    rarity: "hero",
+    heroId: "zhaoyun",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_zhaoyun", stacks: 1 },
+    unlockId: "ultimate_zhaoyun_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_caocao_musou",
+    name: "魏武無雙",
+    description: "曹操無雙延長 1.5 秒，無雙威力提升，虎豹騎脈衝會穿插霸府劍衛。",
+    rarity: "hero",
+    heroId: "caocao",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_caocao", stacks: 1 },
+    unlockId: "ultimate_caocao_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_xiahoudun_musou",
+    name: "剛烈無雙",
+    description: "夏侯惇無雙延長 1.5 秒，無雙威力提升，剛烈脈衝穿插浴血狂斬。",
+    rarity: "hero",
+    heroId: "xiahoudun",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_xiahoudun", stacks: 1 },
+    unlockId: "ultimate_xiahoudun_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_zhouyu_musou",
+    name: "赤壁無雙",
+    description: "周瑜無雙延長 1.5 秒，無雙威力提升，火場脈衝改為赤壁與琴音交疊。",
+    rarity: "hero",
+    heroId: "zhouyu",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_zhouyu", stacks: 1 },
+    unlockId: "ultimate_zhouyu_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_sunshangxiang_musou",
+    name: "弓腰無雙",
+    description: "孫尚香無雙延長 1.5 秒，無雙威力提升，連弩脈衝穿插火箭天雨。",
+    rarity: "hero",
+    heroId: "sunshangxiang",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_sunshangxiang", stacks: 1 },
+    unlockId: "ultimate_sunshangxiang_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
+    id: "hero_diaochan_musou",
+    name: "傾城無雙",
+    description: "貂蟬無雙延長 1.5 秒，無雙威力提升，花舞脈衝改為傾城魅惑場。",
+    rarity: "hero",
+    heroId: "diaochan",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_diaochan", stacks: 1 },
+    unlockId: "ultimate_diaochan_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
     id: "evo_guanyu",
     name: "武聖覺醒",
     description: "關羽刀光增加段數，青龍斬範圍提高。",

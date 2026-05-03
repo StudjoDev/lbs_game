@@ -51,18 +51,20 @@ describe("character art manifest", () => {
     }
   });
 
-  it("uses dedicated full-body battle sprites for Diaochan", () => {
-    const art = characterArtById.diaochan;
-
-    expect(art.battleScale).toBe(0.72);
-    expect(art.battleImage).not.toBe(art.cardImage);
-    expect(art.battleImage).toMatch(/battle-idle\.png$/);
-    expect(pngSize(art.battleImage)).toEqual({ width: 192, height: 224 });
-    for (const framePath of art.attackFrames) {
-      expect(framePath).not.toBe(art.cardImage);
-      expect(pngSize(framePath)).toEqual({ width: 192, height: 224 });
+  it("uses dedicated full-body battle sprites for the full character roster", () => {
+    for (const art of characterArts) {
+      if (art.playable) {
+        expect(art.battleScale).toBe(0.72);
+      }
+      expect(art.battleImage).not.toBe(art.cardImage);
+      expect(art.battleImage).toMatch(/battle-idle\.png$/);
+      expect(pngSize(art.battleImage)).toEqual({ width: 192, height: 224 });
+      for (const framePath of art.attackFrames) {
+        expect(framePath).not.toBe(art.cardImage);
+        expect(pngSize(framePath)).toEqual({ width: 192, height: 224 });
+      }
+      expect(pngSize(art.attackStrip)).toEqual({ width: 768, height: 224 });
     }
-    expect(pngSize(art.attackStrip)).toEqual({ width: 768, height: 224 });
   });
 
   it("keeps SVG assets out of the active character art directory", () => {

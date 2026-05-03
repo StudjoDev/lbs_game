@@ -12,6 +12,7 @@ export type CombatEventType =
   | "kill"
   | "levelUp"
   | "manual"
+  | "ultimate"
   | "evolution"
   | "morale"
   | "boss"
@@ -37,6 +38,7 @@ export interface FactionDef {
 
 export interface AbilityDef {
   id: string;
+  ownerHeroId?: HeroId;
   name: string;
   description: string;
   trigger: AbilityTrigger;
@@ -165,6 +167,8 @@ export interface UpgradeEffect {
     | "xpScale"
     | "companionDamage"
     | "evolvedPower"
+    | "ultimateDuration"
+    | "ultimatePower"
     | "bossDamage";
   amount: number;
 }
@@ -203,6 +207,11 @@ export interface PlayerState {
   manualCooldown: number;
   companionCooldown: number;
   berserkTimer: number;
+  ultimateTimer: number;
+  ultimatePulseCooldown: number;
+  ultimatePulseCount: number;
+  ultimateDurationBonus: number;
+  ultimatePower: number;
 }
 
 export interface EnemyState {

@@ -67,6 +67,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("guanyu"),
     textureKey: "hero_guanyu",
     attackFrameKeys: attackFrameKeys("hero_guanyu"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#2dc77d", secondary: "#123626", accent: "#ffd36a" },
     playable: true
@@ -88,6 +89,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("zhaoyun"),
     textureKey: "hero_zhaoyun",
     attackFrameKeys: attackFrameKeys("hero_zhaoyun"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#45c7df", secondary: "#113d49", accent: "#dffaff" },
     playable: true
@@ -109,6 +111,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("caocao"),
     textureKey: "hero_caocao",
     attackFrameKeys: attackFrameKeys("hero_caocao"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#6d8cff", secondary: "#171c3a", accent: "#e8edff" },
     playable: true
@@ -130,6 +133,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("xiahoudun"),
     textureKey: "hero_xiahoudun",
     attackFrameKeys: attackFrameKeys("hero_xiahoudun"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#526ab7", secondary: "#17182a", accent: "#ff6963" },
     playable: true
@@ -151,6 +155,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("zhouyu"),
     textureKey: "hero_zhouyu",
     attackFrameKeys: attackFrameKeys("hero_zhouyu"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#ff6f67", secondary: "#451915", accent: "#ffc15f" },
     playable: true
@@ -172,6 +177,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("sunshangxiang"),
     textureKey: "hero_sunshangxiang",
     attackFrameKeys: attackFrameKeys("hero_sunshangxiang"),
+    battleScale: 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: { primary: "#ff7b8d", secondary: "#431726", accent: "#ffd37f" },
     playable: true

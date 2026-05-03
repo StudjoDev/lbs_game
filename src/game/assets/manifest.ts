@@ -1,3 +1,5 @@
+export { audioAssetEntries, audioKeys, audioPaths } from "../audio/catalog";
+
 export const textureKeys = {
   heroes: ["hero_guanyu", "hero_zhaoyun", "hero_caocao", "hero_xiahoudun", "hero_zhouyu", "hero_sunshangxiang"],
   heroAttackFrames: [

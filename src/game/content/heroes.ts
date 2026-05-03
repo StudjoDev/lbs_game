@@ -13,6 +13,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 150, moveSpeed: 220, armor: 4, pickupRadius: 96 },
     autoAbility: {
       id: "guanyu_auto",
+      ownerHeroId: "guanyu",
       name: "青龍偃月",
       description: "自動揮出弧形青龍刀光，橫掃身前敵軍。",
       trigger: "auto",
@@ -26,6 +27,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "guanyu_manual",
+      ownerHeroId: "guanyu",
       name: "拖刀斬",
       description: "蓄勢斬出長距離青龍刀氣，貫穿一路敵人。",
       trigger: "manual",
@@ -52,6 +54,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 126, moveSpeed: 260, armor: 2, pickupRadius: 104 },
     autoAbility: {
       id: "zhaoyun_auto",
+      ownerHeroId: "zhaoyun",
       name: "槍影連刺",
       description: "自動對前方敵人連續穿刺，射程較遠。",
       trigger: "auto",
@@ -65,6 +68,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "zhaoyun_manual",
+      ownerHeroId: "zhaoyun",
       name: "七進七出",
       description: "向目標方向突進，穿敵並留下白龍槍芒。",
       trigger: "manual",
@@ -91,6 +95,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 136, moveSpeed: 220, armor: 5, pickupRadius: 100 },
     autoAbility: {
       id: "caocao_auto",
+      ownerHeroId: "caocao",
       name: "魏武劍令",
       description: "召出親衛劍氣，自動追擊最近的敵人。",
       trigger: "auto",
@@ -104,6 +109,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "caocao_manual",
+      ownerHeroId: "caocao",
       name: "魏武令",
       description: "下令虎豹騎沿直線衝鋒，震散成群敵軍。",
       trigger: "manual",
@@ -130,6 +136,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 172, moveSpeed: 205, armor: 6, pickupRadius: 88 },
     autoAbility: {
       id: "xiahoudun_auto",
+      ownerHeroId: "xiahoudun",
       name: "重刀震退",
       description: "揮出沉重斬擊，擊退近身敵軍。",
       trigger: "auto",
@@ -143,6 +150,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "xiahoudun_manual",
+      ownerHeroId: "xiahoudun",
       name: "獨眼血戰",
       description: "短暫狂暴，獲得吸血並提高斬擊範圍。",
       trigger: "manual",
@@ -169,6 +177,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 118, moveSpeed: 230, armor: 2, pickupRadius: 112 },
     autoAbility: {
       id: "zhouyu_auto",
+      ownerHeroId: "zhouyu",
       name: "琴音火彈",
       description: "彈出火焰音符，命中後造成燃燒。",
       trigger: "auto",
@@ -182,6 +191,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "zhouyu_manual",
+      ownerHeroId: "zhouyu",
       name: "赤壁火陣",
       description: "在戰場鋪開火陣，持續灼燒大片敵軍。",
       trigger: "manual",
@@ -208,6 +218,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 116, moveSpeed: 248, armor: 2, pickupRadius: 120 },
     autoAbility: {
       id: "sunshangxiang_auto",
+      ownerHeroId: "sunshangxiang",
       name: "雙弩連射",
       description: "以雙弩扇形連射，快速削弱群體敵人。",
       trigger: "auto",
@@ -221,6 +232,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "sunshangxiang_manual",
+      ownerHeroId: "sunshangxiang",
       name: "連環箭雨",
       description: "召喚大範圍箭幕落下，清除包圍圈。",
       trigger: "manual",
@@ -247,6 +259,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 124, moveSpeed: 252, armor: 2, pickupRadius: 116 },
     autoAbility: {
       id: "diaochan_auto",
+      ownerHeroId: "diaochan",
       name: "花影旋舞",
       description: "在身邊旋出粉金花瓣斬，連續切開近距離敵軍。",
       trigger: "auto",
@@ -260,6 +273,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       id: "diaochan_manual",
+      ownerHeroId: "diaochan",
       name: "傾城舞陣",
       description: "展開華麗舞陣，造成連續花瓣傷害並短暫迷亂敵人。",
       trigger: "manual",
