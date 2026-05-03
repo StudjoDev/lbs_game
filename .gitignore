@@ -5,6 +5,7 @@ output/
 .playwright-cli/
 tmp/
 coverage/
+test-results/
 *.log
 .env
 .env.*
