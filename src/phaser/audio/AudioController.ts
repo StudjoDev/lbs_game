@@ -7,6 +7,11 @@ import { loadAudioSettings, normalizeAudioSettings, saveAudioSettings, type Audi
 const registryKey = "audioController";
 
 type VolumeSound = Phaser.Sound.BaseSound & { volume: number };
+type SoundManagerWithContext = Phaser.Sound.BaseSoundManager & {
+  context?: AudioContext;
+  locked?: boolean;
+  unlocked?: boolean;
+};
 
 export function getAudioController(scene: Phaser.Scene): AudioController {
   const existing = scene.registry.get(registryKey) as AudioController | undefined;
@@ -24,12 +29,15 @@ export class AudioController {
   private desiredMusicKey?: MusicKey;
   private readonly sfxThrottle = new SfxThrottle();
   private settings = loadAudioSettings();
+  private cleanupUnlockListeners?: () => void;
 
   bindUnlock(scene: Phaser.Scene): void {
-    const resume = () => this.resumeDesiredMusic(scene);
+    const resume = () => this.unlockAndResume(scene);
     scene.input.once("pointerdown", resume);
     scene.input.keyboard?.once("keydown", resume);
     scene.sound.once("unlocked", resume);
+    this.bindDomUnlock(scene, resume);
+    this.installDebugHook(scene);
   }
 
   getSettings(): AudioSettings {
@@ -108,6 +116,7 @@ export class AudioController {
     if (!this.sfxThrottle.canPlay(key, scene.time.now)) {
       return;
     }
+    this.unlockFromGesture(scene);
     scene.sound.play(key, {
       volume: this.settings.sfxVolume * volumeScale
     });
@@ -123,6 +132,92 @@ export class AudioController {
     if (this.desiredMusicKey) {
       this.playMusic(scene, this.desiredMusicKey, 220);
     }
+  }
+
+  private bindDomUnlock(scene: Phaser.Scene, resume: () => void): void {
+    this.cleanupUnlockListeners?.();
+    const options: AddEventListenerOptions = { capture: true, passive: true };
+    const events = ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "mouseup", "click", "keydown"] as const;
+    for (const eventName of events) {
+      document.addEventListener(eventName, resume, options);
+    }
+    this.cleanupUnlockListeners = () => {
+      for (const eventName of events) {
+        document.removeEventListener(eventName, resume, options);
+      }
+      this.cleanupUnlockListeners = undefined;
+    };
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupUnlockListeners?.());
+  }
+
+  private unlockAndResume(scene: Phaser.Scene): void {
+    const didStartUnlock = this.unlockFromGesture(scene);
+    if (!didStartUnlock) {
+      this.resumeDesiredMusic(scene);
+    }
+  }
+
+  private unlockFromGesture(scene: Phaser.Scene): boolean {
+    const manager = scene.sound as SoundManagerWithContext;
+    if (!manager.locked) {
+      this.cleanupUnlockListeners?.();
+      return false;
+    }
+
+    const context = manager.context;
+    if (!context || context.state === "running") {
+      this.markUnlocked(manager);
+      this.resumeDesiredMusic(scene);
+      return false;
+    }
+
+    void context
+      .resume()
+      .then(() => {
+        this.markUnlocked(manager);
+        this.resumeDesiredMusic(scene);
+      })
+      .catch(() => {
+        // A later user gesture will retry.
+      });
+    return true;
+  }
+
+  private markUnlocked(manager: SoundManagerWithContext): void {
+    if (!manager.locked) {
+      this.cleanupUnlockListeners?.();
+      return;
+    }
+    manager.unlocked = false;
+    manager.locked = false;
+    manager.emit(Phaser.Sound.Events.UNLOCKED, manager);
+    this.cleanupUnlockListeners?.();
+  }
+
+  private installDebugHook(scene: Phaser.Scene): void {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const debugWindow = window as Window & { render_audio_state?: () => string };
+    const render = () => {
+      const manager = scene.sound as SoundManagerWithContext;
+      return JSON.stringify({
+        locked: Boolean(manager.locked),
+        contextState: manager.context?.state ?? "none",
+        desiredMusicKey: this.desiredMusicKey ?? null,
+        currentMusicKey: this.currentMusicKey ?? null,
+        currentMusicPlaying: Boolean(this.currentMusic?.isPlaying),
+        muted: this.settings.muted,
+        musicVolume: this.settings.musicVolume,
+        sfxVolume: this.settings.sfxVolume
+      });
+    };
+    debugWindow.render_audio_state = render;
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (debugWindow.render_audio_state === render) {
+        delete debugWindow.render_audio_state;
+      }
+    });
   }
 
   private applyMusicVolume(scene: Phaser.Scene): void {

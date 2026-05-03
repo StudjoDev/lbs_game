@@ -13,7 +13,7 @@ import { ultimateByHeroId } from "../../game/content/ultimates";
 import { createKeyboardBindings, readInput, type KeyboardBindings } from "../../game/input/bindings";
 import { applyUpgrade } from "../../game/simulation/combat";
 import { createRun } from "../../game/simulation/createRun";
-import { setPaused, updateRun } from "../../game/simulation/updateRun";
+import { collectDebugXp, setPaused, updateRun } from "../../game/simulation/updateRun";
 import type {
   AreaState,
   CombatEventState,
@@ -175,6 +175,7 @@ export class BattleScene extends Phaser.Scene {
         this.scene.start("MenuScene");
       }
     });
+    this.installDebugHooks();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
   }
 
@@ -776,6 +777,70 @@ export class BattleScene extends Phaser.Scene {
         .setRotation(texture.includes("spear") ? -0.6 + (index % 5) * 0.25 : 0);
       this.backgroundLayer?.add(sprite);
     }
+  }
+
+  private installDebugHooks(): void {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const debugWindow = window as Window & {
+      advanceTime?: (ms: number) => void;
+      collectDebugXp?: (amount?: number) => void;
+      render_game_to_text?: () => string;
+    };
+    const render = () => {
+      const state = this.run;
+      if (!state) {
+        return JSON.stringify({ scene: "BattleScene", status: "missing" });
+      }
+      return JSON.stringify({
+        scene: "BattleScene",
+        coordinateSystem: "origin top-left; x increases right; y increases down",
+        status: state.status,
+        player: {
+          x: Math.round(state.player.x),
+          y: Math.round(state.player.y),
+          hp: Math.round(state.player.hp),
+          level: state.player.level,
+          xp: Math.round(state.player.xp),
+          nextXp: state.player.nextXp
+        },
+        enemies: state.enemies.length,
+        xpOrbs: state.xpOrbs.length,
+        pendingUpgradeIds: state.pendingUpgradeIds,
+        modalOpen: Boolean(document.querySelector(".hud-modal.is-open"))
+      });
+    };
+    const advanceTime = (ms: number) => {
+      const stepMs = 1000 / 60;
+      const steps = Math.max(1, Math.round(ms / stepMs));
+      for (let index = 0; index < steps; index += 1) {
+        this.update(this.time.now, stepMs);
+      }
+    };
+    const collectXp = (amount = 200) => {
+      if (!this.run) {
+        return;
+      }
+      collectDebugXp(this.run, amount);
+      this.hud?.update(this.run);
+    };
+
+    debugWindow.render_game_to_text = render;
+    debugWindow.advanceTime = advanceTime;
+    debugWindow.collectDebugXp = collectXp;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (debugWindow.render_game_to_text === render) {
+        delete debugWindow.render_game_to_text;
+      }
+      if (debugWindow.advanceTime === advanceTime) {
+        delete debugWindow.advanceTime;
+      }
+      if (debugWindow.collectDebugXp === collectXp) {
+        delete debugWindow.collectDebugXp;
+      }
+    });
   }
 
   private cleanup(): void {

@@ -23,6 +23,7 @@ export class BattleHud {
   private activePointerId: number | undefined;
   private lastUpgradeKey = "";
   private lastResult = "";
+  private upgradeSelectionLocked = false;
   private readonly maxJoystickDistance = 54;
 
   constructor(private readonly callbacks: HudCallbacks) {
@@ -76,7 +77,7 @@ export class BattleHud {
       </div>
       <button class="pause-button" data-pause="true">暫停</button>
     `;
-    this.status.querySelector<HTMLButtonElement>("[data-pause]")?.addEventListener("click", this.callbacks.onPause);
+    bindButtonActivation(this.status.querySelector<HTMLButtonElement>("[data-pause]"), this.callbacks.onPause);
 
     this.skill.classList.toggle("is-ready", manualReady);
     this.skill.classList.toggle("is-ultimate", ultimateActive);
@@ -149,6 +150,7 @@ export class BattleHud {
       return;
     }
     this.lastUpgradeKey = key;
+    this.upgradeSelectionLocked = false;
     const options = state.pendingUpgradeIds.map((id) => upgradeById[id]).filter(Boolean);
     this.modal.className = "hud-modal is-open";
     this.modal.innerHTML = `
@@ -161,8 +163,19 @@ export class BattleHud {
       </section>
     `;
     this.modal.querySelectorAll<HTMLButtonElement>("[data-upgrade]").forEach((button) => {
-      button.addEventListener("click", () => this.callbacks.onUpgrade(button.dataset.upgrade ?? ""));
+      bindButtonActivation(button, () => this.confirmUpgrade(button.dataset.upgrade ?? ""));
     });
+  }
+
+  private confirmUpgrade(upgradeId: string): void {
+    if (!upgradeId || this.upgradeSelectionLocked) {
+      return;
+    }
+    this.upgradeSelectionLocked = true;
+    this.lastUpgradeKey = "";
+    this.modal.className = "hud-modal";
+    this.modal.innerHTML = "";
+    this.callbacks.onUpgrade(upgradeId);
   }
 
   private renderPauseModal(): void {
@@ -182,8 +195,8 @@ export class BattleHud {
         </div>
       </section>
     `;
-    this.modal.querySelector<HTMLButtonElement>("[data-resume]")?.addEventListener("click", this.callbacks.onResume);
-    this.modal.querySelector<HTMLButtonElement>("[data-menu]")?.addEventListener("click", this.callbacks.onMenu);
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-resume]"), this.callbacks.onResume);
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-menu]"), this.callbacks.onMenu);
     bindAudioControls(this.modal, this.callbacks);
   }
 
@@ -206,9 +219,30 @@ export class BattleHud {
         </div>
       </section>
     `;
-    this.modal.querySelector<HTMLButtonElement>("[data-restart]")?.addEventListener("click", this.callbacks.onRestart);
-    this.modal.querySelector<HTMLButtonElement>("[data-menu]")?.addEventListener("click", this.callbacks.onMenu);
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-restart]"), this.callbacks.onRestart);
+    bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-menu]"), this.callbacks.onMenu);
   }
+}
+
+function bindButtonActivation(button: HTMLButtonElement | null | undefined, handler: () => void): void {
+  if (!button) {
+    return;
+  }
+  let lastPointerActivation = 0;
+  button.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    lastPointerActivation = window.performance.now();
+    handler();
+  });
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (window.performance.now() - lastPointerActivation < 650) {
+      return;
+    }
+    handler();
+  });
 }
 
 function renderUpgradeCard(upgrade: UpgradeDef, stacks: number): string {
