@@ -1,42 +1,19 @@
-import Phaser from "phaser";
+﻿import Phaser from "phaser";
 import {
   audioAssetEntries,
   enemyBaseAssetEntries,
   enemyAnimationAssetEntries,
   enemyAnimationsById,
   enemyAnimationKey,
-  hitRadialAnimationKey,
-  hitRadialSpritesheet,
-  hitSparkAnimationKey,
-  hitSparkSpritesheet,
-  slashAnimationFrames,
-  slashAnimationKey,
+  visualAnimationEntries,
   visualAssetEntries,
   visualSpritesheetEntries,
   type EnemyAnimationDef,
-  type EnemyAnimationId
+  type EnemyAnimationId,
+  type VisualAnimationEntry
 } from "../../game/assets/manifest";
 import { characterArts } from "../../game/content/characterArt";
 import type { CharacterAnimationDef } from "../../game/types";
-
-interface HeroLook {
-  key: string;
-  portrait: string;
-  glyph: string;
-  primary: string;
-  accent: string;
-  weapon: "glaive" | "spear" | "sword" | "blade" | "fan" | "bow";
-}
-
-const heroLooks: HeroLook[] = [
-  { key: "hero_guanyu", portrait: "portrait_guanyu", glyph: "關", primary: "#28634d", accent: "#d6a23b", weapon: "glaive" },
-  { key: "hero_zhaoyun", portrait: "portrait_zhaoyun", glyph: "趙", primary: "#2f8d76", accent: "#e7e8df", weapon: "spear" },
-  { key: "hero_caocao", portrait: "portrait_caocao", glyph: "曹", primary: "#365d9f", accent: "#d7dbe9", weapon: "sword" },
-  { key: "hero_xiahoudun", portrait: "portrait_xiahoudun", glyph: "夏", primary: "#2f4778", accent: "#c9473b", weapon: "blade" },
-  { key: "hero_zhouyu", portrait: "portrait_zhouyu", glyph: "周", primary: "#9f3b31", accent: "#f0b15f", weapon: "fan" },
-  { key: "hero_sunshangxiang", portrait: "portrait_sunshangxiang", glyph: "香", primary: "#b4473d", accent: "#f6c779", weapon: "bow" },
-  { key: "hero_diaochan", portrait: "portrait_diaochan", glyph: "貂", primary: "#ff78b7", accent: "#ffd98a", weapon: "fan" }
-];
 
 const enemyLooks = [
   { key: "enemy_infantry", glyph: "卒", primary: "#6c5a4d", accent: "#ded0b0", size: 58 },
@@ -89,16 +66,12 @@ export class BootScene extends Phaser.Scene {
     this.createGroundTile();
     this.createBattlefieldTextures();
     this.createFxTextures();
-    this.createSlashAnimation();
-    this.createHitFxAnimations();
+    this.createVisualAnimations();
     this.createCharacterAnimations();
     this.createEnemyAnimations();
-    for (const look of heroLooks) {
-      if (!this.textures.exists(look.key)) {
-        this.createHeroTexture(look);
-      }
-      if (!this.textures.exists(look.portrait)) {
-        this.createPortraitTexture(look);
+    for (const art of characterArts) {
+      if (!this.textures.exists(art.textureKey)) {
+        console.warn(`Missing hero texture asset: ${art.textureKey}`);
       }
     }
     for (const enemy of enemyLooks) {
@@ -322,46 +295,6 @@ export class BootScene extends Phaser.Scene {
     texture.refresh();
   }
 
-  private createHeroTexture(look: HeroLook): void {
-    const texture = this.textures.createCanvas(look.key, 128, 150)!;
-    const ctx = texture.getContext();
-    ctx.clearRect(0, 0, 128, 150);
-    drawShadow(ctx, 64, 132, 44, 12);
-    ctx.fillStyle = look.primary;
-    ctx.strokeStyle = look.accent;
-    ctx.lineWidth = 4;
-    drawCape(ctx, look.primary);
-    drawArmor(ctx, look.primary, look.accent);
-    drawHead(ctx, look.accent);
-    drawWeapon(ctx, look.weapon, look.accent);
-    ctx.fillStyle = "rgba(255, 246, 214, 0.92)";
-    ctx.font = "700 24px serif";
-    ctx.textAlign = "center";
-    ctx.fillText(look.glyph, 64, 82);
-    texture.refresh();
-  }
-
-  private createPortraitTexture(look: HeroLook): void {
-    const texture = this.textures.createCanvas(look.portrait, 320, 420)!;
-    const ctx = texture.getContext();
-    const gradient = ctx.createLinearGradient(0, 0, 320, 420);
-    gradient.addColorStop(0, look.primary);
-    gradient.addColorStop(0.52, "#17120f");
-    gradient.addColorStop(1, look.accent);
-    ctx.fillStyle = gradient;
-    roundRect(ctx, 0, 0, 320, 420, 22);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255, 244, 207, 0.13)";
-    ctx.font = "700 190px serif";
-    ctx.textAlign = "center";
-    ctx.fillText(look.glyph, 160, 250);
-    ctx.strokeStyle = "rgba(255, 242, 201, 0.44)";
-    ctx.lineWidth = 8;
-    roundRect(ctx, 18, 18, 284, 384, 18);
-    ctx.stroke();
-    texture.refresh();
-  }
-
   private createEnemyTexture(key: string, glyph: string, primary: string, accent: string, size: number): void {
     const texture = this.textures.createCanvas(key, size, size + 20)!;
     const ctx = texture.getContext();
@@ -562,40 +495,39 @@ export class BootScene extends Phaser.Scene {
     texture.refresh();
   }
 
-  private createSlashAnimation(): void {
-    if (this.anims.exists(slashAnimationKey)) {
-      return;
+  private createVisualAnimations(): void {
+    for (const animation of visualAnimationEntries) {
+      if (this.anims.exists(animation.key)) {
+        continue;
+      }
+      if ("frames" in animation) {
+        this.createFrameAnimation(animation);
+      } else if (this.textures.exists(animation.spritesheet.key)) {
+        this.anims.create({
+          key: animation.key,
+          frames: this.anims.generateFrameNumbers(animation.spritesheet.key, {
+            start: 0,
+            end: animation.spritesheet.endFrame
+          }),
+          frameRate: animation.frameRate,
+          repeat: animation.repeat
+        });
+      }
     }
-    for (const [index, frame] of slashAnimationFrames.entries()) {
+  }
+
+  private createFrameAnimation(animation: Extract<VisualAnimationEntry, { frames: readonly unknown[] }>): void {
+    for (const [index, frame] of animation.frames.entries()) {
       if (!this.textures.exists(frame.key)) {
         this.createStreakTexture(frame.key, index % 2 === 0 ? "#fff1cf" : "#ffd98a", 168, 82);
       }
     }
     this.anims.create({
-      key: slashAnimationKey,
-      frames: slashAnimationFrames.map((frame) => ({ key: frame.key })),
-      frameRate: 28,
-      repeat: 0
+      key: animation.key,
+      frames: animation.frames.map((frame) => ({ key: frame.key })),
+      frameRate: animation.frameRate,
+      repeat: animation.repeat
     });
-  }
-
-  private createHitFxAnimations(): void {
-    if (!this.anims.exists(hitSparkAnimationKey) && this.textures.exists(hitSparkSpritesheet.key)) {
-      this.anims.create({
-        key: hitSparkAnimationKey,
-        frames: this.anims.generateFrameNumbers(hitSparkSpritesheet.key, { start: 0, end: hitSparkSpritesheet.endFrame }),
-        frameRate: 32,
-        repeat: 0
-      });
-    }
-    if (!this.anims.exists(hitRadialAnimationKey) && this.textures.exists(hitRadialSpritesheet.key)) {
-      this.anims.create({
-        key: hitRadialAnimationKey,
-        frames: this.anims.generateFrameNumbers(hitRadialSpritesheet.key, { start: 0, end: hitRadialSpritesheet.endFrame }),
-        frameRate: 24,
-        repeat: 0
-      });
-    }
   }
 
   private createCharacterAnimations(): void {
@@ -671,99 +603,6 @@ export class BootScene extends Phaser.Scene {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 32, 32);
     texture.refresh();
-  }
-}
-
-function drawArmor(ctx: CanvasRenderingContext2D, primary: string, accent: string): void {
-  ctx.fillStyle = primary;
-  ctx.beginPath();
-  ctx.moveTo(42, 58);
-  ctx.lineTo(86, 58);
-  ctx.lineTo(102, 118);
-  ctx.quadraticCurveTo(64, 138, 26, 118);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(255, 244, 210, 0.45)";
-  ctx.lineWidth = 2;
-  for (let x = 43; x <= 84; x += 14) {
-    ctx.beginPath();
-    ctx.moveTo(x, 63);
-    ctx.lineTo(x + 6, 121);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = accent;
-}
-
-function drawCape(ctx: CanvasRenderingContext2D, primary: string): void {
-  ctx.fillStyle = primary;
-  ctx.globalAlpha = 0.58;
-  ctx.beginPath();
-  ctx.moveTo(44, 54);
-  ctx.bezierCurveTo(9, 82, 11, 118, 32, 136);
-  ctx.bezierCurveTo(54, 120, 72, 83, 84, 56);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
-}
-
-function drawHead(ctx: CanvasRenderingContext2D, accent: string): void {
-  ctx.fillStyle = "#241813";
-  ctx.beginPath();
-  ctx.arc(64, 42, 20, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(44, 35);
-  ctx.quadraticCurveTo(64, 16, 84, 35);
-  ctx.stroke();
-}
-
-function drawWeapon(ctx: CanvasRenderingContext2D, weapon: HeroLook["weapon"], accent: string): void {
-  ctx.strokeStyle = accent;
-  ctx.fillStyle = accent;
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
-  if (weapon === "glaive") {
-    ctx.beginPath();
-    ctx.moveTo(28, 122);
-    ctx.lineTo(102, 24);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(103, 24, 8, 20, -0.6, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (weapon === "spear") {
-    ctx.beginPath();
-    ctx.moveTo(24, 118);
-    ctx.lineTo(104, 20);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(104, 20);
-    ctx.lineTo(99, 41);
-    ctx.lineTo(117, 31);
-    ctx.closePath();
-    ctx.fill();
-  } else if (weapon === "bow") {
-    ctx.beginPath();
-    ctx.arc(92, 74, 42, -1.25, 1.25);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(90, 34);
-    ctx.lineTo(90, 114);
-    ctx.stroke();
-  } else if (weapon === "fan") {
-    for (let angle = -0.6; angle <= 0.6; angle += 0.3) {
-      ctx.beginPath();
-      ctx.moveTo(38, 96);
-      ctx.lineTo(38 + Math.cos(angle) * 62, 96 + Math.sin(angle) * 62);
-      ctx.stroke();
-    }
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(100, 118);
-    ctx.lineTo(38, 38);
-    ctx.stroke();
   }
 }
 

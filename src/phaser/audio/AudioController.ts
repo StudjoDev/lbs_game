@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import type { CombatEventState } from "../../game/types";
 import type { MusicKey, SfxKey } from "../../game/audio/catalog";
-import { sfxKeyForCombatEvent, SfxThrottle } from "../../game/audio/events";
+import { selectSfxVariant, sfxKeyForCombatEvent, SfxThrottle } from "../../game/audio/events";
 import { loadAudioSettings, normalizeAudioSettings, saveAudioSettings, type AudioSettings } from "../../game/audio/settings";
 
 const registryKey = "audioController";
@@ -117,8 +117,10 @@ export class AudioController {
       return;
     }
     this.unlockFromGesture(scene);
-    scene.sound.play(key, {
-      volume: this.settings.sfxVolume * volumeScale
+    const variant = selectSfxVariant(key);
+    scene.sound.play(variant.key, {
+      volume: this.settings.sfxVolume * volumeScale * variant.volumeScale,
+      detune: variant.detune
     });
   }
 
