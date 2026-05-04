@@ -60,6 +60,7 @@ export class BattleHud {
     const manualReady = state.player.manualCooldown <= 0;
     const bossText = state.bossSpawned ? "呂布已現身" : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} 呂布`;
     const buildChips = getBuildChips(state);
+    const objectiveProgress = Math.min(state.objective.goal, Math.floor(state.objective.progress));
 
     this.status.innerHTML = `
       <div class="hud-card hero-chip">
@@ -77,6 +78,11 @@ export class BattleHud {
         <strong>${state.kills} 斬</strong>
         <small>${bossText}</small>
       </div>
+      <div class="hud-card objective-chip">
+        <span>戰場目標</span>
+        <strong>${state.objective.title}</strong>
+        <small>${objectiveProgress}/${state.objective.goal} · ${state.objective.description}</small>
+      </div>
       <div class="hud-card build-strip">
         ${buildChips.map((chip) => `<span class="${chip.tone}">${chip.label}</span>`).join("")}
       </div>
@@ -88,7 +94,7 @@ export class BattleHud {
     this.skill.classList.toggle("is-ultimate", ultimateActive);
     this.skill.innerHTML = `
       <strong>${ultimateActive ? `無雙 ${Math.ceil(state.player.ultimateTimer)}` : manualReady ? state.hero.manualAbility.name : Math.ceil(state.player.manualCooldown)}</strong>
-      <span>${ultimateActive ? "覺醒中" : "Space / Q"}</span>
+      <span>${ultimateActive ? "覺醒中" : "Space / 點擊"}</span>
     `;
 
     if (state.status === "levelUp") {
@@ -272,13 +278,47 @@ function bindButtonActivation(button: HTMLButtonElement | null | undefined, hand
 }
 
 function renderUpgradeCard(upgrade: UpgradeDef, stacks: number): string {
+  const identity = upgradeIdentity(upgrade);
   return `
-    <button class="upgrade-card rarity-${upgrade.rarity}" data-upgrade="${upgrade.id}">
+    <button class="upgrade-card rarity-${upgrade.rarity} archetype-${identity.key}" data-upgrade="${upgrade.id}">
       <span>${rarityLabel(upgrade.rarity)} · ${stacks + 1}/${upgrade.maxStacks}</span>
+      <span class="upgrade-build"><i>${identity.icon}</i>${identity.label}</span>
       <strong>${upgrade.name}</strong>
+      <em>${identity.hint}</em>
       <small>${upgrade.description}</small>
     </button>
   `;
+}
+
+function upgradeIdentity(upgrade: UpgradeDef): { key: string; icon: string; label: string; hint: string } {
+  if (upgrade.rarity === "evolution") {
+    return { key: "evolution", icon: "醒", label: "進化", hint: "改變武將核心招式" };
+  }
+  if (upgrade.rarity === "hero") {
+    return { key: "ultimate", icon: "魂", label: "名將魂", hint: "強化大招覺醒窗口" };
+  }
+  if (upgrade.rarity === "technique") {
+    return { key: "technique", icon: "術", label: "新招式", hint: "加入自動攻擊模組" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "regen" || effect.stat === "armor" || effect.stat === "maxHp")) {
+    return { key: "survival", icon: "守", label: "生存", hint: "提高容錯與近身抗壓" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "cooldownScale")) {
+    return { key: "tempo", icon: "速", label: "節奏", hint: "更頻繁觸發攻擊" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "areaScale")) {
+    return { key: "field", icon: "域", label: "範圍", hint: "擴大清場覆蓋" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "moveSpeed")) {
+    return { key: "mobility", icon: "行", label: "走位", hint: "拉扯、撿戰功更安全" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "pickupRadius" || effect.stat === "xpScale")) {
+    return { key: "growth", icon: "功", label: "成長", hint: "加速升級和資源回收" };
+  }
+  if (upgrade.apply.some((effect) => effect.stat === "critChance" || effect.stat === "critDamage")) {
+    return { key: "crit", icon: "斬", label: "爆發", hint: "提高斬殺和 Boss 輸出" };
+  }
+  return { key: "strike", icon: "攻", label: "輸出", hint: "穩定提高殺敵效率" };
 }
 
 function getBuildChips(state: RunState): Array<{ label: string; tone: string }> {

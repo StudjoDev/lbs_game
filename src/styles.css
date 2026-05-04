@@ -125,6 +125,40 @@ button {
   padding: 7px 10px;
 }
 
+.quick-start-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  width: min(100%, 520px);
+  margin-top: 24px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--art-accent, #d8a84f) 42%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--art-primary, #ff78b7) 20%, transparent), transparent),
+    rgba(16, 8, 14, 0.58);
+}
+
+.quick-start-panel span,
+.quick-start-panel small {
+  display: block;
+  color: rgba(245, 227, 189, 0.7);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quick-start-panel strong {
+  display: block;
+  margin: 2px 0;
+  color: #fff0cf;
+  font-size: 24px;
+}
+
+.quick-start-button {
+  min-width: 148px;
+}
+
 .hero-preview {
   position: relative;
   margin-top: 40px;
@@ -969,21 +1003,46 @@ button {
   padding: 10px 14px;
 }
 
+.objective-chip {
+  display: grid;
+  align-content: center;
+  min-width: 230px;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-color: rgba(104, 212, 154, 0.34);
+  background:
+    linear-gradient(135deg, rgba(104, 212, 154, 0.13), transparent),
+    rgba(36, 18, 31, 0.74);
+}
+
 .hero-chip span,
-.run-chip small {
+.run-chip small,
+.objective-chip span {
   color: var(--gold);
 }
 
 .hero-chip strong,
-.run-chip strong {
+.run-chip strong,
+.objective-chip strong {
   display: block;
   color: #fff0cf;
   font-size: 22px;
 }
 
 .hero-chip small,
-.run-chip span {
+.run-chip span,
+.objective-chip small {
   color: rgba(245, 227, 189, 0.7);
+}
+
+.objective-chip small {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bars {
@@ -1211,9 +1270,61 @@ button {
   text-align: left;
 }
 
+.upgrade-build {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  width: fit-content;
+  margin-top: 10px;
+  padding: 4px 8px;
+  border: 1px solid rgba(245, 227, 189, 0.18);
+  color: #fff0cf;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.upgrade-build i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: #1c130d;
+  background: var(--gold);
+  border-radius: 50%;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .upgrade-card strong {
   margin-top: 12px;
   font-size: 22px;
+}
+
+.upgrade-card em {
+  display: block;
+  margin-top: 7px;
+  color: rgba(255, 229, 167, 0.86);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.upgrade-card.archetype-survival .upgrade-build i {
+  background: #83d79a;
+}
+
+.upgrade-card.archetype-tempo .upgrade-build i,
+.upgrade-card.archetype-mobility .upgrade-build i {
+  background: #8ea7d8;
+}
+
+.upgrade-card.archetype-technique .upgrade-build i,
+.upgrade-card.archetype-ultimate .upgrade-build i {
+  background: #ff78b7;
+}
+
+.upgrade-card.archetype-evolution .upgrade-build i,
+.upgrade-card.archetype-crit .upgrade-build i {
+  background: #ffd45d;
 }
 
 .pause-panel,
@@ -1263,6 +1374,15 @@ button {
   .menu-hero h1 {
     font-size: 40px;
     line-height: 1.08;
+  }
+
+  .quick-start-panel {
+    grid-template-columns: 1fr;
+    margin-top: 18px;
+  }
+
+  .quick-start-button {
+    width: 100%;
   }
 
   .hero-preview {
@@ -1396,6 +1516,18 @@ button {
 
   .bars {
     min-width: 0;
+  }
+
+  .objective-chip {
+    grid-column: 1 / -1;
+    min-width: 0;
+    max-width: none;
+    min-height: 52px;
+    padding: 9px 12px;
+  }
+
+  .objective-chip strong {
+    font-size: 17px;
   }
 
   .skill-button {

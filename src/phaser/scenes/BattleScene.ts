@@ -8,6 +8,7 @@ import {
   hitRadialSpritesheet,
   hitSparkAnimationKey,
   hitSparkSpritesheet,
+  visualAnimationTextureKeys,
   vfxProfiles,
   type EnemyAnimationId,
   type EnemyVisualProfile,
@@ -510,12 +511,14 @@ export class BattleScene extends Phaser.Scene {
       }
       let sprite = this.projectileSprites.get(projectile.uid);
       if (!sprite) {
+        const animation = playableAnimationForProfile(this, profile);
         sprite = this.add
-          .sprite(projectile.x, projectile.y, textureOrFallback(this, profile.textureKey, projectile.vfxKey))
+          .sprite(projectile.x, projectile.y, textureOrFallback(this, profile.textureKey, animation?.textureKey ?? projectile.vfxKey))
           .setBlendMode(blendMode(profile))
           .setTint(profile.color);
-        if (profile.animationKey && this.anims.exists(profile.animationKey)) {
-          sprite.play(profile.animationKey);
+        applyProfileTint(sprite, profile);
+        if (animation) {
+          sprite.play(animation.animationKey);
         }
         this.projectileLayer?.add(sprite);
         this.projectileSprites.set(projectile.uid, sprite);
@@ -523,7 +526,7 @@ export class BattleScene extends Phaser.Scene {
       sprite.setPosition(projectile.x, projectile.y);
       sprite.setRotation(Math.atan2(projectile.vy, projectile.vx));
       sprite.setDepth(projectile.y + 20);
-      sprite.setTint(profile.color);
+      applyProfileTint(sprite, profile);
       sprite.setBlendMode(blendMode(profile));
       sprite.setScale(Math.max(0.55, projectile.radius / 30) * profile.scale);
       if ((this.projectileTrailTimestamps.get(projectile.uid) ?? 0) + 72 < this.time.now) {
@@ -599,6 +602,8 @@ export class BattleScene extends Phaser.Scene {
         this.emitAreaParticles(renderArea, profile);
         if (isMeleeProfile(profile) || profile.presentationKind === "aura") {
           this.spawnMeleeFx(profile, this.playerVisualState.facingAngle + area.uid * 0.7, Math.max(86, area.radius * 0.82), true);
+        } else {
+          this.spawnProfileAnimation(profile, renderArea.x, renderArea.y, area.radius, renderArea.y + 96, area.uid * 0.25);
         }
       }
       graphics.setDepth(renderArea.y - 20);
@@ -627,6 +632,7 @@ export class BattleScene extends Phaser.Scene {
         this.playEventImpulse(event);
         this.renderCombatJuiceEvent(event, profile);
         if (!usesGraphicsOnlyHitEvent(event)) {
+          this.spawnProfileAnimation(profile, event.x, event.y, 84 * event.intensity, 5360, event.uid * 0.17);
           this.emitParticleBurst(event.x, event.y, profile, particleCountForEvent(event), 54 * event.intensity, 5300);
         }
       }
@@ -922,7 +928,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private spawnMeleeFx(profile: VfxProfile, rotation: number, radius: number, followPlayer: boolean): void {
-    const textureKey = textureOrFallback(this, profile.textureKey, profile.animationKey ? "fx_slash_01" : profile.textureKey);
+    const animation = playableAnimationForProfile(this, profile);
+    const textureKey = textureOrFallback(this, profile.textureKey, animation?.textureKey ?? profile.textureKey);
     const distance =
       profile.motionStyle === "thrust"
         ? radius * 0.54
@@ -937,13 +944,13 @@ export class BattleScene extends Phaser.Scene {
         textureKey
       )
       .setBlendMode(blendMode(profile))
-      .setTint(profile.color)
       .setAlpha(0.84)
       .setDepth(this.playerVisualState.visualY + 220)
       .setRotation(rotation)
       .setScale(meleeScale(profile, radius));
-    if (profile.animationKey && this.anims.exists(profile.animationKey) && textureKey.startsWith("fx_slash_")) {
-      sprite.play(profile.animationKey);
+    applyProfileTint(sprite, profile);
+    if (animation) {
+      sprite.play(animation.animationKey);
     }
     this.impactLayer?.add(sprite);
     this.activeMeleeFx.set(id, {
@@ -995,6 +1002,38 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  private spawnProfileAnimation(profile: VfxProfile, x: number, y: number, radius: number, depth: number, rotation: number): void {
+    const animation = playableAnimationForProfile(this, profile);
+    if (!animation) {
+      return;
+    }
+    const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.45, 1.15);
+    const scale = Phaser.Math.Clamp((radius / 220) * profile.scale * effectScale, 0.22, 1.25);
+    const sprite = this.add
+      .sprite(x, y, animation.textureKey)
+      .setOrigin(0.5)
+      .setBlendMode(blendMode(profile))
+      .setDepth(depth)
+      .setRotation(rotation)
+      .setAlpha(Phaser.Math.Clamp(0.42 + effectScale * 0.18, 0.34, 0.72))
+      .setScale(scale);
+    applyProfileTint(sprite, profile);
+    this.impactLayer?.add(sprite);
+    this.hitFxSprites.add(sprite);
+    sprite.once(Phaser.GameObjects.Events.DESTROY, () => this.hitFxSprites.delete(sprite));
+    sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        scale: sprite.scaleX * 1.12,
+        duration: 90,
+        ease: "Quad.easeOut",
+        onComplete: () => sprite.destroy()
+      });
+    });
+    sprite.play(animation.animationKey);
+  }
+
   private emitParticleBurst(x: number, y: number, profile: VfxProfile, count: number, spread: number, depth: number): void {
     const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.5, 1.25);
     const adjustedCount = count > 0 ? Math.max(1, Math.round(count * effectScale)) : 0;
@@ -1013,10 +1052,10 @@ export class BattleScene extends Phaser.Scene {
       const sprite = this.add
         .sprite(startX, startY, textureKey)
         .setBlendMode(blendMode(profile))
-        .setTint(profile.color)
         .setDepth(depth)
         .setAlpha(Phaser.Math.Clamp(0.56 + effectScale * 0.16, 0.42, 0.82))
         .setScale(profile.scale * effectScale * (0.035 + (index % 3) * 0.012));
+      applyProfileTint(sprite, profile);
       this.impactLayer?.add(sprite);
       this.tweens.add({
         targets: sprite,
@@ -1162,6 +1201,11 @@ export class BattleScene extends Phaser.Scene {
         },
         enemies: state.enemies.length,
         xpOrbs: state.xpOrbs.length,
+        objective: {
+          title: state.objective.title,
+          progress: state.objective.progress,
+          goal: state.objective.goal
+        },
         pendingUpgradeIds: state.pendingUpgradeIds,
         modalOpen: Boolean(document.querySelector(".hud-modal.is-open"))
       });
@@ -1245,6 +1289,34 @@ function vfxProfile(vfxKey: string): VfxProfile {
 
 function blendMode(profile: VfxProfile): Phaser.BlendModes {
   return profile.blendMode === "add" ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
+}
+
+function animationKeysForProfile(profile: VfxProfile): readonly string[] {
+  if (profile.animationKeys && profile.animationKeys.length > 0) {
+    return profile.animationKeys;
+  }
+  return profile.animationKey ? [profile.animationKey] : [];
+}
+
+function playableAnimationForProfile(
+  scene: Phaser.Scene,
+  profile: VfxProfile
+): { animationKey: string; textureKey: string } | undefined {
+  for (const animationKey of animationKeysForProfile(profile)) {
+    const textureKey = visualAnimationTextureKeys[animationKey];
+    if (textureKey && scene.anims.exists(animationKey) && scene.textures.exists(textureKey)) {
+      return { animationKey, textureKey };
+    }
+  }
+  return undefined;
+}
+
+function applyProfileTint(sprite: Phaser.GameObjects.Sprite, profile: VfxProfile): Phaser.GameObjects.Sprite {
+  if (profile.nativeColor) {
+    sprite.clearTint();
+    return sprite;
+  }
+  return sprite.setTint(profile.color);
 }
 
 function characterAnimationKey(textureKey: string, animationId: CharacterAnimationId): string {

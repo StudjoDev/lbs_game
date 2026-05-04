@@ -66,6 +66,14 @@ export class MenuController {
             <span>自動攻擊</span>
             <span>手動大招</span>
           </div>
+          <div class="quick-start-panel">
+            <div>
+              <span>本局武將</span>
+              <strong>${selectedHero.name}</strong>
+              <small>${selectedHero.manualAbility.name} · ${faction.passiveName}</small>
+            </div>
+            <button class="start-button quick-start-button" data-start="true">立即開戰</button>
+          </div>
           <div class="hero-preview card-preview" style="${artVars(selectedArt)}">
             <img class="hero-preview-art" src="${selectedArt.cardImage}" alt="${selectedArt.name}" draggable="false" />
             <div class="hero-preview-copy">
@@ -153,8 +161,10 @@ export class MenuController {
       this.mode = "settings";
       this.render();
     });
-    this.root.querySelector<HTMLButtonElement>("[data-start]")?.addEventListener("click", () => {
-      this.callbacks.onStart(this.selectedHero);
+    this.root.querySelectorAll<HTMLButtonElement>("[data-start]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.callbacks.onStart(this.selectedHero);
+      });
     });
     bindAudioControls(this.root, this.callbacks);
   }
