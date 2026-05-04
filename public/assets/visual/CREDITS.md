@@ -1,5 +1,7 @@
 # Visual Asset Credits
 
+Canonical credits and download evidence live in `../licenses/credits.md`.
+
 This folder contains battle-only visual assets used by the Phaser renderer.
 
 ## Kenney Particle Pack
