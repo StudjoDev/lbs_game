@@ -6,6 +6,7 @@ import type { HeroId, RunState } from "../types";
 import { executeAbility } from "./abilities";
 import { applyUpgrade, damageEnemy, damagePlayer, gainXp, resolveDeadEnemies } from "./combat";
 import { createRun } from "./createRun";
+import { createObjective } from "./objectives";
 import { spawnEnemy } from "./spawn";
 import { updateRun } from "./updateRun";
 
@@ -129,6 +130,21 @@ describe("combat simulation", () => {
 
     expect(state.player.morale).toBe(0);
     expect(state.areas.some((area) => area.vfxKey.includes("morale"))).toBe(true);
+  });
+
+  it("advances battlefield objectives and rolls to the next order", () => {
+    const state = createRun("guanyu", 15);
+    state.spawnTimer = 999;
+
+    for (let index = 0; index < 24; index += 1) {
+      const enemy = spawnEnemy(state, "infantry", 100);
+      enemy.hp = 0;
+    }
+    resolveDeadEnemies(state);
+
+    expect(state.objectiveIndex).toBe(1);
+    expect(state.objective.id).toBe(createObjective(1).id);
+    expect(state.combatEvents.some((event) => event.text === "斬破前鋒")).toBe(true);
   });
 
   it("drops and collects battle merit orbs", () => {

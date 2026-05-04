@@ -1,7 +1,9 @@
 import { enemyById } from "../content/enemies";
+import { factionById } from "../content/factions";
 import { upgradeById, upgrades } from "../content/upgrades";
 import type { CombatEventType, DamageTag, EnemyState, RunState, UpgradeDef, UpgradeRarity } from "../types";
 import { distance, normalize } from "./math";
+import { advanceObjective, type CompletedObjective } from "./objectives";
 import { nextRandom } from "./rng";
 
 export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: number, tags: DamageTag[]): number {
@@ -96,8 +98,11 @@ export function gainXp(state: RunState, amount: number): void {
 
 export function applyUpgrade(state: RunState, upgradeId: string): UpgradeDef {
   const upgrade = upgradeById[upgradeId];
+  if (!upgrade) {
+    throw new Error(`Unknown upgrade: ${upgradeId}`);
+  }
   const current = state.upgrades[upgrade.id] ?? 0;
-  if (!upgrade || current >= upgrade.maxStacks) {
+  if (current >= upgrade.maxStacks) {
     state.status = "playing";
     return upgrade;
   }
@@ -168,6 +173,10 @@ export function resolveDeadEnemies(state: RunState): void {
       addFloatingText(state, enemy.x, enemy.y - 70, "天下歸一", "xp");
       addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", "呂布已敗");
     } else {
+      claimObjectiveReward(state, advanceObjective(state, "kill"));
+      if (def.tags.includes("elite")) {
+        claimObjectiveReward(state, advanceObjective(state, "eliteKill"));
+      }
       gainMorale(state, def.tags.includes("elite") ? 16 : 5);
       dropXpOrb(state, enemy.x, enemy.y, def.xp);
     }
@@ -359,10 +368,22 @@ function triggerMoraleBurst(state: RunState): void {
   if (isShu) {
     healPlayer(state, 8 + state.player.level * 2);
   }
-  addFloatingText(state, state.player.x, state.player.y - 90, isWei ? "軍令爆發" : isShu ? "桃園戰意" : "江東火勢", "xp");
+  const moraleText = factionById[state.faction.id]?.passiveName ?? "士氣爆發";
+  addFloatingText(state, state.player.x, state.player.y - 90, moraleText, "xp");
   addCombatEvent(state, "morale", state.player.x, state.player.y, 1.55, isWuLike(state) ? "morale_fire" : isShu ? "morale_dragon" : "morale_banner");
+  claimObjectiveReward(state, advanceObjective(state, "moraleBurst"));
 }
 
 function isWuLike(state: RunState): boolean {
   return state.faction.id === "wu" || state.unlocks.wu_chain_fire;
+}
+
+function claimObjectiveReward(state: RunState, completed: CompletedObjective | undefined): void {
+  if (!completed) {
+    return;
+  }
+  state.player.morale = Math.min(state.player.maxMorale, state.player.morale + completed.rewardMorale);
+  addFloatingText(state, state.player.x, state.player.y - 106, `${completed.title} 完成`, "xp");
+  addCombatEvent(state, "levelUp", state.player.x, state.player.y, 1.25, "level_ring", completed.title);
+  gainXp(state, completed.rewardXp);
 }

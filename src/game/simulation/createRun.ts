@@ -1,6 +1,7 @@
 import { factionById } from "../content/factions";
 import { heroById } from "../content/heroes";
 import type { FactionId, HeroId, PlayerState, RunState } from "../types";
+import { createObjective } from "./objectives";
 
 const worldSize = 3600;
 
@@ -20,6 +21,8 @@ export function createRun(heroId: HeroId, seed = 12891): RunState {
     floatingTexts: [],
     combatEvents: [],
     xpOrbs: [],
+    objective: createObjective(),
+    objectiveIndex: 0,
     upgrades: {},
     unlocks: {},
     techniqueCooldowns: {},
