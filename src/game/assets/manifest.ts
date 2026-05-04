@@ -1,48 +1,39 @@
 export { audioAssetEntries, audioKeys, audioPaths } from "../audio/catalog";
 import type { EnemyId } from "../types";
 
+const heroTextureIds = [
+  "liubei",
+  "guanyu",
+  "zhangfei",
+  "zhaoyun",
+  "zhugeliang",
+  "caocao",
+  "xiahoudun",
+  "xuchu",
+  "zhangliao",
+  "simayi",
+  "sunquan",
+  "zhouyu",
+  "sunshangxiang",
+  "ganning",
+  "taishici",
+  "diaochan",
+  "zhangjiao",
+  "yuanshao",
+  "dongzhuo",
+  "huatuo"
+] as const;
+
 export const textureKeys = {
-  heroes: ["hero_guanyu", "hero_zhaoyun", "hero_caocao", "hero_xiahoudun", "hero_zhouyu", "hero_sunshangxiang"],
-  heroAttackFrames: [
-    "hero_guanyu_attack_0",
-    "hero_guanyu_attack_1",
-    "hero_guanyu_attack_2",
-    "hero_guanyu_attack_3",
-    "hero_zhaoyun_attack_0",
-    "hero_zhaoyun_attack_1",
-    "hero_zhaoyun_attack_2",
-    "hero_zhaoyun_attack_3",
-    "hero_caocao_attack_0",
-    "hero_caocao_attack_1",
-    "hero_caocao_attack_2",
-    "hero_caocao_attack_3",
-    "hero_xiahoudun_attack_0",
-    "hero_xiahoudun_attack_1",
-    "hero_xiahoudun_attack_2",
-    "hero_xiahoudun_attack_3",
-    "hero_zhouyu_attack_0",
-    "hero_zhouyu_attack_1",
-    "hero_zhouyu_attack_2",
-    "hero_zhouyu_attack_3",
-    "hero_sunshangxiang_attack_0",
-    "hero_sunshangxiang_attack_1",
-    "hero_sunshangxiang_attack_2",
-    "hero_sunshangxiang_attack_3"
-  ],
-  portraits: [
-    "portrait_guanyu",
-    "portrait_zhaoyun",
-    "portrait_caocao",
-    "portrait_xiahoudun",
-    "portrait_zhouyu",
-    "portrait_sunshangxiang"
-  ],
+  heroes: heroTextureIds.map((id) => `hero_${id}`),
+  heroAttackFrames: heroTextureIds.flatMap((id) => [0, 1, 2, 3].map((frame) => `hero_${id}_attack_${frame}`)),
+  portraits: heroTextureIds.map((id) => `portrait_${id}`),
   enemies: ["enemy_infantry", "enemy_archer", "enemy_shield", "enemy_cavalry", "enemy_captain", "enemy_lubu"],
   enemyAttackFrames: ["enemy_lubu_attack_0", "enemy_lubu_attack_1", "enemy_lubu_attack_2", "enemy_lubu_attack_3"],
   fx: ["slash", "spear", "fire", "arrow", "command", "shock", "xp_orb", "shadow"]
 } as const;
 
-const visualBasePath = `${import.meta.env.BASE_URL}assets/visual`;
+const visualBasePath = `${import.meta.env.BASE_URL}assets/vfx`;
 const enemyAssetBasePath = `${import.meta.env.BASE_URL}assets/enemies`;
 
 export interface VisualAssetEntry {
@@ -56,6 +47,21 @@ export interface VisualSpritesheetEntry extends VisualAssetEntry {
   endFrame: number;
 }
 
+export type VisualAnimationEntry =
+  | {
+      key: string;
+      frameRate: number;
+      repeat: number;
+      frames: readonly VisualAssetEntry[];
+    }
+  | {
+      key: string;
+      frameRate: number;
+      repeat: number;
+      spritesheet: VisualSpritesheetEntry;
+      startFrame?: number;
+    };
+
 export interface VfxProfile {
   textureKey: string;
   color: number;
@@ -64,6 +70,8 @@ export interface VfxProfile {
   lifetime: number;
   particleKey?: string;
   animationKey?: string;
+  animationKeys?: readonly string[];
+  nativeColor?: boolean;
   telegraphShape?: "circle" | "slash" | "storm" | "rain" | "burst";
   presentationKind?: "meleeArc" | "rangedProjectile" | "areaField" | "rain" | "dash" | "aura";
   originMode?: "playerAnchored" | "projectile" | "targetArea" | "screenPulse";
@@ -97,12 +105,23 @@ export const visualParticleAssets = [
   { key: "particle_spark", path: `${visualBasePath}/particles/kenney-spark.png` },
   { key: "particle_magic", path: `${visualBasePath}/particles/kenney-magic.png` },
   { key: "particle_circle", path: `${visualBasePath}/particles/kenney-circle.png` },
-  { key: "particle_dirt", path: `${visualBasePath}/particles/kenney-dirt.png` }
+  { key: "particle_dirt", path: `${visualBasePath}/particles/kenney-dirt.png` },
+  { key: "particle_brackeys_fire", path: `${visualBasePath}/particles/brackeys-fire.png` },
+  { key: "particle_brackeys_flare", path: `${visualBasePath}/particles/brackeys-flare.png` },
+  { key: "particle_brackeys_light", path: `${visualBasePath}/particles/brackeys-light.png` },
+  { key: "particle_brackeys_magic", path: `${visualBasePath}/particles/brackeys-magic.png` },
+  { key: "particle_brackeys_slash", path: `${visualBasePath}/particles/brackeys-slash.png` },
+  { key: "particle_brackeys_smoke", path: `${visualBasePath}/particles/brackeys-smoke.png` },
+  { key: "particle_brackeys_spark", path: `${visualBasePath}/particles/brackeys-spark.png` }
 ] as const satisfies readonly VisualAssetEntry[];
 
 export const slashAnimationKey = "fx_slash_arc";
 export const hitSparkAnimationKey = "fx_hit_spark";
 export const hitRadialAnimationKey = "fx_hit_radial";
+export const brackeysBigHitAnimationKey = "fx_brackeys_big_hit";
+export const brackeysElectricRingAnimationKey = "fx_brackeys_electric_ring";
+export const brackeysFireRingAnimationKey = "fx_brackeys_fire_ring";
+export const brackeysLightstreaksAnimationKey = "fx_brackeys_lightstreaks";
 
 export const slashAnimationFrames = [1, 2, 3, 4, 5, 6].map((frame) => ({
   key: `fx_slash_${frame.toString().padStart(2, "0")}`,
@@ -125,8 +144,96 @@ export const hitRadialSpritesheet = {
   endFrame: 7
 } as const satisfies VisualSpritesheetEntry;
 
+export const brackeysBigHitSpritesheet = {
+  key: "fx_brackeys_big_hit_sheet",
+  path: `${visualBasePath}/fx/brackeys/big-hit-6x5.png`,
+  frameWidth: 557,
+  frameHeight: 553,
+  endFrame: 29
+} as const satisfies VisualSpritesheetEntry;
+
+export const brackeysElectricRingSpritesheet = {
+  key: "fx_brackeys_electric_ring_sheet",
+  path: `${visualBasePath}/fx/brackeys/electric-ring-6x5.png`,
+  frameWidth: 265,
+  frameHeight: 265,
+  endFrame: 29
+} as const satisfies VisualSpritesheetEntry;
+
+export const brackeysFireRingSpritesheet = {
+  key: "fx_brackeys_fire_ring_sheet",
+  path: `${visualBasePath}/fx/brackeys/fire-ring-6x5.png`,
+  frameWidth: 421,
+  frameHeight: 425,
+  endFrame: 29
+} as const satisfies VisualSpritesheetEntry;
+
+export const brackeysLightstreaksSpritesheet = {
+  key: "fx_brackeys_lightstreaks_sheet",
+  path: `${visualBasePath}/fx/brackeys/lightstreaks-6x5.png`,
+  frameWidth: 517,
+  frameHeight: 515,
+  endFrame: 29
+} as const satisfies VisualSpritesheetEntry;
+
 export const visualAssetEntries = [...visualParticleAssets, ...slashAnimationFrames] as const;
-export const visualSpritesheetEntries = [hitSparkSpritesheet, hitRadialSpritesheet] as const;
+export const visualSpritesheetEntries = [
+  hitSparkSpritesheet,
+  hitRadialSpritesheet,
+  brackeysBigHitSpritesheet,
+  brackeysElectricRingSpritesheet,
+  brackeysFireRingSpritesheet,
+  brackeysLightstreaksSpritesheet
+] as const;
+
+export const visualAnimationEntries = [
+  {
+    key: slashAnimationKey,
+    frames: slashAnimationFrames,
+    frameRate: 28,
+    repeat: 0
+  },
+  {
+    key: hitSparkAnimationKey,
+    spritesheet: hitSparkSpritesheet,
+    frameRate: 32,
+    repeat: 0
+  },
+  {
+    key: hitRadialAnimationKey,
+    spritesheet: hitRadialSpritesheet,
+    frameRate: 24,
+    repeat: 0
+  },
+  {
+    key: brackeysBigHitAnimationKey,
+    spritesheet: brackeysBigHitSpritesheet,
+    frameRate: 36,
+    repeat: 0
+  },
+  {
+    key: brackeysElectricRingAnimationKey,
+    spritesheet: brackeysElectricRingSpritesheet,
+    frameRate: 34,
+    repeat: 0
+  },
+  {
+    key: brackeysFireRingAnimationKey,
+    spritesheet: brackeysFireRingSpritesheet,
+    frameRate: 32,
+    repeat: 0
+  },
+  {
+    key: brackeysLightstreaksAnimationKey,
+    spritesheet: brackeysLightstreaksSpritesheet,
+    frameRate: 34,
+    repeat: 0
+  }
+] as const satisfies readonly VisualAnimationEntry[];
+
+export const visualAnimationTextureKeys = Object.fromEntries(
+  visualAnimationEntries.map((entry) => [entry.key, "frames" in entry ? entry.frames[0]?.key : entry.spritesheet.key])
+) as Record<string, string | undefined>;
 
 const animatedEnemyIds = ["infantry", "archer", "shield", "cavalry", "captain", "lubu"] as const satisfies readonly EnemyId[];
 const enemyAnimationIds = ["walk", "hit", "death"] as const satisfies readonly EnemyAnimationId[];
@@ -323,7 +430,8 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 0.92,
     lifetime: 0.48,
-    particleKey: "particle_smoke",
+    particleKey: "particle_brackeys_fire",
+    nativeColor: true,
     telegraphShape: "storm",
     presentationKind: "rangedProjectile",
     originMode: "projectile",
@@ -335,7 +443,9 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 1.12,
     lifetime: 0.72,
-    particleKey: "particle_smoke",
+    particleKey: "particle_brackeys_fire",
+    animationKeys: [brackeysFireRingAnimationKey],
+    nativeColor: true,
     telegraphShape: "storm",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -438,7 +548,9 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 1.1,
     lifetime: 0.38,
-    particleKey: "particle_spark",
+    particleKey: "particle_brackeys_spark",
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true,
     telegraphShape: "burst",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -477,7 +589,9 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 1.18,
     lifetime: 0.7,
-    particleKey: "particle_smoke",
+    particleKey: "particle_brackeys_fire",
+    animationKeys: [brackeysFireRingAnimationKey],
+    nativeColor: true,
     telegraphShape: "storm",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -527,7 +641,9 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 1.25,
     lifetime: 0.5,
-    particleKey: "particle_magic",
+    particleKey: "particle_brackeys_light",
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true,
     telegraphShape: "burst",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -540,6 +656,7 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     scale: 0.55,
     lifetime: 0.16,
     particleKey: "particle_spark",
+    animationKeys: [hitSparkAnimationKey],
     telegraphShape: "burst"
   },
   crit_spark: {
@@ -548,7 +665,8 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     blendMode: "add",
     scale: 0.78,
     lifetime: 0.22,
-    particleKey: "particle_spark",
+    particleKey: "particle_brackeys_spark",
+    animationKeys: [hitRadialAnimationKey],
     telegraphShape: "burst"
   },
   level_ring: {

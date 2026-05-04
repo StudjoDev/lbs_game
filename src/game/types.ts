@@ -1,11 +1,32 @@
 export type FactionId = "shu" | "wei" | "wu" | "qun";
-export type HeroId = "guanyu" | "zhaoyun" | "caocao" | "xiahoudun" | "zhouyu" | "sunshangxiang" | "diaochan";
+export type HeroId =
+  | "liubei"
+  | "guanyu"
+  | "zhangfei"
+  | "zhaoyun"
+  | "zhugeliang"
+  | "caocao"
+  | "xiahoudun"
+  | "xuchu"
+  | "zhangliao"
+  | "simayi"
+  | "sunquan"
+  | "zhouyu"
+  | "sunshangxiang"
+  | "ganning"
+  | "taishici"
+  | "diaochan"
+  | "zhangjiao"
+  | "yuanshao"
+  | "dongzhuo"
+  | "huatuo";
 export type CharacterId = HeroId | "lubu";
 export type EnemyId = "infantry" | "archer" | "shield" | "cavalry" | "captain" | "lubu";
 export type AbilityTrigger = "auto" | "manual" | "ultimate";
 export type DamageTag = "blade" | "pierce" | "fire" | "command" | "shock" | "arrow" | "charm";
 export type RunStatus = "playing" | "levelUp" | "paused" | "won" | "lost";
 export type UpgradeRarity = "common" | "technique" | "faction" | "hero" | "evolution" | "relic";
+export type ObjectiveEvent = "kill" | "eliteKill" | "moraleBurst";
 export type CombatEventType =
   | "hit"
   | "crit"
@@ -302,6 +323,17 @@ export interface CombatEventState {
   text?: string;
 }
 
+export interface BattlefieldObjectiveState {
+  id: string;
+  event: ObjectiveEvent;
+  title: string;
+  description: string;
+  progress: number;
+  goal: number;
+  rewardXp: number;
+  rewardMorale: number;
+}
+
 export interface InputState {
   move: Vector2;
   manualPressed: boolean;
@@ -319,6 +351,8 @@ export interface RunState {
   floatingTexts: FloatingTextState[];
   combatEvents: CombatEventState[];
   xpOrbs: XpOrbState[];
+  objective: BattlefieldObjectiveState;
+  objectiveIndex: number;
   upgrades: Record<string, number>;
   unlocks: Record<string, boolean>;
   techniqueCooldowns: Record<string, number>;

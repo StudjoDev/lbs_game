@@ -1,6 +1,7 @@
 import type { UpgradeDef } from "../types";
+import { heroes } from "./heroes";
 
-export const upgrades: UpgradeDef[] = [
+const authoredUpgrades: UpgradeDef[] = [
   {
     id: "tempered_blade",
     name: "精鍛兵刃",
@@ -458,6 +459,53 @@ export const upgrades: UpgradeDef[] = [
     apply: [{ stat: "evolvedPower", amount: 0.26 }]
   }
 ];
+
+const authoredUpgradeIds = new Set(authoredUpgrades.map((upgrade) => upgrade.id));
+
+const generatedHeroProgression: UpgradeDef[] = heroes
+  .flatMap((hero): UpgradeDef[] => [
+    {
+      id: `evo_${hero.id}`,
+      name: `${hero.name}覺醒`,
+      description: `${hero.name}的核心招式進化，提升專屬技能威力並改變清場節奏。`,
+      rarity: "evolution",
+      heroId: hero.id,
+      maxStacks: 1,
+      requires: { level: 4, upgradeId: evolutionPrerequisite(hero), stacks: 1 },
+      unlockId: `evolution_${hero.id}`,
+      apply: [{ stat: "evolvedPower", amount: hero.factionId === "qun" ? 0.26 : 0.22 }]
+    },
+    {
+      id: `hero_${hero.id}_musou`,
+      name: `${hero.name}名將魂`,
+      description: `${hero.name}的無雙窗口延長，覺醒脈衝追加第二層攻勢。`,
+      rarity: "hero",
+      heroId: hero.id,
+      maxStacks: 1,
+      requires: { level: 5, upgradeId: `evo_${hero.id}`, stacks: 1 },
+      unlockId: `ultimate_${hero.id}_mastery`,
+      apply: [
+        { stat: "ultimateDuration", amount: 1.5 },
+        { stat: "ultimatePower", amount: 0.12 }
+      ]
+    }
+  ])
+  .filter((upgrade) => !authoredUpgradeIds.has(upgrade.id));
+
+export const upgrades: UpgradeDef[] = [...authoredUpgrades, ...generatedHeroProgression];
+
+function evolutionPrerequisite(hero: (typeof heroes)[number]): string {
+  if (hero.manualAbility.effectId === "blood_rage" || hero.baseStats.armor >= 6) {
+    return "field_medicine";
+  }
+  if (hero.autoAbility.damageTags.includes("command")) {
+    return "war_drum";
+  }
+  if (hero.autoAbility.damageTags.includes("fire") || hero.autoAbility.damageTags.includes("charm")) {
+    return "wide_formation";
+  }
+  return "tempered_blade";
+}
 
 export const upgradeById = Object.fromEntries(upgrades.map((upgrade) => [upgrade.id, upgrade])) as Record<
   UpgradeDef["id"],

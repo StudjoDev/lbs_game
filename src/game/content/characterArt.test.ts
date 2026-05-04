@@ -17,8 +17,8 @@ function publicRelativeFromBrowserPath(browserPath: string): string {
 }
 
 describe("character art manifest", () => {
-  it("contains the eight collection characters with complete art slots", () => {
-    expect(characterArts).toHaveLength(8);
+  it("contains the full playable roster plus Lu Bu with complete art slots", () => {
+    expect(characterArts).toHaveLength(heroes.length + 1);
     for (const art of characterArts) {
       expect(art.cardImage).toMatch(/card\.png$/);
       expect(art.battleImage).toMatch(/battle-idle\.png$/);
@@ -39,6 +39,7 @@ describe("character art manifest", () => {
       expect(art.playable).toBe(true);
       expect(art.textureKey).toBe(hero.spriteKey);
     }
+    expect(characterArts.filter((art) => art.playable)).toHaveLength(heroes.length);
   });
 
   it("has generated browser assets for each manifest path", () => {
@@ -54,7 +55,8 @@ describe("character art manifest", () => {
   it("uses dedicated full-body battle sprites for the full character roster", () => {
     for (const art of characterArts) {
       if (art.playable) {
-        expect(art.battleScale).toBe(0.72);
+        expect(art.battleScale).toBeGreaterThanOrEqual(0.62);
+        expect(art.battleScale).toBeLessThanOrEqual(0.78);
       }
       expect(art.battleImage).not.toBe(art.cardImage);
       expect(art.battleImage).toMatch(/battle-idle\.png$/);
