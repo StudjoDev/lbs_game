@@ -1,5 +1,6 @@
 import { upgradeById } from "../game/content/upgrades";
 import type { DisplaySettings } from "../game/display/settings";
+import type { MetaRunSettlement } from "../game/meta/progression";
 import type { RunState, UpgradeDef, Vector2 } from "../game/types";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { createUiLayer, removeUiLayer } from "./layer";
@@ -50,17 +51,19 @@ export class BattleHud {
     return this.move;
   }
 
-  update(state: RunState): void {
+  update(state: RunState, settlement?: MetaRunSettlement): void {
     this.root.style.setProperty("--ui-scale", this.callbacks.getDisplaySettings().uiScale.toString());
     const hpPercent = Math.max(0, state.player.hp / state.player.maxHp);
     const xpPercent = Math.max(0, state.player.xp / state.player.nextXp);
     const moralePercent = Math.max(0, state.player.morale / state.player.maxMorale);
     const remaining = Math.max(0, state.duration - state.elapsed);
     const ultimateActive = state.player.ultimateTimer > 0;
-    const manualReady = state.player.manualCooldown <= 0;
+    const manualReady = state.doorOpen || state.player.manualCooldown <= 0;
     const bossText = state.bossSpawned ? "呂布已現身" : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} 呂布`;
     const buildChips = getBuildChips(state);
-    const objectiveProgress = Math.min(state.objective.goal, Math.floor(state.objective.progress));
+    const roomText = state.doorOpen ? "門已開" : `${state.chapterName} · ${roomTypeLabel(state.roomType)}`;
+    void bossText;
+    const objectiveProgress = Math.min(state.roomObjective.goal, Math.floor(state.roomObjective.progress));
 
     this.status.innerHTML = `
       <div class="hud-card hero-chip">
@@ -76,7 +79,7 @@ export class BattleHud {
       <div class="hud-card run-chip">
         <span>${formatTime(remaining)}</span>
         <strong>${state.kills} 斬</strong>
-        <small>${bossText}</small>
+        <small>${roomText}</small>
       </div>
       <div class="hud-card objective-chip">
         <span>戰場目標</span>
@@ -92,10 +95,20 @@ export class BattleHud {
 
     this.skill.classList.toggle("is-ready", manualReady);
     this.skill.classList.toggle("is-ultimate", ultimateActive);
+    const skillTitle = state.doorOpen
+      ? "進下一房"
+      : ultimateActive
+        ? `無雙 ${Math.ceil(state.player.ultimateTimer)}`
+        : manualReady
+          ? state.hero.manualAbility.name
+          : Math.ceil(state.player.manualCooldown).toString();
+    const skillHint = state.doorOpen ? "Space / Tap" : ultimateActive ? "爆發中" : "Space / 技能";
     this.skill.innerHTML = `
       <strong>${ultimateActive ? `無雙 ${Math.ceil(state.player.ultimateTimer)}` : manualReady ? state.hero.manualAbility.name : Math.ceil(state.player.manualCooldown)}</strong>
       <span>${ultimateActive ? "覺醒中" : "Space / 點擊"}</span>
     `;
+
+    this.skill.innerHTML = `<strong>${skillTitle}</strong><span>${skillHint}</span>`;
 
     if (state.status === "levelUp") {
       this.renderUpgradeModal(state);
@@ -103,9 +116,9 @@ export class BattleHud {
       if (this.lastResult === "settings") {
         return;
       }
-      this.renderPauseModal();
+      this.renderPauseModal(state);
     } else if (state.status === "won" || state.status === "lost") {
-      this.renderResultModal(state);
+      this.renderResultModal(state, settlement);
     } else {
       this.lastUpgradeKey = "";
       this.lastResult = "";
@@ -192,7 +205,7 @@ export class BattleHud {
     this.callbacks.onUpgrade(upgradeId);
   }
 
-  private renderPauseModal(): void {
+  private renderPauseModal(state?: RunState): void {
     if (this.lastResult === "paused") {
       return;
     }
@@ -202,6 +215,7 @@ export class BattleHud {
       <section class="pause-panel">
         <span class="panel-kicker">軍令暫停</span>
         <h2>整軍再戰</h2>
+        ${state ? renderCurrentBuildList(state) : ""}
         ${renderAudioControls(this.callbacks.getAudioSettings())}
         <div class="pause-actions">
           <button data-resume="true">繼續</button>
@@ -232,8 +246,11 @@ export class BattleHud {
     });
   }
 
-  private renderResultModal(state: RunState): void {
-    const key = `${state.status}-${state.kills}-${state.score}`;
+  private renderResultModal(state: RunState, settlement?: MetaRunSettlement): void {
+    const rewardKey = settlement
+      ? `${settlement.resources.merit}-${settlement.resources.provisions}-${settlement.resources.renown}-${settlement.heroXp}-${settlement.heroLevelAfter}`
+      : "pending";
+    const key = `${state.status}-${state.kills}-${state.score}-${rewardKey}`;
     if (key === this.lastResult) {
       return;
     }
@@ -245,6 +262,8 @@ export class BattleHud {
         <span class="panel-kicker">${won ? "虎牢告捷" : "兵敗虎牢"}</span>
         <h2>${won ? "呂布已敗" : "亂軍壓境"}</h2>
         <p>${state.hero.name} 斬敵 ${state.kills}，戰功 ${state.score}</p>
+        ${settlement ? renderSettlementRewards(settlement) : ""}
+        ${settlement ? renderChapterSettlement(settlement) : ""}
         <div class="pause-actions">
           <button data-restart="true">再戰一局</button>
           <button data-menu="true">回主選單</button>
@@ -254,6 +273,32 @@ export class BattleHud {
     bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-restart]"), this.callbacks.onRestart);
     bindButtonActivation(this.modal.querySelector<HTMLButtonElement>("[data-menu]"), this.callbacks.onMenu);
   }
+}
+
+function renderSettlementRewards(settlement: MetaRunSettlement): string {
+  const levelText =
+    settlement.heroLevelAfter > settlement.heroLevelBefore
+      ? `Lv.${settlement.heroLevelBefore} -> Lv.${settlement.heroLevelAfter}`
+      : `Lv.${settlement.heroLevelAfter}`;
+  return `
+    <div class="settlement-rewards">
+      <span><b>戰功</b>${settlement.resources.merit}</span>
+      <span><b>軍糧</b>${settlement.resources.provisions}</span>
+      <span><b>聲望</b>${settlement.resources.renown}</span>
+      <span><b>武將熟練</b>+${settlement.heroXp} / ${levelText}</span>
+    </div>
+  `;
+}
+
+function renderChapterSettlement(settlement: MetaRunSettlement): string {
+  return `
+    <div class="settlement-rewards chapter-settlement">
+      <span><b>章節</b>${settlement.chapterName} ${settlement.roomReached}房${settlement.chapterCleared ? " 通關" : ""}</span>
+      <span><b>寶箱鑰匙</b>+${settlement.chestKeys}</span>
+      <span><b>任務完成</b>${settlement.missionsCompleted.length}</span>
+      <span><b>裝備碎片</b>${settlement.equipmentFragments.map((item) => `${item.name}x${item.amount}`).join(" / ") || "無"}</span>
+    </div>
+  `;
 }
 
 function bindButtonActivation(button: HTMLButtonElement | null | undefined, handler: () => void): void {
@@ -291,6 +336,9 @@ function renderUpgradeCard(upgrade: UpgradeDef, stacks: number): string {
 }
 
 function upgradeIdentity(upgrade: UpgradeDef): { key: string; icon: string; label: string; hint: string } {
+  if (upgrade.rarity === "build") {
+    return { key: "build", icon: "+", label: "攻勢", hint: "改變本局攻擊型態" };
+  }
   if (upgrade.rarity === "evolution") {
     return { key: "evolution", icon: "醒", label: "進化", hint: "改變武將核心招式" };
   }
@@ -330,6 +378,7 @@ function getBuildChips(state: RunState): Array<{ label: string; tone: string }> 
     }
     if (
       upgrade.rarity === "evolution" ||
+      upgrade.rarity === "build" ||
       upgrade.rarity === "technique" ||
       upgrade.rarity === "hero" ||
       upgrade.rarity === "faction" ||
@@ -344,7 +393,24 @@ function getBuildChips(state: RunState): Array<{ label: string; tone: string }> 
   return chips.slice(-3);
 }
 
+function renderCurrentBuildList(state: RunState): string {
+  const owned = Object.entries(state.upgrades)
+    .map(([id, stacks]) => ({ upgrade: upgradeById[id], stacks }))
+    .filter((item): item is { upgrade: UpgradeDef; stacks: number } => Boolean(item.upgrade) && item.stacks > 0);
+  return `
+    <div class="pause-build-list">
+      <strong>本局技能</strong>
+      <div>
+        ${owned.length > 0 ? owned.map((item) => `<span>${item.upgrade.name}${item.stacks > 1 ? ` x${item.stacks}` : ""}</span>`).join("") : "<span>尚未取得技能</span>"}
+      </div>
+    </div>
+  `;
+}
+
 function rarityLabel(rarity: UpgradeDef["rarity"]): string {
+  if (rarity === "build") {
+    return "軍令";
+  }
   if (rarity === "evolution") {
     return "武器進化";
   }
@@ -361,6 +427,22 @@ function rarityLabel(rarity: UpgradeDef["rarity"]): string {
     return "武將";
   }
   return "軍令";
+}
+
+function roomTypeLabel(type: RunState["roomType"]): string {
+  if (type === "elite") {
+    return "菁英房";
+  }
+  if (type === "treasure") {
+    return "寶箱房";
+  }
+  if (type === "rest") {
+    return "休整房";
+  }
+  if (type === "boss") {
+    return "Boss 房";
+  }
+  return "普通房";
 }
 
 function formatTime(seconds: number): string {

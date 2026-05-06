@@ -5,7 +5,7 @@ export const bonds: BondDef[] = [
     id: "taoyuan",
     name: "蜀漢同心",
     description: "劉備、關羽、張飛、趙雲、諸葛亮同場象徵仁義、突進與軍略互補。",
-    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "zhugeliang"]
+    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "machao", "zhugeliang"]
   },
   {
     id: "weiwu",
@@ -50,15 +50,17 @@ function attackFrameKeys(textureKey: string): string[] {
 }
 
 const animationFrameCounts = {
-  idle: 6,
-  run: 6,
-  attack: 8
+  idle: 4,
+  run: 4,
+  attack: 4,
+  ultimate: 8
 } as const satisfies Record<CharacterAnimationId, number>;
 
 const animationFrameRates = {
   idle: 8,
   run: 12,
-  attack: 18
+  attack: 18,
+  ultimate: 20
 } as const satisfies Record<CharacterAnimationId, number>;
 
 function animationFramePaths(id: CharacterId, animation: CharacterAnimationId): string[] {
@@ -74,8 +76,8 @@ function animationFrameKeys(textureKey: string, animation: CharacterAnimationId)
   );
 }
 
-function heroAnimations(id: CharacterId, textureKey: string): CharacterArtDef["animations"] {
-  return {
+function heroAnimations(id: CharacterId, textureKey: string, includeUltimate = true): CharacterArtDef["animations"] {
+  const animations: CharacterArtDef["animations"] = {
     idle: {
       framePaths: animationFramePaths(id, "idle"),
       frameKeys: animationFrameKeys(textureKey, "idle"),
@@ -95,6 +97,15 @@ function heroAnimations(id: CharacterId, textureKey: string): CharacterArtDef["a
       repeat: 0
     }
   };
+  if (includeUltimate) {
+    animations.ultimate = {
+      framePaths: animationFramePaths(id, "ultimate"),
+      frameKeys: animationFrameKeys(textureKey, "ultimate"),
+      frameRate: animationFrameRates.ultimate,
+      repeat: 0
+    };
+  }
+  return animations;
 }
 
 interface PlayableArtInput {
@@ -151,7 +162,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 5,
     role: "均衡支援",
     quote: "天下未定，先聚人心。",
-    biography: "蜀陣營的核心君主型武將。此版本先複用蜀系既有戰鬥素材，保留仁德、聚義與穩定支援的玩法定位。",
+    biography: "蜀陣營的核心君主型武將。以雙劍穩住前線節奏，保留仁德、聚義與穩定支援的玩法定位。",
     bondIds: ["taoyuan"],
     palette: { primary: "#41c878", secondary: "#153b26", accent: "#ffd36a" }
   }),
@@ -196,6 +207,20 @@ export const characterArts: CharacterArtDef[] = [
     biography: "高速穿陣的蜀軍槍將。移動與突進能力突出，適合主動切入。",
     bondIds: ["taoyuan"],
     palette: { primary: "#45c7df", secondary: "#113d49", accent: "#dffaff" }
+  }),
+  createPlayableArt({
+    id: "machao",
+    assetId: "machao",
+    factionId: "shu",
+    name: "馬超",
+    title: "西涼錦將",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "撕裂突進",
+    quote: "錦馬無聲，槍到陣裂。",
+    biography: "西涼出身的蜀軍突擊型槍將，擅長狹線穿插與連刺壓制，與桃園線並肩推進。",
+    bondIds: ["taoyuan"],
+    palette: { primary: "#5cb8ff", secondary: "#143a5c", accent: "#ffe8a8" }
   }),
   createPlayableArt({
     id: "zhugeliang",
@@ -403,7 +428,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 4,
     role: "重壓近戰",
     quote: "擋路者，皆成塵土。",
-    biography: "群雄陣營的重壓近戰武將。先複用呂布素材作為西涼系代用外觀。",
+    biography: "群雄陣營的重壓近戰武將。以重錘與壓迫感呈現西涼暴君的近身威脅。",
     bondIds: ["qunfang"],
     palette: { primary: "#8d4f7f", secondary: "#221020", accent: "#ff8b55" },
     battleScale: 0.66
@@ -439,7 +464,7 @@ export const characterArts: CharacterArtDef[] = [
     attackFrames: attackFrames("lubu"),
     textureKey: "enemy_lubu",
     attackFrameKeys: attackFrameKeys("enemy_lubu"),
-    animations: heroAnimations("lubu", "enemy_lubu"),
+    animations: heroAnimations("lubu", "enemy_lubu", false),
     anchor: { x: 0.5, y: 0.9 },
     palette: { primary: "#7f45b7", secondary: "#1b1022", accent: "#ff4e74" },
     playable: false

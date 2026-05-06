@@ -199,7 +199,8 @@ function addProjectile(
   radius: number,
   speed: number,
   ttl: number,
-  pierce: number
+  pierce: number,
+  forked = false
 ): ProjectileState {
   const start = add(state.player, scale(direction, 38));
   const projectile: ProjectileState = {
@@ -213,13 +214,44 @@ function addProjectile(
     radius,
     damage,
     ttl,
-    pierce,
+    pierce: pierce + Math.floor(state.player.projectilePierce),
     hitIds: [],
     tags: ability.damageTags,
     vfxKey: ability.vfxKey
   };
   state.projectiles.push(projectile);
+  addBuildProjectiles(state, ability, direction, damage, radius, speed, ttl, pierce, forked);
   return projectile;
+}
+
+function addBuildProjectiles(
+  state: RunState,
+  ability: AbilityDef,
+  direction: Vector2,
+  damage: number,
+  radius: number,
+  speed: number,
+  ttl: number,
+  pierce: number,
+  forked: boolean
+): void {
+  if (forked || ability.ownerHeroId !== state.hero.id || ability.trigger === "ultimate") {
+    return;
+  }
+  const frontShots = Math.min(2, Math.floor(state.player.frontShot));
+  const rearShots = Math.min(1, Math.floor(state.player.rearShot));
+  const extraVolleys = Math.min(1, Math.floor(state.player.extraVolley));
+
+  for (let index = 0; index < frontShots; index += 1) {
+    const side = index % 2 === 0 ? -1 : 1;
+    addProjectile(state, ability, rotate(direction, side * (0.18 + index * 0.04)), damage * 0.62, radius * 0.92, speed, ttl, pierce, true);
+  }
+  for (let index = 0; index < rearShots; index += 1) {
+    addProjectile(state, ability, rotate(direction, Math.PI), damage * 0.58, radius * 0.9, speed * 0.92, ttl, pierce, true);
+  }
+  for (let index = 0; index < extraVolleys; index += 1) {
+    addProjectile(state, ability, direction, damage * 0.48, radius * 0.86, speed * 0.86, ttl + 0.08, pierce, true);
+  }
 }
 
 function addArea(

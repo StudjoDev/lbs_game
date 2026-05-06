@@ -3,8 +3,8 @@
 
 The output is dedicated enemy art, not cropped hero art. It mirrors the
 project's chibi-card rendering language with simpler troop silhouettes and
-produces transparent PNG frames plus preview/reference sheets used by
-BattleScene.
+produces transparent PNG frames plus per-frame raw source PNGs and
+preview/reference sheets used by BattleScene.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ ENEMIES: tuple[EnemyLook, ...] = (
 
 ACTIONS: dict[str, int] = {
     "walk": 4,
-    "hit": 3,
+    "hit": 4,
     "death": 5,
 }
 
@@ -492,12 +492,13 @@ def make_ai_frames(look: EnemyLook, action: str) -> list[Image.Image] | None:
         return None
 
     if action == "walk":
-        poses = [(-3, 0, -1.5), (-1, -3, -2.2), (3, 0, 1.5), (1, -2, 2.2)]
+        poses = [(-7, 1, -4.0), (-2, -7, -2.4), (7, 1, 4.0), (2, -6, 2.4)]
         return [transform_source_sprite(base, dx, dy, angle) for dx, dy, angle in poses]
     if action == "hit":
         return [
-            add_sprite_flash(transform_source_sprite(base, 6, -2, 4.5), 0.4),
-            transform_source_sprite(base, -3, 1, -3.6),
+            add_sprite_flash(transform_source_sprite(base, 8, -3, 5.2), 0.4),
+            transform_source_sprite(base, -5, 1, -5.0),
+            add_sprite_flash(transform_source_sprite(base, 3, -1, 2.4), 0.18),
             transform_source_sprite(base),
         ]
     if action == "death":
@@ -537,6 +538,7 @@ def make_frames(look: EnemyLook, action: str) -> list[Image.Image]:
         poses = [
             {"dx": 7, "dy": -2, "lean": 9, "sx": 1.08, "sy": 0.94, "hit_face": 1, "hit_flash": 1, "weapon_sway": 5},
             {"dx": -3, "dy": 1, "lean": -8, "sx": 0.96, "sy": 1.04, "hit_face": 1, "weapon_sway": -4},
+            {"dx": 3, "dy": -1, "lean": 4, "sx": 1.03, "sy": 0.98, "hit_face": 1, "hit_flash": 0.45, "weapon_sway": 2},
             {"dx": 0, "dy": 0, "lean": -2, "hit_face": 0, "weapon_sway": 0},
         ]
         frames = [draw_enemy(look, pose) for pose in poses]
@@ -582,14 +584,18 @@ def write_animation(look: EnemyLook, action: str) -> list[Path]:
     frames = make_frames(look, action)
     out_dir = PUBLIC_ROOT / look.enemy_id / action
     source_dir = SOURCE_ROOT / look.enemy_id / action
+    raw_dir = source_dir / "raw"
     out_dir.mkdir(parents=True, exist_ok=True)
     source_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     written: list[Path] = []
     for index, frame in enumerate(frames, start=1):
         path = out_dir / f"{index:02d}.png"
         frame.save(path)
-        written.append(path)
+        raw_path = raw_dir / f"{index:02d}.png"
+        frame.save(raw_path)
+        written.extend([path, raw_path])
 
     preview = make_preview(frames)
     reference = make_reference(frames)

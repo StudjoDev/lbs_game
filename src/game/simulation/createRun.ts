@@ -1,16 +1,26 @@
 import { factionById } from "../content/factions";
 import { heroById } from "../content/heroes";
-import type { FactionId, HeroId, PlayerState, RunState } from "../types";
+import { defaultChapterId, getChapterDef } from "../content/chapters";
+import type { MetaRunBonuses } from "../meta/progression";
+import type { ChapterId, FactionId, HeroId, PlayerState, RunState } from "../types";
+import { initializeChapterRun } from "./chapterRun";
 import { createObjective } from "./objectives";
 
 const worldSize = 3600;
 
-export function createRun(heroId: HeroId, seed = 12891): RunState {
+export function createRun(
+  heroId: HeroId,
+  seed = 12891,
+  bonuses?: MetaRunBonuses,
+  chapterId: ChapterId = defaultChapterId
+): RunState {
   const hero = heroById[heroId];
   const faction = factionById[hero.factionId as FactionId];
-  const player = createPlayer(heroId);
+  const player = createPlayer(heroId, bonuses);
+  const chapter = getChapterDef(chapterId);
+  const objective = createObjective();
 
-  return {
+  const state: RunState = {
     status: "playing",
     hero,
     faction,
@@ -21,8 +31,20 @@ export function createRun(heroId: HeroId, seed = 12891): RunState {
     floatingTexts: [],
     combatEvents: [],
     xpOrbs: [],
-    objective: createObjective(),
+    objective,
     objectiveIndex: 0,
+    chapterId: chapter.id,
+    chapterName: chapter.name,
+    roomIndex: 0,
+    roomCount: chapter.rooms.length,
+    roomType: chapter.rooms[0].type,
+    roomTitle: chapter.rooms[0].title,
+    roomObjective: objective,
+    roomStatus: "fighting",
+    doorOpen: false,
+    roomElapsed: 0,
+    roomClearTimer: 0,
+    chapterCleared: false,
     upgrades: {},
     unlocks: {},
     techniqueCooldowns: {},
@@ -42,9 +64,11 @@ export function createRun(heroId: HeroId, seed = 12891): RunState {
     rngSeed: seed,
     lastFacing: { x: 1, y: 0 }
   };
+  initializeChapterRun(state, chapter.id);
+  return state;
 }
 
-function createPlayer(heroId: HeroId): PlayerState {
+function createPlayer(heroId: HeroId, bonuses?: MetaRunBonuses): PlayerState {
   const hero = heroById[heroId];
   const player: PlayerState = {
     id: "player",
@@ -68,8 +92,18 @@ function createPlayer(heroId: HeroId): PlayerState {
     critDamage: 1.65,
     xpScale: 1,
     companionDamage: 1,
+    companionCount: 0,
     evolvedPower: 0,
     bossDamage: 1,
+    frontShot: 0,
+    rearShot: 0,
+    extraVolley: 0,
+    projectilePierce: 0,
+    ricochet: 0,
+    orbitGuard: 0,
+    orbitCooldown: 0,
+    killHeal: 0,
+    lowHpPower: 0,
     regen: 0,
     morale: 0,
     maxMorale: 100,
@@ -83,6 +117,7 @@ function createPlayer(heroId: HeroId): PlayerState {
     ultimateTimer: 0,
     ultimatePulseCooldown: 0,
     ultimatePulseCount: 0,
+    ultimateFinisherTriggered: false,
     ultimateDurationBonus: 0,
     ultimatePower: 0
   };
@@ -109,7 +144,7 @@ function createPlayer(heroId: HeroId): PlayerState {
   if (hero.id === "guanyu") {
     player.areaScale += 0.1;
   }
-  if (hero.id === "zhaoyun") {
+  if (hero.id === "zhaoyun" || hero.id === "machao") {
     player.cooldownScale -= 0.08;
   }
   if (hero.id === "sunshangxiang") {
@@ -118,6 +153,19 @@ function createPlayer(heroId: HeroId): PlayerState {
   if (hero.id === "diaochan") {
     player.areaScale += 0.12;
     player.cooldownScale -= 0.06;
+  }
+
+  if (bonuses) {
+    const hpScale = Math.max(0.1, bonuses.maxHpScale);
+    player.maxHp = Math.round(player.maxHp * hpScale);
+    player.hp = player.maxHp;
+    player.damageScale *= Math.max(0.1, bonuses.damageScale);
+    player.cooldownScale = Math.max(0.42, player.cooldownScale * Math.max(0.1, bonuses.cooldownScale));
+    player.moveSpeed += bonuses.moveSpeed ?? 0;
+    player.armor += bonuses.armor ?? 0;
+    player.pickupRadius += bonuses.pickupRadius ?? 0;
+    player.xpScale += bonuses.xpScale ?? 0;
+    player.bossDamage += bonuses.bossDamage ?? 0;
   }
 
   return player;

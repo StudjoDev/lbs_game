@@ -312,6 +312,20 @@ const authoredUpgrades: UpgradeDef[] = [
     ]
   },
   {
+    id: "hero_machao_musou",
+    name: "錦馬無雙",
+    description: "馬超無雙延長 1.5 秒，無雙威力提升，脈衝改為錦翼連掠掃線。",
+    rarity: "hero",
+    heroId: "machao",
+    maxStacks: 1,
+    requires: { level: 5, upgradeId: "evo_machao", stacks: 1 },
+    unlockId: "ultimate_machao_mastery",
+    apply: [
+      { stat: "ultimateDuration", amount: 1.5 },
+      { stat: "ultimatePower", amount: 0.12 }
+    ]
+  },
+  {
     id: "hero_caocao_musou",
     name: "魏武無雙",
     description: "曹操無雙延長 1.5 秒，無雙威力提升，虎豹騎脈衝會穿插霸府劍衛。",
@@ -404,6 +418,17 @@ const authoredUpgrades: UpgradeDef[] = [
     apply: [{ stat: "evolvedPower", amount: 0.22 }]
   },
   {
+    id: "evo_machao",
+    name: "錦馬覺醒",
+    description: "馬超槍勢更長，突進尾焰追加錦翼撕裂。",
+    rarity: "evolution",
+    heroId: "machao",
+    maxStacks: 1,
+    requires: { level: 4, upgradeId: "war_drum", stacks: 1 },
+    unlockId: "evolution_machao",
+    apply: [{ stat: "evolvedPower", amount: 0.22 }]
+  },
+  {
     id: "evo_caocao",
     name: "魏武覺醒",
     description: "曹操劍令數量增加，親衛軍令附帶範圍斬擊。",
@@ -492,7 +517,88 @@ const generatedHeroProgression: UpgradeDef[] = heroes
   ])
   .filter((upgrade) => !authoredUpgradeIds.has(upgrade.id));
 
-export const upgrades: UpgradeDef[] = [...authoredUpgrades, ...generatedHeroProgression];
+const buildUpgrades: UpgradeDef[] = [
+  {
+    id: "build_front_arrow",
+    name: "正面增彈",
+    description: "主武技額外射出斜向彈幕，單發傷害較低。",
+    rarity: "build",
+    maxStacks: 2,
+    apply: [{ stat: "frontShot", amount: 1 }]
+  },
+  {
+    id: "build_rear_arrow",
+    name: "背後增彈",
+    description: "主武技向背後補射一發，適合被包圍時突圍。",
+    rarity: "build",
+    maxStacks: 1,
+    apply: [{ stat: "rearShot", amount: 1 }]
+  },
+  {
+    id: "build_ricochet",
+    name: "反彈箭",
+    description: "投射物命中後可折返尋找附近敵軍。",
+    rarity: "build",
+    maxStacks: 2,
+    apply: [{ stat: "ricochet", amount: 1 }]
+  },
+  {
+    id: "build_pierce",
+    name: "穿透箭",
+    description: "投射物可額外穿透一名敵軍。",
+    rarity: "build",
+    maxStacks: 3,
+    apply: [{ stat: "projectilePierce", amount: 1 }]
+  },
+  {
+    id: "build_multishot",
+    name: "連射",
+    description: "主武技追加一段較弱的二連射。",
+    rarity: "build",
+    maxStacks: 1,
+    apply: [
+      { stat: "extraVolley", amount: 1 },
+      { stat: "cooldownScale", amount: 0.05 }
+    ]
+  },
+  {
+    id: "build_orbit_guard",
+    name: "環繞護衛",
+    description: "定期在身邊展開刀陣，清理貼身敵軍。",
+    rarity: "build",
+    maxStacks: 3,
+    apply: [{ stat: "orbitGuard", amount: 1 }]
+  },
+  {
+    id: "build_deputy",
+    name: "召喚副將",
+    description: "副將定期支援射擊，與陣營支援可疊加。",
+    rarity: "build",
+    maxStacks: 3,
+    apply: [
+      { stat: "companionCount", amount: 1 },
+      { stat: "companionDamage", amount: 0.08 }
+    ]
+  },
+  {
+    id: "build_kill_heal",
+    name: "擊殺回血",
+    description: "每次斬敵恢復少量生命。",
+    rarity: "build",
+    maxStacks: 4,
+    apply: [{ stat: "killHeal", amount: 1.8 }]
+  },
+  {
+    id: "build_last_stand",
+    name: "低血爆發",
+    description: "生命低於 35% 時大幅提高造成傷害。",
+    rarity: "build",
+    maxStacks: 3,
+    apply: [{ stat: "lowHpPower", amount: 0.16 }]
+  }
+];
+
+export const upgrades: UpgradeDef[] = [...buildUpgrades, ...authoredUpgrades, ...generatedHeroProgression];
 
 function evolutionPrerequisite(hero: (typeof heroes)[number]): string {
   if (hero.manualAbility.effectId === "blood_rage" || hero.baseStats.armor >= 6) {

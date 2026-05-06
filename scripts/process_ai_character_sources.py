@@ -7,7 +7,7 @@ import math
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "output" / "ai-character-sources"
@@ -90,17 +90,21 @@ def sprite_to_anim_frame(sprite: Image.Image, frame_size: tuple[int, int] = (FRA
     return canvas
 
 
-def add_arc(frame: Image.Image, hero_id: str, strength: float = 1.0) -> Image.Image:
-    color = rgba(PALETTES.get(hero_id, "#ffffff"), round(145 * strength))
-    overlay = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay, "RGBA")
-    box = (36, 68, 182, 204)
-    draw.arc(box, 205, 342, fill=(*color[:3], 72), width=26)
-    draw.arc((box[0] + 12, box[1] + 12, box[2] - 12, box[3] - 12), 210, 336, fill=color, width=9)
-    draw.arc((box[0] + 24, box[1] + 24, box[2] - 24, box[3] - 24), 220, 326, fill=(255, 248, 220, 220), width=3)
-    result = frame.copy()
-    result.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(0.35)))
-    return result
+def fit_frame_to_safe_bounds(frame: Image.Image, margin: int = 12) -> Image.Image:
+    bbox = frame.getchannel("A").getbbox()
+    if bbox is None:
+        return Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    sprite = frame.crop(bbox)
+    scale = min(1.0, (frame.width - margin * 2) / sprite.width, (frame.height - margin * 2) / sprite.height)
+    if scale < 1.0:
+        sprite = sprite.resize((max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))), Image.Resampling.LANCZOS)
+    center_delta = ((bbox[0] + bbox[2]) / 2) - (frame.width / 2)
+    x = round((frame.width - sprite.width) / 2 + center_delta * scale)
+    x = max(margin, min(frame.width - margin - sprite.width, x))
+    y = max(margin, frame.height - margin - sprite.height)
+    canvas = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    canvas.alpha_composite(sprite, (x, y))
+    return canvas
 
 
 def make_strip(frames: list[Image.Image]) -> Image.Image:
@@ -108,6 +112,38 @@ def make_strip(frames: list[Image.Image]) -> Image.Image:
     for index, frame in enumerate(frames):
         strip.alpha_composite(frame, (index * frame.width, 0))
     return strip
+
+
+def write_attack_assets(out: Path, hero_id: str, battle: Image.Image) -> None:
+    battle_size = (FRAME_WIDTH, FRAME_HEIGHT)
+    (out / "anim" / "attack").mkdir(parents=True, exist_ok=True)
+
+    attack_specs = [
+        (0, 0, 1.0, 0, 1.0),
+        (-5, -2, 1.02, -7, 1.02),
+        (8, -4, 1.03, 9, 1.06),
+        (3, -1, 1.0, 4, 1.02),
+    ]
+    attack_frames = []
+    for index, spec in enumerate(attack_specs):
+        frame = fit_frame_to_safe_bounds(sprite_to_anim_frame(battle, battle_size, *spec))
+        attack_frames.append(frame)
+        frame.save(out / f"attack-{index}.png")
+    make_strip(attack_frames).save(out / "attack-strip.png")
+
+    attack_anim_specs = [
+        (0, 0, 1, 0, 1),
+        (-5, -2, 1.02, -7, 1.02),
+        (-8, -4, 1.03, -10, 1.04),
+        (7, -5, 1.05, 11, 1.08),
+        (10, -3, 1.04, 8, 1.06),
+        (4, -1, 1.01, 4, 1.02),
+        (1, 0, 1, 1, 1),
+        (0, 0, 1, 0, 1),
+    ]
+    for index, spec in enumerate(attack_anim_specs, start=1):
+        frame = fit_frame_to_safe_bounds(sprite_to_anim_frame(battle, battle_size, *spec))
+        frame.save(out / "anim" / "attack" / f"{index:02d}.png")
 
 
 def create_assets(hero_id: str) -> None:
@@ -129,40 +165,34 @@ def create_assets(hero_id: str) -> None:
     battle = fit_sprite(Image.open(sprite_source), battle_size)
     battle.save(out / "battle-idle.png")
 
-    attack_specs = [
-        (0, 0, 1.0, 0, 1.0),
-        (-5, -2, 1.02, -7, 1.02),
-        (8, -4, 1.03, 9, 1.06),
-        (3, -1, 1.0, 4, 1.02),
-    ]
-    attack_frames = []
-    for index, spec in enumerate(attack_specs):
-        frame = sprite_to_anim_frame(battle, battle_size, *spec)
-        if index in (1, 2):
-            frame = add_arc(frame.resize((FRAME_WIDTH, FRAME_HEIGHT), Image.Resampling.LANCZOS), hero_id, 1.0).resize(battle_size, Image.Resampling.LANCZOS)
-        attack_frames.append(frame)
-        frame.save(out / f"attack-{index}.png")
-    make_strip(attack_frames).save(out / "attack-strip.png")
-
     idle_specs = [(0, 0, 1, 0, 1), (0, -1, 1.01, -1, 1), (0, -2, 1.01, 1, 1.02), (0, -1, 1, 0, 1), (0, 0, 1, -1, 1), (0, 1, 0.995, 0, 1)]
     run_specs = [(-3, 0, 1, -3, 1), (-7, -5, 1.02, -6, 1.03), (-3, -2, 1, -2, 1), (3, 0, 1, 3, 1), (7, -5, 1.02, 6, 1.03), (3, -2, 1, 2, 1)]
-    attack_anim_specs = [(0, 0, 1, 0, 1), (-5, -2, 1.02, -7, 1.02), (-8, -4, 1.03, -10, 1.04), (7, -5, 1.05, 11, 1.08), (10, -3, 1.04, 8, 1.06), (4, -1, 1.01, 4, 1.02), (1, 0, 1, 1, 1), (0, 0, 1, 0, 1)]
 
     for index, spec in enumerate(idle_specs, start=1):
         sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec).save(out / "anim" / "idle" / f"{index:02d}.png")
     for index, spec in enumerate(run_specs, start=1):
         sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec).save(out / "anim" / "run" / f"{index:02d}.png")
-    for index, spec in enumerate(attack_anim_specs, start=1):
-        frame = sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec)
-        if index in (3, 4, 5):
-            frame = add_arc(frame, hero_id, 1.0 if index == 4 else 0.75)
-        frame.save(out / "anim" / "attack" / f"{index:02d}.png")
+    write_attack_assets(out, hero_id, battle)
 
 
 def main() -> None:
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: process_ai_character_sources.py <hero_id> [...]")
-    for hero_id in sys.argv[1:]:
+        raise SystemExit("Usage: process_ai_character_sources.py [--attack-only] <hero_id> [...]")
+    attack_only = "--attack-only" in sys.argv[1:]
+    hero_ids = [arg for arg in sys.argv[1:] if arg != "--attack-only"]
+    for hero_id in hero_ids:
+        if attack_only:
+            out = CHARACTER_ROOT / hero_id
+            battle_path = out / "battle-idle.png"
+            if battle_path.exists():
+                battle = Image.open(battle_path).convert("RGBA")
+            else:
+                sprite_source = SOURCE_ROOT / f"{hero_id}-sprite.png"
+                if not sprite_source.exists():
+                    raise SystemExit(f"Missing source image: {sprite_source}")
+                battle = fit_sprite(Image.open(sprite_source), (FRAME_WIDTH, FRAME_HEIGHT))
+            write_attack_assets(out, hero_id, battle)
+            continue
         create_assets(hero_id)
 
 

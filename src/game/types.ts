@@ -4,6 +4,7 @@ export type HeroId =
   | "guanyu"
   | "zhangfei"
   | "zhaoyun"
+  | "machao"
   | "zhugeliang"
   | "caocao"
   | "xiahoudun"
@@ -25,8 +26,11 @@ export type EnemyId = "infantry" | "archer" | "shield" | "cavalry" | "captain" |
 export type AbilityTrigger = "auto" | "manual" | "ultimate";
 export type DamageTag = "blade" | "pierce" | "fire" | "command" | "shock" | "arrow" | "charm";
 export type RunStatus = "playing" | "levelUp" | "paused" | "won" | "lost";
-export type UpgradeRarity = "common" | "technique" | "faction" | "hero" | "evolution" | "relic";
-export type ObjectiveEvent = "kill" | "eliteKill" | "moraleBurst";
+export type UpgradeRarity = "common" | "build" | "technique" | "faction" | "hero" | "evolution" | "relic";
+export type ChapterId = "yellow_turbans" | "hulao_outer" | "red_cliff_line";
+export type ChapterRoomType = "normal" | "elite" | "treasure" | "rest" | "boss";
+export type ChapterRoomStatus = "fighting" | "cleared";
+export type ObjectiveEvent = "kill" | "eliteKill" | "moraleBurst" | "survive" | "bossKill" | "treasure" | "rest";
 export type CombatEventType =
   | "hit"
   | "crit"
@@ -131,7 +135,7 @@ export interface CharacterArtDef {
   playable: boolean;
 }
 
-export type CharacterAnimationId = "idle" | "run" | "attack";
+export type CharacterAnimationId = "idle" | "run" | "attack" | "ultimate";
 
 export interface CharacterAnimationDef {
   framePaths: string[];
@@ -200,7 +204,16 @@ export interface UpgradeEffect {
     | "evolvedPower"
     | "ultimateDuration"
     | "ultimatePower"
-    | "bossDamage";
+    | "bossDamage"
+    | "frontShot"
+    | "rearShot"
+    | "extraVolley"
+    | "projectilePierce"
+    | "ricochet"
+    | "orbitGuard"
+    | "killHeal"
+    | "lowHpPower"
+    | "companionCount";
   amount: number;
 }
 
@@ -226,8 +239,18 @@ export interface PlayerState {
   critDamage: number;
   xpScale: number;
   companionDamage: number;
+  companionCount: number;
   evolvedPower: number;
   bossDamage: number;
+  frontShot: number;
+  rearShot: number;
+  extraVolley: number;
+  projectilePierce: number;
+  ricochet: number;
+  orbitGuard: number;
+  orbitCooldown: number;
+  killHeal: number;
+  lowHpPower: number;
   regen: number;
   morale: number;
   maxMorale: number;
@@ -241,6 +264,7 @@ export interface PlayerState {
   ultimateTimer: number;
   ultimatePulseCooldown: number;
   ultimatePulseCount: number;
+  ultimateFinisherTriggered: boolean;
   ultimateDurationBonus: number;
   ultimatePower: number;
 }
@@ -353,6 +377,18 @@ export interface RunState {
   xpOrbs: XpOrbState[];
   objective: BattlefieldObjectiveState;
   objectiveIndex: number;
+  chapterId: ChapterId;
+  chapterName: string;
+  roomIndex: number;
+  roomCount: number;
+  roomType: ChapterRoomType;
+  roomTitle: string;
+  roomObjective: BattlefieldObjectiveState;
+  roomStatus: ChapterRoomStatus;
+  doorOpen: boolean;
+  roomElapsed: number;
+  roomClearTimer: number;
+  chapterCleared: boolean;
   upgrades: Record<string, number>;
   unlocks: Record<string, boolean>;
   techniqueCooldowns: Record<string, number>;

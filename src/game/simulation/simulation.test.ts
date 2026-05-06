@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { chapters } from "../content/chapters";
 import { techniqueById } from "../content/techniques";
 import { ultimateByHeroId, ultimateProfiles } from "../content/ultimates";
 import { upgradeById } from "../content/upgrades";
 import type { HeroId, RunState } from "../types";
 import { executeAbility } from "./abilities";
 import { applyUpgrade, damageEnemy, damagePlayer, gainXp, resolveDeadEnemies } from "./combat";
+import { enterChapterRoom } from "./chapterRun";
 import { createRun } from "./createRun";
-import { createObjective } from "./objectives";
 import { spawnEnemy } from "./spawn";
 import { updateRun } from "./updateRun";
 
@@ -21,6 +22,19 @@ function heroMasteryId(heroId: HeroId): string {
 }
 
 describe("combat simulation", () => {
+  it("defines three eight-room chapters with the expected room mix", () => {
+    expect(chapters).toHaveLength(3);
+    for (const chapter of chapters) {
+      const roomTypes = chapter.rooms.map((room) => room.type);
+      expect(chapter.rooms).toHaveLength(8);
+      expect(roomTypes.filter((type) => type === "normal")).toHaveLength(4);
+      expect(roomTypes).toContain("elite");
+      expect(roomTypes).toContain("treasure");
+      expect(roomTypes).toContain("rest");
+      expect(roomTypes[7]).toBe("boss");
+    }
+  });
+
   it("applies faction and fire damage modifiers", () => {
     const state = createRun("zhouyu", 42);
     const enemy = spawnEnemy(state, "infantry", 100);
@@ -76,8 +90,26 @@ describe("combat simulation", () => {
     expect(state.status).toBe("levelUp");
     expect(state.pendingUpgradeIds).toHaveLength(3);
     expect(
-      state.pendingUpgradeIds.some((id) => ["technique", "faction", "relic", "hero"].includes(upgradeById[id].rarity))
+      state.pendingUpgradeIds.some((id) => ["build", "technique", "faction", "relic", "hero"].includes(upgradeById[id].rarity))
     ).toBe(true);
+  });
+
+  it("applies build-changing projectile and sustain upgrades", () => {
+    const state = createRun("sunshangxiang", 32);
+    spawnEnemy(state, "shield", 140);
+
+    applyUpgrade(state, "build_front_arrow");
+    executeAbility(state, state.hero.autoAbility);
+
+    expect(state.projectiles.length).toBeGreaterThan(1);
+
+    state.player.hp = state.player.maxHp - 20;
+    applyUpgrade(state, "build_kill_heal");
+    const enemy = spawnEnemy(state, "infantry", 100);
+    enemy.hp = 0;
+    resolveDeadEnemies(state);
+
+    expect(state.player.hp).toBeGreaterThan(state.player.maxHp - 20);
   });
 
   it("unlocked technique upgrades fire independent auto attacks", () => {
@@ -132,19 +164,20 @@ describe("combat simulation", () => {
     expect(state.areas.some((area) => area.vfxKey.includes("morale"))).toBe(true);
   });
 
-  it("advances battlefield objectives and rolls to the next order", () => {
+  it("clears room-scoped objectives and opens the door", () => {
     const state = createRun("guanyu", 15);
     state.spawnTimer = 999;
 
-    for (let index = 0; index < 24; index += 1) {
+    const goal = state.roomObjective.goal;
+    for (let index = 0; index < goal; index += 1) {
       const enemy = spawnEnemy(state, "infantry", 100);
       enemy.hp = 0;
     }
     resolveDeadEnemies(state);
 
-    expect(state.objectiveIndex).toBe(1);
-    expect(state.objective.id).toBe(createObjective(1).id);
-    expect(state.combatEvents.some((event) => event.text === "斬破前鋒")).toBe(true);
+    expect(state.roomStatus).toBe("cleared");
+    expect(state.doorOpen).toBe(true);
+    expect(state.roomObjective.progress).toBe(goal);
   });
 
   it("drops and collects battle merit orbs", () => {
@@ -203,6 +236,43 @@ describe("combat simulation", () => {
       const vfxKeys = [...state.projectiles, ...state.areas].map((effect) => effect.vfxKey);
       expect(state.projectiles.length + state.areas.length).toBeGreaterThan(before);
       expect(vfxKeys).toContain(profile.pulseAbility.vfxKey);
+    }
+  });
+
+  it("defines authored presentation and finishers for every hero ultimate", () => {
+    const seenFinisherKeys = new Set<string>();
+    for (const profile of ultimateProfiles) {
+      expect(profile.presentation.startVfxKey).toBe(profile.vfxKey);
+      expect(profile.presentation.pulseVfxKey).toBeTruthy();
+      expect(profile.presentation.finisherVfxKey).toBe(profile.finisherVfxKey);
+      expect(profile.presentation.shortLabel.length).toBeGreaterThan(0);
+      expect(profile.ultimateAnimationKey).toBe(`hero_${profile.heroId}_ultimate`);
+      expect(profile.finisherAbility.trigger).toBe("ultimate");
+      expect(profile.finisherAbility.ownerHeroId).toBe(profile.heroId);
+      expect(profile.finisherAbility.vfxKey).toBe(profile.finisherVfxKey);
+      seenFinisherKeys.add(profile.finisherVfxKey);
+    }
+    expect(seenFinisherKeys.size).toBe(ultimateProfiles.length);
+  });
+
+  it("fires a distinct ultimate finisher before the sustained window closes", () => {
+    for (const profile of ultimateProfiles) {
+      const state = createRun(profile.heroId, 303);
+      state.spawnTimer = 999;
+      spawnEnemy(state, "captain", 180);
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+      state.player.ultimateTimer = 0.24;
+      state.player.ultimatePulseCooldown = 99;
+      const before = state.projectiles.length + state.areas.length;
+
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+      const vfxKeys = [...state.projectiles, ...state.areas].map((effect) => effect.vfxKey);
+      expect(state.player.ultimateFinisherTriggered).toBe(true);
+      expect(state.projectiles.length + state.areas.length).toBeGreaterThan(before);
+      expect(vfxKeys).toContain(profile.finisherVfxKey);
+      expect(state.combatEvents.some((event) => event.type === "ultimate" && event.vfxKey === profile.finisherVfxKey)).toBe(true);
     }
   });
 
@@ -284,9 +354,9 @@ describe("combat simulation", () => {
     expect(state.player.evolvedPower).toBeGreaterThan(0);
   });
 
-  it("spawns Lu Bu at the boss timer", () => {
+  it("spawns Lu Bu when entering the boss room", () => {
     const state = createRun("caocao", 5);
-    state.elapsed = state.bossSpawnTime - 0.01;
+    enterChapterRoom(state, 7);
 
     updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.02);
 
@@ -296,12 +366,14 @@ describe("combat simulation", () => {
 
   it("wins when Lu Bu is defeated", () => {
     const state = createRun("sunshangxiang", 7);
+    enterChapterRoom(state, 7);
     const boss = spawnEnemy(state, "lubu", 100);
     boss.hp = 0;
 
     resolveDeadEnemies(state);
 
     expect(state.status).toBe("won");
+    expect(state.chapterCleared).toBe(true);
     expect(state.score).toBeGreaterThan(0);
   });
 

@@ -1,27 +1,48 @@
 import { loadCollection } from "../game/collection/collectionStore";
 import { bondById, characterArtById, characterArts } from "../game/content/characterArt";
+import { chapters } from "../game/content/chapters";
 import { factions } from "../game/content/factions";
 import { heroes } from "../game/content/heroes";
 import type { DisplaySettings } from "../game/display/settings";
-import type { CharacterArtDef, CharacterId, CollectionState, FactionId, HeroId } from "../game/types";
+import {
+  accrueIdleRewards,
+  claimDailyMission,
+  claimIdleRewards,
+  equipItem,
+  loadMetaProgression,
+  mergeEquipment,
+  openChapterChest,
+  saveMetaProgression,
+  upgradeTalent,
+  upgradeFacility,
+  type DailyMissionId,
+  type FacilityId,
+  type MetaProgressionState,
+  type TalentId
+} from "../game/meta/progression";
+import type { ChapterId, CharacterArtDef, CharacterId, CollectionState, FactionId, HeroId } from "../game/types";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
+import { bindBasePanel, renderBasePanel, type BaseTab } from "./base";
 import { createUiLayer, removeUiLayer } from "./layer";
 import { bindSettingsPanel, renderSettingsPanel } from "./settingsPanel";
 
 interface MenuCallbacks extends AudioControlCallbacks {
   getDisplaySettings: () => DisplaySettings;
   onDisplaySettingsChange: (settings: DisplaySettings) => void;
-  onStart: (heroId: HeroId) => void;
+  onStart: (heroId: HeroId, chapterId: ChapterId) => void;
 }
 
-type MenuMode = "select" | "collection" | "settings";
+type MenuMode = "select" | "collection" | "settings" | "base" | "chapter";
 
 export class MenuController {
   private readonly root = createUiLayer("menu-ui");
   private selectedFaction: FactionId = "qun";
   private selectedHero: HeroId = "diaochan";
+  private selectedChapter: ChapterId = "yellow_turbans";
   private selectedCollectionCharacter: CharacterId = "diaochan";
   private mode: MenuMode = "select";
+  private baseTab: BaseTab = "overview";
+  private meta: MetaProgressionState = loadMetaProgression();
 
   constructor(private readonly callbacks: MenuCallbacks) {
     this.render();
@@ -38,6 +59,14 @@ export class MenuController {
       this.renderSettings();
       return;
     }
+    if (this.mode === "base") {
+      this.renderBase();
+      return;
+    }
+    if (this.mode === "chapter") {
+      this.renderChapter();
+      return;
+    }
     if (this.mode === "collection") {
       this.renderCollection(collection);
       return;
@@ -46,6 +75,7 @@ export class MenuController {
   }
 
   private renderSelect(collection: CollectionState): void {
+    this.meta = loadMetaProgression();
     const faction = factions.find((item) => item.id === this.selectedFaction) ?? factions[0];
     const visibleHeroes = heroes.filter((hero) => hero.factionId === this.selectedFaction);
     if (!visibleHeroes.some((hero) => hero.id === this.selectedHero)) {
@@ -70,7 +100,7 @@ export class MenuController {
             <div>
               <span>本局武將</span>
               <strong>${selectedHero.name}</strong>
-              <small>${selectedHero.manualAbility.name} · ${faction.passiveName}</small>
+              <small>Lv.${this.meta.heroMastery[selectedHero.id].level} · ${selectedHero.manualAbility.name} · ${faction.passiveName}</small>
             </div>
             <button class="start-button quick-start-button" data-start="true">立即開戰</button>
           </div>
@@ -107,7 +137,7 @@ export class MenuController {
             <strong>${selectedHero.passiveName}</strong>
           </div>
           <div class="hero-grid">
-            ${visibleHeroes.map((hero) => renderHeroPick(hero.id, collection, hero.id === this.selectedHero)).join("")}
+            ${visibleHeroes.map((hero) => renderHeroPick(hero.id, collection, hero.id === this.selectedHero, this.meta)).join("")}
           </div>
           <div class="skill-panel">
             <div>
@@ -128,6 +158,8 @@ export class MenuController {
           ${renderAudioControls(this.callbacks.getAudioSettings())}
           <div class="menu-actions">
             <button class="codex-button" data-collection="true">武將圖鑑</button>
+            <button class="codex-button" data-chapter="true">章節</button>
+            <button class="codex-button" data-base="true">基地</button>
             <button class="codex-button" data-settings="true">設定</button>
             <button class="start-button" data-start="true">開戰</button>
           </div>
@@ -161,9 +193,19 @@ export class MenuController {
       this.mode = "settings";
       this.render();
     });
+    this.root.querySelector<HTMLButtonElement>("[data-base]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
+      this.mode = "base";
+      this.render();
+    });
+    this.root.querySelector<HTMLButtonElement>("[data-chapter]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
+      this.mode = "chapter";
+      this.render();
+    });
     this.root.querySelectorAll<HTMLButtonElement>("[data-start]").forEach((button) => {
       button.addEventListener("click", () => {
-        this.callbacks.onStart(this.selectedHero);
+        this.callbacks.onStart(this.selectedHero, this.selectedChapter);
       });
     });
     bindAudioControls(this.root, this.callbacks);
@@ -185,6 +227,127 @@ export class MenuController {
       this.callbacks.onAudioCue("sfx_ui_select");
       this.mode = "select";
       this.render();
+    });
+  }
+
+  private renderBase(): void {
+    this.meta = saveMetaProgression(accrueIdleRewards(loadMetaProgression()));
+    this.root.innerHTML = renderBasePanel(this.meta, this.selectedHero, this.baseTab);
+    bindBasePanel(this.root, {
+      onBack: () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.mode = "select";
+        this.render();
+      },
+      onClaimIdle: () => {
+        const result = claimIdleRewards(loadMetaProgression());
+        this.meta = saveMetaProgression(result.state);
+        this.callbacks.onAudioCue(result.rewards.merit + result.rewards.provisions + result.rewards.renown > 0 ? "sfx_ui_confirm" : "sfx_ui_select");
+        this.renderBase();
+      },
+      onUpgradeFacility: (facilityId: FacilityId) => {
+        const result = upgradeFacility(loadMetaProgression(), facilityId);
+        this.meta = saveMetaProgression(result.state);
+        this.callbacks.onAudioCue(result.upgraded ? "sfx_ui_confirm" : "sfx_ui_select");
+        this.renderBase();
+      },
+      onSelectHero: (heroId: HeroId) => {
+        const hero = heroes.find((item) => item.id === heroId);
+        if (hero) {
+          this.selectedHero = hero.id;
+          this.selectedFaction = hero.factionId;
+          this.selectedCollectionCharacter = hero.artId;
+        }
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.renderBase();
+      },
+      onTab: (tab: BaseTab) => {
+        this.baseTab = tab;
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.renderBase();
+      },
+      onUpgradeTalent: (talentId: TalentId) => {
+        const result = upgradeTalent(loadMetaProgression(), talentId);
+        this.meta = saveMetaProgression(result.state);
+        this.callbacks.onAudioCue(result.upgraded ? "sfx_ui_confirm" : "sfx_ui_select");
+        this.renderBase();
+      },
+      onMergeEquipment: (itemKey: string) => {
+        const result = mergeEquipment(loadMetaProgression(), itemKey);
+        this.meta = saveMetaProgression(result.state);
+        this.callbacks.onAudioCue(result.merged ? "sfx_ui_confirm" : "sfx_ui_select");
+        this.renderBase();
+      },
+      onEquipItem: (itemKey: string) => {
+        this.meta = saveMetaProgression(equipItem(loadMetaProgression(), itemKey));
+        this.callbacks.onAudioCue("sfx_ui_confirm");
+        this.renderBase();
+      },
+      onClaimMission: (missionId: DailyMissionId) => {
+        this.meta = saveMetaProgression(claimDailyMission(loadMetaProgression(), missionId));
+        this.callbacks.onAudioCue("sfx_ui_confirm");
+        this.renderBase();
+      },
+      onOpenChest: () => {
+        const result = openChapterChest(loadMetaProgression());
+        this.meta = saveMetaProgression(result.state);
+        this.callbacks.onAudioCue(result.opened ? "sfx_ui_confirm" : "sfx_ui_select");
+        this.renderBase();
+      }
+    });
+  }
+
+  private renderChapter(): void {
+    this.meta = loadMetaProgression();
+    this.root.innerHTML = `
+      <main class="chapter-stage">
+        <section class="base-topline">
+          <div>
+            <span class="panel-kicker">Chapter</span>
+            <h2>章節推進</h2>
+          </div>
+          <button class="codex-back" data-chapter-back="true">返回</button>
+        </section>
+        <section class="chapter-grid">
+          ${chapters
+            .map((chapter) => {
+              const progress = this.meta.chapterProgress[chapter.id];
+              const selected = chapter.id === this.selectedChapter;
+              const locked = !progress.unlocked;
+              return `
+                <button class="chapter-card ${selected ? "is-selected" : ""}" data-chapter-id="${chapter.id}" ${locked ? "disabled" : ""}>
+                  <span>${chapter.recommendedPower} 戰力</span>
+                  <strong>${chapter.name}</strong>
+                  <small>${chapter.subtitle}</small>
+                  <small>最佳 ${progress.bestRoom}/${chapter.rooms.length} · 通關 ${progress.clears}</small>
+                  <em>${chapter.rewardPreview}</em>
+                </button>
+              `;
+            })
+            .join("")}
+        </section>
+        <div class="menu-actions chapter-actions">
+          <button class="codex-button" data-chapter-back="true">返回選角</button>
+          <button class="start-button" data-start-chapter="true">進入章節</button>
+        </div>
+      </main>
+    `;
+    this.root.querySelectorAll<HTMLButtonElement>("[data-chapter-back]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.mode = "select";
+        this.render();
+      });
+    });
+    this.root.querySelectorAll<HTMLButtonElement>("[data-chapter-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.selectedChapter = button.dataset.chapterId as ChapterId;
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.renderChapter();
+      });
+    });
+    this.root.querySelector<HTMLButtonElement>("[data-start-chapter]")?.addEventListener("click", () => {
+      this.callbacks.onStart(this.selectedHero, this.selectedChapter);
     });
   }
 
@@ -256,7 +419,7 @@ export class MenuController {
     });
     this.root.querySelector<HTMLButtonElement>("[data-codex-start]")?.addEventListener("click", (event) => {
       const heroId = (event.currentTarget as HTMLButtonElement).dataset.codexStart as HeroId;
-      this.callbacks.onStart(heroId);
+      this.callbacks.onStart(heroId, this.selectedChapter);
     });
     bindAudioControls(this.root, this.callbacks);
   }
@@ -282,10 +445,11 @@ export class MenuController {
   }
 }
 
-function renderHeroPick(heroId: HeroId, collection: CollectionState, selected: boolean): string {
+function renderHeroPick(heroId: HeroId, collection: CollectionState, selected: boolean, meta: MetaProgressionState): string {
   const hero = heroes.find((item) => item.id === heroId)!;
   const art = characterArtById[hero.artId];
   const entry = collection[art.id];
+  const mastery = meta.heroMastery[heroId];
   return `
     <button class="hero-card character-pick ${selected ? "is-selected" : ""}" data-hero="${hero.id}" style="${artVars(art)}">
       <img class="mini-card-art" src="${art.cardImage}" alt="${art.name}" draggable="false" />
@@ -296,6 +460,7 @@ function renderHeroPick(heroId: HeroId, collection: CollectionState, selected: b
         </div>
         <strong>${hero.name}</strong>
         <span>${hero.title}</span>
+        <small>Lv.${mastery.level} · 生命 +${mastery.level}% · 傷害 +${mastery.level}%</small>
         <small>${hero.autoAbility.name} / ${hero.manualAbility.name}</small>
         <div class="bond-row">${renderBondChips(art.bondIds)}</div>
       </div>

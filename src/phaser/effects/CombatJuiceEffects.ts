@@ -70,7 +70,11 @@ export class CombatJuiceEffects {
 
     this.renderDirectionalImpact({ ...options, direction: angle, radius, intensity, color, accentColor: accent, depth });
     this.renderImpactRing(options.x, options.y, radius, intensity, color, depth + 1, options.critical === true);
+    this.renderContactFlash(options.x, options.y, angle, radius, intensity, color, accent, depth + 2, options.critical === true);
     this.emitSparkShardBurst(options.x, options.y, angle, radius, intensity, color, accent, depth + 2);
+    if (options.critical) {
+      this.renderStarburst(options.x, options.y, angle, radius * 1.25, intensity, accent, depth + 3);
+    }
   }
 
   renderDirectionalImpact(options: CombatImpactOptions): void {
@@ -136,6 +140,7 @@ export class CombatJuiceEffects {
     const depth = options.depth ?? this.depth;
 
     this.renderDustCloud(options.x, options.y, radius, intensity, color, depth);
+    this.renderGroundRipple(options.x, options.y, radius * 0.92, intensity, accent, depth + 1);
     this.emitCollapseBurst(options.x, options.y, radius, intensity, color, accent, depth + 2, 9);
   }
 
@@ -150,6 +155,7 @@ export class CombatJuiceEffects {
     const depth = options.depth ?? this.depth;
 
     this.renderDustCloud(options.x, options.y, radius * 0.88, intensity, color, depth);
+    this.renderGroundRipple(options.x, options.y, radius, intensity, accent, depth + 1);
     this.renderGroundCrack(options.x, options.y, radius, intensity, accent, depth + 1);
     this.emitCollapseBurst(options.x, options.y, radius, intensity, color, accent, depth + 2, 12);
   }
@@ -165,6 +171,7 @@ export class CombatJuiceEffects {
     const depth = options.depth ?? this.depth;
 
     this.renderDustCloud(options.x, options.y, radius, intensity, color, depth);
+    this.renderGroundRipple(options.x, options.y, radius * 1.1, intensity, accent, depth + 1);
     this.renderGroundCrack(options.x, options.y, radius * 1.18, intensity, accent, depth + 1);
     this.renderImpactRing(options.x, options.y, radius * 0.95, intensity, color, depth + 2, true);
     this.emitCollapseBurst(options.x, options.y, radius * 1.25, intensity, color, accent, depth + 3, 18);
@@ -228,6 +235,87 @@ export class CombatJuiceEffects {
     });
   }
 
+  private renderContactFlash(
+    x: number,
+    y: number,
+    angle: number,
+    radius: number,
+    intensity: number,
+    color: number,
+    accent: number,
+    depth: number,
+    critical: boolean
+  ): void {
+    const graphics = this.addGraphics(depth, Phaser.BlendModes.ADD);
+    const forwardX = Math.cos(angle);
+    const forwardY = Math.sin(angle);
+    const sideX = Math.cos(angle + Math.PI / 2);
+    const sideY = Math.sin(angle + Math.PI / 2);
+    const core = radius * (critical ? 0.72 : 0.48);
+    const flare = radius * (critical ? 1.32 : 0.92) * (1 + intensity * 0.08);
+
+    graphics.fillStyle(0xffffff, critical ? 0.74 : 0.48);
+    graphics.fillEllipse(x, y, core * 1.4, core * 0.56);
+    graphics.fillStyle(color, critical ? 0.58 : 0.42);
+    drawWedge(graphics, x - forwardX * core * 0.18, y - forwardY * core * 0.18, angle, flare, core * 0.36);
+    graphics.fillStyle(accent, critical ? 0.42 : 0.26);
+    drawWedge(
+      graphics,
+      x + sideX * core * 0.16,
+      y + sideY * core * 0.16,
+      angle + (critical ? 0.42 : -0.34),
+      flare * 0.72,
+      core * 0.26
+    );
+
+    this.addTween({
+      targets: graphics,
+      alpha: 0,
+      scaleX: critical ? 1.42 : 1.24,
+      scaleY: critical ? 1.28 : 1.12,
+      duration: critical ? 130 : 92,
+      ease: "Quad.easeOut",
+      onComplete: () => this.destroyObject(graphics)
+    });
+  }
+
+  private renderStarburst(
+    x: number,
+    y: number,
+    angle: number,
+    radius: number,
+    intensity: number,
+    color: number,
+    depth: number
+  ): void {
+    const graphics = this.addGraphics(depth, Phaser.BlendModes.ADD);
+    const spokes = 10 + Math.round(intensity * 3);
+
+    graphics.lineStyle(Math.max(2, radius * 0.035), color, 0.76);
+    for (let index = 0; index < spokes; index += 1) {
+      const spokeAngle = angle + (Math.PI * 2 * index) / spokes;
+      const inner = radius * (index % 2 === 0 ? 0.2 : 0.34);
+      const outer = radius * (0.72 + (index % 3) * 0.16);
+      graphics.lineBetween(
+        x + Math.cos(spokeAngle) * inner,
+        y + Math.sin(spokeAngle) * inner,
+        x + Math.cos(spokeAngle) * outer,
+        y + Math.sin(spokeAngle) * outer
+      );
+    }
+
+    this.addTween({
+      targets: graphics,
+      alpha: 0,
+      rotation: 0.18,
+      scaleX: 1.34,
+      scaleY: 1.34,
+      duration: 170 + intensity * 35,
+      ease: "Cubic.easeOut",
+      onComplete: () => this.destroyObject(graphics)
+    });
+  }
+
   private renderDustCloud(x: number, y: number, radius: number, intensity: number, color: number, depth: number): void {
     const graphics = this.addGraphics(depth, Phaser.BlendModes.NORMAL);
     const count = 7 + Math.round(intensity * 3);
@@ -250,6 +338,27 @@ export class CombatJuiceEffects {
       scaleY: 1.25 + intensity * 0.18,
       y: y - radius * 0.08,
       duration: 360 + intensity * 85,
+      ease: "Quad.easeOut",
+      onComplete: () => this.destroyObject(graphics)
+    });
+  }
+
+  private renderGroundRipple(x: number, y: number, radius: number, intensity: number, color: number, depth: number): void {
+    const graphics = this.addGraphics(depth, Phaser.BlendModes.ADD);
+    const rings = 2 + Math.round(intensity);
+
+    for (let index = 0; index < rings; index += 1) {
+      const size = radius * (0.68 + index * 0.3);
+      graphics.lineStyle(Math.max(2, radius * (0.024 - index * 0.003)), color, 0.38 - index * 0.08);
+      graphics.strokeEllipse(x, y + radius * 0.08, size * 1.75, size * 0.58);
+    }
+
+    this.addTween({
+      targets: graphics,
+      alpha: 0,
+      scaleX: 1.48 + intensity * 0.18,
+      scaleY: 1.22 + intensity * 0.1,
+      duration: 230 + intensity * 70,
       ease: "Quad.easeOut",
       onComplete: () => this.destroyObject(graphics)
     });

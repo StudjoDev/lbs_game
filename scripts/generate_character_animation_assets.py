@@ -191,50 +191,6 @@ def add_smear(image: Image.Image, color: tuple[int, int, int, int], offset_x: in
     return result
 
 
-def draw_arc_fx(image: Image.Image, color: tuple[int, int, int, int], bbox: tuple[int, int, int, int], start: int, end: int) -> Image.Image:
-    result = image.copy()
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    glow = (*color[:3], 60)
-    core = (*color[:3], 210)
-    draw.arc(bbox, start, end, fill=glow, width=34)
-    inset = 12
-    draw.arc((bbox[0] + inset, bbox[1] + inset, bbox[2] - inset, bbox[3] - inset), start + 2, end - 2, fill=core, width=12)
-    draw.arc((bbox[0] + inset * 2, bbox[1] + inset * 2, bbox[2] - inset * 2, bbox[3] - inset * 2), start + 8, end - 8, fill=(255, 246, 210, 230), width=4)
-    result.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(0.45)))
-    return result
-
-
-def draw_petal_fx(image: Image.Image, color: tuple[int, int, int, int]) -> Image.Image:
-    result = image.copy()
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    draw.arc((54, 106, 244, 286), 195, 344, fill=(*color[:3], 86), width=30)
-    draw.arc((70, 122, 232, 270), 205, 336, fill=(*color[:3], 210), width=10)
-    for index in range(11):
-        angle = math.radians(204 + index * 13)
-        x = 154 + math.cos(angle) * 86
-        y = 204 + math.sin(angle) * 54
-        draw.ellipse((x - 6, y - 3, x + 6, y + 3), fill=(*color[:3], 175))
-    result.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(0.35)))
-    return result
-
-
-def draw_arrow_fx(image: Image.Image, color: tuple[int, int, int, int]) -> Image.Image:
-    result = image.copy()
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    starts = [(146, 172), (142, 184), (142, 196), (146, 208), (150, 220)]
-    ends = [(246, 124), (256, 158), (262, 192), (256, 226), (246, 260)]
-    for start, end in zip(starts, ends):
-        draw.line((start, end), fill=(*color[:3], 185), width=5)
-        draw.line((start, end), fill=(255, 244, 180, 230), width=2)
-        ex, ey = end
-        draw.polygon([(ex, ey), (ex - 16, ey - 7), (ex - 10, ey + 8)], fill=(*color[:3], 220))
-    result.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(0.25)))
-    return result
-
-
 def make_action_reference(frames: list[Image.Image], gutter: int = 28) -> Image.Image:
     strip = Image.new("RGBA", (SOURCE_WIDTH * len(frames) + gutter * (len(frames) - 1), SOURCE_HEIGHT), (0, 0, 0, 0))
     for index, frame in enumerate(frames):
@@ -270,6 +226,33 @@ def game_frame_from_source(frame: Image.Image) -> Image.Image:
     left = (frame.width - FRAME_WIDTH) // 2
     top = frame.height - FRAME_HEIGHT
     return frame.crop((left, top, left + FRAME_WIDTH, top + FRAME_HEIGHT))
+
+
+def fit_source_frame_to_game_bounds(frame: Image.Image, margin: int) -> Image.Image:
+    if margin <= 0:
+        return frame
+    box = frame.getchannel("A").getbbox()
+    if box is None:
+        return frame
+    game_left = (frame.width - FRAME_WIDTH) // 2
+    game_top = frame.height - FRAME_HEIGHT
+    max_width = FRAME_WIDTH - margin * 2
+    max_height = FRAME_HEIGHT - margin * 2
+    sprite = frame.crop(box)
+    scale = min(1.0, max_width / sprite.width, max_height / sprite.height)
+    if scale < 1.0:
+        sprite = sprite.resize(
+            (max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+    source_center = game_left + FRAME_WIDTH / 2
+    center_delta = ((box[0] + box[2]) / 2) - source_center
+    x = round(game_left + (FRAME_WIDTH - sprite.width) / 2 + center_delta * scale)
+    x = max(game_left + margin, min(game_left + FRAME_WIDTH - margin - sprite.width, x))
+    y = game_top + max(margin, FRAME_HEIGHT - margin - sprite.height)
+    canvas = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    canvas.alpha_composite(sprite, (x, y))
+    return canvas
 
 
 def fit_frames_to_safe_bounds(frames: list[Image.Image], margin: int) -> list[Image.Image]:
@@ -345,31 +328,19 @@ def attack_frames(hero_id: str, hero_dir: Path, idle: Image.Image, accent: tuple
     windup = variant(seed, dx=-3, dy=-2, rotate=lean * 0.55, wave=0.7, phase=0.4)
     strike_base = variant(seed, dx=5, dy=-3, rotate=-lean * 0.95, wave=1.1, phase=1.7, brightness=1.04)
     strike_follow = variant(seed, dx=9, dy=-2, rotate=-lean * 1.15, wave=1.0, phase=2.2, brightness=1.06)
-    if hero_id == "diaochan":
-        strike = draw_petal_fx(add_smear(strike_base, accent, -7, -1, 2.5), accent)
-        follow = draw_petal_fx(add_smear(strike_follow, accent, -10, -2, 3.0), accent)
-    elif hero_id == "sunshangxiang":
-        strike = draw_arrow_fx(strike_base, accent)
-        follow = draw_arrow_fx(strike_follow, accent)
-    elif hero_id in ("xiahoudun", "zhouyu"):
-        strike = draw_arc_fx(add_smear(strike_base, accent, -6, -1, 2.2), accent, (70, 104, 236, 292), 202, 338)
-        follow = draw_arc_fx(add_smear(strike_follow, accent, -8, -2, 2.6), accent, (66, 102, 238, 294), 204, 340)
-    else:
-        strike = draw_arc_fx(add_smear(strike_base, accent, -8, -2, 2.8), accent, (66, 86, 264, 286), 198, 342)
-        follow = draw_arc_fx(add_smear(strike_follow, accent, -12, -3, 3.2), accent, (58, 76, 270, 292), 200, 344)
     return [
         seed,
         windup,
         variant(seed, dx=-6, dy=-3, rotate=lean, wave=0.9, phase=1.1),
-        strike,
-        follow,
+        strike_base,
+        strike_follow,
         variant(seed, dx=3, dy=-1, rotate=-lean * 0.35, wave=0.65, phase=2.9),
         variant(seed, dx=1, dy=0, rotate=lean * 0.2, wave=0.45, phase=3.4),
         variant(idle, dx=0, dy=0, wave=0.25, phase=4.0),
     ]
 
 
-def write_animation(hero_id: str, animation: str, frames: list[Image.Image], anchor_path: Path, lock_frame1: bool = True, safe_margin: int = 0) -> None:
+def write_animation(hero_id: str, animation: str, frames: list[Image.Image], anchor_path: Path, lock_frame1: bool = True, safe_margin: int = 0) -> list[Path]:
     hero_source_dir = SOURCE_ROOT / hero_id
     source_dir = hero_source_dir / animation
     final_dir = CHARACTER_ROOT / hero_id / "anim" / animation
@@ -392,7 +363,9 @@ def write_animation(hero_id: str, animation: str, frames: list[Image.Image], anc
         stale_frame.unlink()
     final_frames: list[Image.Image] = []
     for index, raw_path in enumerate(raw_paths, start=1):
-        frame = game_frame_from_source(Image.open(raw_path).convert("RGBA"))
+        source_frame = Image.open(raw_path).convert("RGBA")
+        source_frame = fit_source_frame_to_game_bounds(source_frame, safe_margin)
+        frame = game_frame_from_source(source_frame)
         if index == 1 and lock_frame1:
             frame = Image.open(anchor_path).convert("RGBA")
         final_frames.append(frame)
@@ -403,6 +376,20 @@ def write_animation(hero_id: str, animation: str, frames: list[Image.Image], anc
         frame.save(out_path)
         output_frames.append(out_path)
     make_preview(output_frames, source_dir / "preview.png")
+    return output_frames
+
+
+def write_legacy_attack_frames(hero_dir: Path, attack_paths: list[Path]) -> None:
+    legacy_indices = [0, 2, 3, 5]
+    frames: list[Image.Image] = []
+    for output_index, frame_index in enumerate(legacy_indices):
+        frame = Image.open(attack_paths[frame_index]).convert("RGBA")
+        frame.save(hero_dir / f"attack-{output_index}.png")
+        frames.append(frame)
+    strip = Image.new("RGBA", (FRAME_WIDTH * len(frames), FRAME_HEIGHT), (0, 0, 0, 0))
+    for index, frame in enumerate(frames):
+        strip.alpha_composite(frame, (index * FRAME_WIDTH, 0))
+    strip.save(hero_dir / "attack-strip.png")
 
 
 def main() -> None:
@@ -417,9 +404,18 @@ def main() -> None:
         attack_seed_path = hero_dir / "attack-0.png"
         idle_seed = Image.open(idle_seed_path).convert("RGBA")
         safe_margin = config.get("safeMargin", 0)
+        attack_safe_margin = config.get("attackSafeMargin", max(safe_margin, 12))
         write_animation(hero_id, "idle", idle_frames(idle_seed, config["accent"]), idle_seed_path, safe_margin=safe_margin)
         write_animation(hero_id, "run", run_frames(idle_seed, config["accent"], config["runLean"]), idle_seed_path, safe_margin=safe_margin)
-        write_animation(hero_id, "attack", attack_frames(hero_id, hero_dir, idle_seed, config["accent"], config["attackLean"]), attack_seed_path, False, safe_margin)
+        attack_paths = write_animation(
+            hero_id,
+            "attack",
+            attack_frames(hero_id, hero_dir, idle_seed, config["accent"], config["attackLean"]),
+            attack_seed_path,
+            False,
+            attack_safe_margin,
+        )
+        write_legacy_attack_frames(hero_dir, attack_paths)
 
 
 if __name__ == "__main__":

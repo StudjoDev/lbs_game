@@ -7,6 +7,8 @@ export interface UltimateProfile {
   pulseEvery: number;
   vfxKey: string;
   empoweredUnlockId: string;
+  presentation: UltimatePresentation;
+  ultimateAnimationKey: string;
   autoCooldownScale?: number;
   moveSpeedScale?: number;
   pulseAbility: AbilityDef;
@@ -14,7 +16,20 @@ export interface UltimateProfile {
   alternatePulseAbility?: AbilityDef;
   bonusEvery?: number;
   bonusPulseAbility?: AbilityDef;
+  finisherAbility: AbilityDef;
+  finisherVfxKey: string;
 }
+
+export interface UltimatePresentation {
+  startVfxKey: string;
+  pulseVfxKey: string;
+  finisherVfxKey: string;
+  shortLabel: string;
+}
+
+type UltimateBaseProfile = Omit<UltimateProfile, "presentation" | "ultimateAnimationKey" | "finisherAbility" | "finisherVfxKey">;
+
+type UltimateEnhancement = Pick<UltimateProfile, "presentation" | "finisherAbility" | "finisherVfxKey">;
 
 function ultimateAbility(
   ownerHeroId: HeroId,
@@ -47,7 +62,20 @@ function masteryUnlockId(heroId: HeroId): string {
   return `ultimate_${heroId}_mastery`;
 }
 
-export const ultimateProfiles: UltimateProfile[] = [
+function ultimateAnimationKey(heroId: HeroId): string {
+  return `hero_${heroId}_ultimate`;
+}
+
+function presentation(startVfxKey: string, finisherVfxKey: string, shortLabel: string): UltimatePresentation {
+  return {
+    startVfxKey,
+    pulseVfxKey: startVfxKey,
+    finisherVfxKey,
+    shortLabel
+  };
+}
+
+const ultimateBaseProfiles: UltimateBaseProfile[] = [
   {
     heroId: "liubei",
     name: "昭烈聚義",
@@ -90,6 +118,18 @@ export const ultimateProfiles: UltimateProfile[] = [
     moveSpeedScale: 1.18,
     pulseAbility: ultimateAbility("zhaoyun", "zhaoyun_ultimate_spear", "龍膽銀槍", 440, 28, 27, ["pierce", "shock"], "spear_flash", "spear_flurry"),
     empoweredPulseAbility: ultimateAbility("zhaoyun", "zhaoyun_ultimate_dash", "七探盤蛇", 170, 56, 45, ["pierce", "shock"], "dragon_dash", "seven_dashes")
+  },
+  {
+    heroId: "machao",
+    name: "錦馬無雙",
+    duration: 6.9,
+    pulseEvery: 0.96,
+    vfxKey: "dragon_dash",
+    empoweredUnlockId: masteryUnlockId("machao"),
+    autoCooldownScale: 0.73,
+    moveSpeedScale: 1.17,
+    pulseAbility: ultimateAbility("machao", "machao_ultimate_spear", "潼關掠影槍", 430, 30, 28, ["pierce", "shock"], "spear_flash", "spear_flurry"),
+    empoweredPulseAbility: ultimateAbility("machao", "machao_ultimate_dash", "錦騎裂陣", 175, 58, 46, ["pierce", "shock"], "dragon_dash", "seven_dashes")
   },
   {
     heroId: "zhugeliang",
@@ -260,6 +300,144 @@ export const ultimateProfiles: UltimateProfile[] = [
     empoweredPulseAbility: ultimateAbility("huatuo", "huatuo_ultimate_allure", "麻沸花舞", 320, 142, 36, ["charm", "shock"], "allure_dance", "allure_dance")
   }
 ];
+
+const ultimateEnhancements: Record<HeroId, UltimateEnhancement> = {
+  liubei: {
+    presentation: presentation("liubei_musou_oath", "liubei_musou_swords", "聚義成陣"),
+    finisherVfxKey: "liubei_musou_swords",
+    finisherAbility: ultimateAbility("liubei", "liubei_ultimate_finisher", "仁德劍陣", 560, 46, 46, ["command", "blade"], "liubei_musou_swords", "guard_swords")
+  },
+  guanyu: {
+    presentation: presentation("guanyu_musou_dragon", "guanyu_musou_dragon", "青龍收刀"),
+    finisherVfxKey: "guanyu_musou_dragon",
+    finisherAbility: ultimateAbility("guanyu", "guanyu_ultimate_finisher", "青龍斷軍", 720, 54, 68, ["blade", "shock"], "guanyu_musou_dragon", "dragon_slash")
+  },
+  zhangfei: {
+    presentation: presentation("zhangfei_musou_roar", "zhangfei_musou_roar", "雷吼裂地"),
+    finisherVfxKey: "zhangfei_musou_roar",
+    finisherAbility: ultimateAbility("zhangfei", "zhangfei_ultimate_finisher", "長坂雷吼", 270, 166, 34, ["shock", "blade"], "zhangfei_musou_roar", "blood_rage")
+  },
+  zhaoyun: {
+    presentation: presentation("zhaoyun_musou_dashes", "zhaoyun_musou_dashes", "回身穿陣"),
+    finisherVfxKey: "zhaoyun_musou_dashes",
+    finisherAbility: ultimateAbility("zhaoyun", "zhaoyun_ultimate_finisher", "龍膽回槍", 420, 66, 39, ["pierce", "shock"], "zhaoyun_musou_dashes", "seven_dashes")
+  },
+  machao: {
+    presentation: presentation("machao_musou_cavalry", "machao_musou_cavalry", "錦騎破線"),
+    finisherVfxKey: "machao_musou_cavalry",
+    finisherAbility: ultimateAbility("machao", "machao_ultimate_finisher", "西涼錦騎", 440, 68, 40, ["pierce", "shock"], "machao_musou_cavalry", "seven_dashes")
+  },
+  zhugeliang: {
+    presentation: presentation("zhugeliang_musou_bagua", "zhugeliang_musou_bagua", "八陣歸位"),
+    finisherVfxKey: "zhugeliang_musou_bagua",
+    finisherAbility: ultimateAbility(
+      "zhugeliang",
+      "zhugeliang_ultimate_finisher",
+      "八陣借風",
+      660,
+      112,
+      40,
+      ["command", "shock"],
+      "zhugeliang_musou_bagua",
+      "frost_lotus"
+    )
+  },
+  caocao: {
+    presentation: presentation("caocao_musou_weiwu", "caocao_musou_weiwu", "魏武總攻"),
+    finisherVfxKey: "caocao_musou_weiwu",
+    finisherAbility: ultimateAbility("caocao", "caocao_ultimate_finisher", "魏武總攻", 760, 64, 50, ["command", "shock"], "caocao_musou_weiwu", "tiger_cavalry")
+  },
+  xiahoudun: {
+    presentation: presentation("xiahoudun_musou_bloodblade", "xiahoudun_musou_bloodblade", "血刃震地"),
+    finisherVfxKey: "xiahoudun_musou_bloodblade",
+    finisherAbility: ultimateAbility("xiahoudun", "xiahoudun_ultimate_finisher", "剛烈血刃", 270, 128, 38, ["blade", "shock"], "xiahoudun_musou_bloodblade", "heavy_cleave")
+  },
+  xuchu: {
+    presentation: presentation("xuchu_musou_guard", "xuchu_musou_guard", "虎衛裂土"),
+    finisherVfxKey: "xuchu_musou_guard",
+    finisherAbility: ultimateAbility("xuchu", "xuchu_ultimate_finisher", "虎衛裂土", 260, 136, 40, ["shock", "blade"], "xuchu_musou_guard", "heavy_cleave")
+  },
+  zhangliao: {
+    presentation: presentation("zhangliao_musou_hefei", "zhangliao_musou_hefei", "合肥破膽"),
+    finisherVfxKey: "zhangliao_musou_hefei",
+    finisherAbility: ultimateAbility("zhangliao", "zhangliao_ultimate_finisher", "逍遙穿心", 440, 66, 42, ["pierce", "command"], "zhangliao_musou_hefei", "seven_dashes")
+  },
+  simayi: {
+    presentation: presentation("simayi_musou_thunder", "simayi_musou_thunder", "狼顧鎖殺"),
+    finisherVfxKey: "simayi_musou_thunder",
+    finisherAbility: ultimateAbility("simayi", "simayi_ultimate_finisher", "冢虎鎖雷", 680, 86, 39, ["command", "shock"], "simayi_musou_thunder", "thunder_charm")
+  },
+  sunquan: {
+    presentation: presentation("sunquan_musou_banner", "sunquan_musou_banner", "江東坐鎮"),
+    finisherVfxKey: "sunquan_musou_banner",
+    finisherAbility: ultimateAbility("sunquan", "sunquan_ultimate_finisher", "江東總令", 420, 130, 44, ["command", "shock"], "sunquan_musou_banner", "siege_drums")
+  },
+  zhouyu: {
+    presentation: presentation("zhouyu_musou_red_cliff", "zhouyu_musou_red_cliff", "東風火海"),
+    finisherVfxKey: "zhouyu_musou_red_cliff",
+    finisherAbility: ultimateAbility("zhouyu", "zhouyu_ultimate_finisher", "東風火海", 460, 154, 30, ["fire", "command"], "zhouyu_musou_red_cliff", "red_cliff_fire")
+  },
+  sunshangxiang: {
+    presentation: presentation("sunshangxiang_musou_arrowstorm", "sunshangxiang_musou_arrowstorm", "火箭密雨"),
+    finisherVfxKey: "sunshangxiang_musou_arrowstorm",
+    finisherAbility: ultimateAbility(
+      "sunshangxiang",
+      "sunshangxiang_ultimate_finisher",
+      "弓腰火雨",
+      520,
+      116,
+      32,
+      ["arrow", "fire"],
+      "sunshangxiang_musou_arrowstorm",
+      "arrow_rain"
+    )
+  },
+  ganning: {
+    presentation: presentation("ganning_musou_nightraid", "ganning_musou_nightraid", "百騎劫營"),
+    finisherVfxKey: "ganning_musou_nightraid",
+    finisherAbility: ultimateAbility("ganning", "ganning_ultimate_finisher", "錦帆劫營", 430, 70, 42, ["blade", "shock"], "ganning_musou_nightraid", "seven_dashes")
+  },
+  taishici: {
+    presentation: presentation("taishici_musou_phoenix", "taishici_musou_phoenix", "鳳羽穿營"),
+    finisherVfxKey: "taishici_musou_phoenix",
+    finisherAbility: ultimateAbility("taishici", "taishici_ultimate_finisher", "神亭鳳羽", 660, 42, 38, ["arrow", "fire"], "taishici_musou_phoenix", "phoenix_feathers")
+  },
+  diaochan: {
+    presentation: presentation("diaochan_musou_moon_dance", "diaochan_musou_moon_dance", "月下旋舞"),
+    finisherVfxKey: "diaochan_musou_moon_dance",
+    finisherAbility: ultimateAbility("diaochan", "diaochan_ultimate_finisher", "閉月圓舞", 340, 166, 34, ["blade", "charm", "shock"], "diaochan_musou_moon_dance", "allure_dance")
+  },
+  zhangjiao: {
+    presentation: presentation("zhangjiao_musou_yellow_sky", "zhangjiao_musou_yellow_sky", "黃天雷暴"),
+    finisherVfxKey: "zhangjiao_musou_yellow_sky",
+    finisherAbility: ultimateAbility("zhangjiao", "zhangjiao_ultimate_finisher", "黃天雷暴", 680, 90, 39, ["shock", "command"], "zhangjiao_musou_yellow_sky", "thunder_charm")
+  },
+  yuanshao: {
+    presentation: presentation("yuanshao_musou_alliance", "yuanshao_musou_alliance", "盟主總攻"),
+    finisherVfxKey: "yuanshao_musou_alliance",
+    finisherAbility: ultimateAbility("yuanshao", "yuanshao_ultimate_finisher", "盟主總攻", 780, 66, 50, ["command", "shock"], "yuanshao_musou_alliance", "tiger_cavalry")
+  },
+  dongzhuo: {
+    presentation: presentation("dongzhuo_musou_tyrant", "dongzhuo_musou_tyrant", "暴君震地"),
+    finisherVfxKey: "dongzhuo_musou_tyrant",
+    finisherAbility: ultimateAbility("dongzhuo", "dongzhuo_ultimate_finisher", "暴君震地", 270, 176, 36, ["shock", "blade"], "dongzhuo_musou_tyrant", "blood_rage")
+  },
+  huatuo: {
+    presentation: presentation("huatuo_musou_qingnang", "huatuo_musou_qingnang", "青囊花陣"),
+    finisherVfxKey: "huatuo_musou_qingnang",
+    finisherAbility: ultimateAbility("huatuo", "huatuo_ultimate_finisher", "青囊花陣", 560, 126, 32, ["charm", "shock"], "huatuo_musou_qingnang", "frost_lotus")
+  }
+};
+
+export const ultimateProfiles: UltimateProfile[] = ultimateBaseProfiles.map((profile) => {
+  const enhancement = ultimateEnhancements[profile.heroId];
+  return {
+    ...profile,
+    ...enhancement,
+    vfxKey: enhancement.presentation.startVfxKey,
+    ultimateAnimationKey: ultimateAnimationKey(profile.heroId)
+  };
+});
 
 export const ultimateByHeroId = Object.fromEntries(ultimateProfiles.map((profile) => [profile.heroId, profile])) as Record<
   HeroId,

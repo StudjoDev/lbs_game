@@ -24,6 +24,21 @@ describe("visual asset manifest", () => {
     }
     for (const ultimate of ultimateProfiles) {
       authoredKeys.add(ultimate.vfxKey);
+      authoredKeys.add(ultimate.presentation.startVfxKey);
+      authoredKeys.add(ultimate.presentation.pulseVfxKey);
+      authoredKeys.add(ultimate.presentation.finisherVfxKey);
+      authoredKeys.add(ultimate.finisherVfxKey);
+      authoredKeys.add(ultimate.finisherAbility.vfxKey);
+      authoredKeys.add(ultimate.pulseAbility.vfxKey);
+      if (ultimate.empoweredPulseAbility) {
+        authoredKeys.add(ultimate.empoweredPulseAbility.vfxKey);
+      }
+      if (ultimate.alternatePulseAbility) {
+        authoredKeys.add(ultimate.alternatePulseAbility.vfxKey);
+      }
+      if (ultimate.bonusPulseAbility) {
+        authoredKeys.add(ultimate.bonusPulseAbility.vfxKey);
+      }
     }
 
     for (const key of authoredKeys) {

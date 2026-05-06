@@ -20,6 +20,13 @@ import { characterArtById } from "../../game/content/characterArt";
 import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import { ultimateByHeroId } from "../../game/content/ultimates";
 import { createKeyboardBindings, readInput, type KeyboardBindings } from "../../game/input/bindings";
+import {
+  applyRunSettlement,
+  getMetaRunBonuses,
+  loadMetaProgression,
+  saveMetaProgression,
+  type MetaRunSettlement
+} from "../../game/meta/progression";
 import { applyUpgrade } from "../../game/simulation/combat";
 import { createRun } from "../../game/simulation/createRun";
 import { collectDebugXp, setPaused, updateRun } from "../../game/simulation/updateRun";
@@ -30,6 +37,7 @@ import type {
   EnemyState,
   FloatingTextState,
   CharacterAnimationId,
+  ChapterId,
   HeroId,
   ProjectileState,
   RunState,
@@ -42,6 +50,7 @@ import { BattleHud } from "../../ui/hud";
 
 interface BattleData {
   heroId?: HeroId;
+  chapterId?: ChapterId;
 }
 
 interface PlayerVisualState {
@@ -112,6 +121,7 @@ export class BattleScene extends Phaser.Scene {
   private hitFxSprites = new Set<Phaser.GameObjects.Sprite>();
   private projectileSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private projectileTrailTimestamps = new Map<number, number>();
+  private projectileAfterimageTimestamps = new Map<number, number>();
   private meleeProjectileTimestamps = new Map<number, number>();
   private xpOrbSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private xpOrbTrailTimestamps = new Map<number, number>();
@@ -122,11 +132,16 @@ export class BattleScene extends Phaser.Scene {
   private playerAttackTimers: Phaser.Time.TimerEvent[] = [];
   private playerAttackActive = false;
   private playerAttackAnimUntil = 0;
+  private playerUltimateAnimationActive = false;
+  private playerUltimateAnimUntil = 0;
   private lastAutoCooldown = 0;
   private bossUnlockSaved = false;
+  private resultSettled = false;
   private lastResultSfx?: "won" | "lost";
+  private metaSettlement?: MetaRunSettlement;
   private cameraBaseZoom = 1;
   private displaySettings: DisplaySettings = loadDisplaySettings();
+  private recentKillTimestamps: number[] = [];
 
   constructor() {
     super("BattleScene");
@@ -134,13 +149,19 @@ export class BattleScene extends Phaser.Scene {
 
   create(data: BattleData): void {
     const heroId = data.heroId ?? "guanyu";
+    const chapterId = data.chapterId ?? "yellow_turbans";
     this.displaySettings = loadDisplaySettings();
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
     this.playerAttackTimers = [];
     this.playerAttackActive = false;
+    this.playerUltimateAnimationActive = false;
+    this.playerUltimateAnimUntil = 0;
     this.bossUnlockSaved = false;
+    this.resultSettled = false;
     this.lastResultSfx = undefined;
-    this.run = createRun(heroId, Date.now() >>> 0);
+    this.metaSettlement = undefined;
+    const metaProgression = loadMetaProgression();
+    this.run = createRun(heroId, Date.now() >>> 0, getMetaRunBonuses(metaProgression, heroId), chapterId);
     this.lastPlayerPosition = new Phaser.Math.Vector2(this.run.player.x, this.run.player.y);
     this.playerVisualState = {
       visualX: this.run.player.x,
@@ -210,7 +231,7 @@ export class BattleScene extends Phaser.Scene {
       },
       onRestart: () => {
         audio.playSfx(this, "sfx_ui_confirm");
-        this.scene.restart({ heroId });
+        this.scene.restart({ heroId, chapterId });
       },
       onMenu: () => {
         audio.playSfx(this, "sfx_ui_select");
@@ -236,9 +257,32 @@ export class BattleScene extends Phaser.Scene {
       revealBossDefeat("lubu");
       this.bossUnlockSaved = true;
     }
+    this.settleMetaProgression(this.run);
     this.syncAudioState(this.run);
     this.syncRender(this.run);
-    this.hud.update(this.run);
+    this.hud.update(this.run, this.metaSettlement);
+  }
+
+  private settleMetaProgression(state: RunState): void {
+    if (this.resultSettled || (state.status !== "won" && state.status !== "lost")) {
+      return;
+    }
+    this.resultSettled = true;
+    const result = applyRunSettlement(loadMetaProgression(), {
+      heroId: state.hero.id,
+      status: state.status,
+      kills: state.kills,
+      score: state.score,
+      playerLevel: state.player.level,
+      bossDefeated: state.status === "won",
+      factionId: state.faction.id,
+      chapterId: state.chapterId,
+      roomIndex: state.roomIndex,
+      roomCount: state.roomCount,
+      chapterCleared: state.chapterCleared
+    });
+    saveMetaProgression(result.state);
+    this.metaSettlement = result.settlement;
   }
 
   private syncRender(state: RunState): void {
@@ -328,8 +372,17 @@ export class BattleScene extends Phaser.Scene {
     const idleKey = characterAnimationKey(art.textureKey, "idle");
     const runKey = characterAnimationKey(art.textureKey, "run");
     const hasIdleRun = this.anims.exists(idleKey) && this.anims.exists(runKey);
+    if (this.playerUltimateAnimationActive && this.time.now >= this.playerUltimateAnimUntil) {
+      this.playerUltimateAnimationActive = false;
+    }
     if (this.playerAttackActive && this.time.now >= this.playerAttackAnimUntil) {
       this.playerAttackActive = false;
+    }
+    if (this.playerUltimateAnimationActive) {
+      return;
+    }
+    if (this.playSustainedHeroUltimateAnimation(state, art)) {
+      return;
     }
     if (this.playerAttackActive) {
       return;
@@ -520,8 +573,10 @@ export class BattleScene extends Phaser.Scene {
         if (animation) {
           sprite.play(animation.animationKey);
         }
+        sprite.setData("vfxKey", projectile.vfxKey);
         this.projectileLayer?.add(sprite);
         this.projectileSprites.set(projectile.uid, sprite);
+        this.emitProjectileAfterimage(sprite, profile, true);
       }
       sprite.setPosition(projectile.x, projectile.y);
       sprite.setRotation(Math.atan2(projectile.vy, projectile.vx));
@@ -529,17 +584,24 @@ export class BattleScene extends Phaser.Scene {
       applyProfileTint(sprite, profile);
       sprite.setBlendMode(blendMode(profile));
       sprite.setScale(Math.max(0.55, projectile.radius / 30) * profile.scale);
-      if ((this.projectileTrailTimestamps.get(projectile.uid) ?? 0) + 72 < this.time.now) {
+      if ((this.projectileAfterimageTimestamps.get(projectile.uid) ?? 0) + projectileAfterimageInterval(projectile.vfxKey) < this.time.now) {
+        this.projectileAfterimageTimestamps.set(projectile.uid, this.time.now);
+        this.emitProjectileAfterimage(sprite, profile);
+      }
+      if ((this.projectileTrailTimestamps.get(projectile.uid) ?? 0) + 118 < this.time.now) {
         this.projectileTrailTimestamps.set(projectile.uid, this.time.now);
         this.emitParticleBurst(projectile.x, projectile.y, profile, 1, Math.max(8, projectile.radius * 0.55), projectile.y + 10);
       }
     }
     for (const [id, sprite] of this.projectileSprites) {
       if (!liveIds.has(id)) {
-        this.emitParticleBurst(sprite.x, sprite.y, vfxProfile(sprite.texture.key), 3, 22, sprite.y + 40);
+        const profile = vfxProfile((sprite.getData("vfxKey") as string | undefined) ?? sprite.texture.key);
+        this.emitProjectileAfterimage(sprite, profile, true);
+        this.emitParticleBurst(sprite.x, sprite.y, profile, 3, 22, sprite.y + 40);
         sprite.destroy();
         this.projectileSprites.delete(id);
         this.projectileTrailTimestamps.delete(id);
+        this.projectileAfterimageTimestamps.delete(id);
       }
     }
     for (const id of this.meleeProjectileTimestamps.keys()) {
@@ -660,9 +722,12 @@ export class BattleScene extends Phaser.Scene {
     }
     if (event.type === "manual" || event.type === "evolution" || event.type === "morale" || event.type === "ultimate") {
       this.cameras.main.flash(event.type === "evolution" || event.type === "ultimate" ? 160 : 80, 255, 225, 160, false);
-      const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" ? 1.035 : 1.018);
+      const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" ? 1.04 : 1.018);
       this.cameras.main.zoomTo(impulseZoom, 80);
       this.time.delayedCall(120, () => this.cameras.main.zoomTo(this.cameraBaseZoom, 160));
+    }
+    if (event.type === "ultimate" && event.intensity >= 1.1) {
+      this.playHeroUltimateAnimation(event.vfxKey);
     }
     if (event.type === "manual") {
       this.playHeroAttackAnimation();
@@ -704,14 +769,27 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (event.type === "kill") {
+      const killDensity = this.registerKillPulse();
+      const intensity = event.intensity + Math.min(1.15, killDensity * 0.08);
       this.combatJuiceEffects?.renderCollapseBurst({
         x: event.x,
         y: event.y,
-        radius: 28 * event.intensity,
-        intensity: event.intensity,
+        radius: 28 * intensity,
+        intensity,
         color: profile.color,
         depth: 5350
       });
+      if (killDensity >= 4) {
+        this.combatJuiceEffects?.renderBriefOutline({
+          x: event.x,
+          y: event.y,
+          radius: 28 + Math.min(28, killDensity * 4),
+          intensity: Math.min(1.8, 0.85 + killDensity * 0.08),
+          color: profile.color,
+          critical: killDensity >= 8,
+          depth: 5352
+        });
+      }
       return;
     }
     if (event.type === "levelUp" || event.type === "evolution") {
@@ -722,6 +800,16 @@ export class BattleScene extends Phaser.Scene {
         intensity: event.type === "evolution" ? 1.8 : 1.15
       });
     }
+  }
+
+  private registerKillPulse(): number {
+    const now = this.time.now;
+    this.recentKillTimestamps = this.recentKillTimestamps.filter((timestamp) => now - timestamp < 900);
+    this.recentKillTimestamps.push(now);
+    if (this.recentKillTimestamps.length > 24) {
+      this.recentKillTimestamps.splice(0, this.recentKillTimestamps.length - 24);
+    }
+    return this.recentKillTimestamps.length;
   }
 
   private spawnHitFx(options: {
@@ -840,11 +928,67 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.setZoom(nextZoom);
   }
 
-  private playHeroAttackAnimation(includeManualFx = true): void {
+  private playHeroUltimateAnimation(vfxKey: string): void {
     if (!this.run || !this.playerSprite) {
       return;
     }
     const art = characterArtById[this.run.hero.artId];
+    const profile = vfxProfile(vfxKey);
+    const ultimateAnimation = art.animations?.ultimate;
+    const ultimateAnimationKey = ultimateByHeroId[this.run.hero.id].ultimateAnimationKey;
+    this.playerAttackTimers.forEach((timer) => timer.remove(false));
+    this.playerAttackTimers = [];
+    this.playerAttackActive = false;
+    this.playerAttackAnimUntil = 0;
+    this.playerVisualState.attackTimer = Math.max(this.playerVisualState.attackTimer, 1.15);
+    this.playerVisualState.castTimer = Math.max(this.playerVisualState.castTimer, 0.9);
+    if (isMeleeProfile(profile) || profile.presentationKind === "dash" || profile.presentationKind === "aura") {
+      this.spawnMeleeFx(profile, this.playerVisualState.facingAngle, Math.max(112, this.run.hero.manualAbility.radius * 1.35), true);
+    }
+    if (ultimateAnimation && this.anims.exists(ultimateAnimationKey)) {
+      this.playerUltimateAnimationActive = true;
+      this.playerUltimateAnimUntil = this.time.now + (ultimateAnimation.frameKeys.length / ultimateAnimation.frameRate) * 1000;
+      this.playerSprite.play(ultimateAnimationKey);
+      return;
+    }
+    this.playerUltimateAnimationActive = true;
+    this.playerUltimateAnimUntil = this.time.now + 360;
+    this.time.delayedCall(360, () => {
+      this.playerUltimateAnimationActive = false;
+      this.playerUltimateAnimUntil = 0;
+    });
+  }
+
+  private playSustainedHeroUltimateAnimation(state: RunState, art = characterArtById[state.hero.artId]): boolean {
+    if (!this.playerSprite || state.player.ultimateTimer <= 0) {
+      return false;
+    }
+    const ultimateAnimation = art.animations?.ultimate;
+    const ultimateAnimationKey = ultimateByHeroId[state.hero.id].ultimateAnimationKey;
+    if (!ultimateAnimation || !this.anims.exists(ultimateAnimationKey)) {
+      return false;
+    }
+    this.playerAttackTimers.forEach((timer) => timer.remove(false));
+    this.playerAttackTimers = [];
+    this.playerAttackActive = false;
+    this.playerAttackAnimUntil = 0;
+    if (this.playerSprite.anims.currentAnim?.key !== ultimateAnimationKey || !this.playerSprite.anims.isPlaying) {
+      this.playerSprite.play(ultimateAnimationKey, true);
+    }
+    return true;
+  }
+
+  private playHeroAttackAnimation(includeManualFx = true): void {
+    if (!this.run || !this.playerSprite) {
+      return;
+    }
+    if (this.playerUltimateAnimationActive) {
+      return;
+    }
+    const art = characterArtById[this.run.hero.artId];
+    if (this.playSustainedHeroUltimateAnimation(this.run, art)) {
+      return;
+    }
     const profile = vfxProfile(this.run.hero.manualAbility.vfxKey);
     this.playerVisualState.attackTimer = Math.max(this.playerVisualState.attackTimer, includeManualFx ? 1 : 0.58);
     if (includeManualFx) {
@@ -928,7 +1072,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private spawnMeleeFx(profile: VfxProfile, rotation: number, radius: number, followPlayer: boolean): void {
-    const animation = playableAnimationForProfile(this, profile);
+    const animation = playableAnimationForMeleeFx(this, profile);
     const textureKey = textureOrFallback(this, profile.textureKey, animation?.textureKey ?? profile.textureKey);
     const distance =
       profile.motionStyle === "thrust"
@@ -943,6 +1087,7 @@ export class BattleScene extends Phaser.Scene {
         this.playerVisualState.visualY + Math.sin(rotation) * distance,
         textureKey
       )
+      .setOrigin(0.5)
       .setBlendMode(blendMode(profile))
       .setAlpha(0.84)
       .setDepth(this.playerVisualState.visualY + 220)
@@ -998,8 +1143,65 @@ export class BattleScene extends Phaser.Scene {
       const distance = area.radius * (0.25 + ((index * 37 + area.uid) % 60) / 100);
       const x = area.x + Math.cos(angle) * distance;
       const y = area.y + Math.sin(angle) * distance * 0.72;
+      if (profile.telegraphShape === "rain") {
+        this.renderRainStreak(x, y, profile, area.radius, area.y + 85);
+        continue;
+      }
       this.emitParticleBurst(x, y, profile, 1, Math.max(18, area.radius * 0.16), area.y + 80);
     }
+  }
+
+  private renderRainStreak(x: number, y: number, profile: VfxProfile, radius: number, depth: number): void {
+    const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.5, 1.25);
+    const graphics = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(depth).setAlpha(0.72 * effectScale);
+    const length = Phaser.Math.Clamp(radius * 0.55, 32, 78);
+    graphics.lineStyle(Math.max(2, radius * 0.018), profile.color, 0.72);
+    graphics.lineBetween(x - length * 0.28, y - length, x + length * 0.14, y + length * 0.22);
+    graphics.lineStyle(1, 0xfff1cf, 0.34);
+    graphics.lineBetween(x - length * 0.12, y - length * 0.68, x + length * 0.22, y + length * 0.16);
+    graphics.fillStyle(profile.color, 0.26);
+    graphics.fillEllipse(x + length * 0.14, y + length * 0.24, radius * 0.24, radius * 0.08);
+    this.impactLayer?.add(graphics);
+    this.tweens.add({
+      targets: graphics,
+      y: graphics.y + 22,
+      alpha: 0,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 170,
+      ease: "Quad.easeOut",
+      onComplete: () => graphics.destroy()
+    });
+  }
+
+  private emitProjectileAfterimage(sprite: Phaser.GameObjects.Sprite, profile: VfxProfile, burst = false): void {
+    const effectScale = Phaser.Math.Clamp(this.displaySettings.effectsIntensity, 0.5, 1.25);
+    const offset = burst ? 0 : Math.max(8, sprite.displayWidth * 0.16);
+    const startX = sprite.x - Math.cos(sprite.rotation) * offset;
+    const startY = sprite.y - Math.sin(sprite.rotation) * offset;
+    const ghost = this.add
+      .sprite(startX, startY, sprite.texture.key, sprite.frame.name)
+      .setOrigin(sprite.originX, sprite.originY)
+      .setRotation(sprite.rotation)
+      .setScale(sprite.scaleX * (burst ? 1.05 : 0.82), sprite.scaleY * (burst ? 1.05 : 0.72))
+      .setAlpha(Phaser.Math.Clamp((burst ? 0.34 : 0.24) * effectScale, 0.12, 0.42))
+      .setDepth(sprite.depth - 1)
+      .setBlendMode(blendMode(profile));
+    applyProfileTint(ghost, profile);
+    this.projectileLayer?.add(ghost);
+    this.hitFxSprites.add(ghost);
+    ghost.once(Phaser.GameObjects.Events.DESTROY, () => this.hitFxSprites.delete(ghost));
+    this.tweens.add({
+      targets: ghost,
+      x: startX - Math.cos(sprite.rotation) * (burst ? 2 : 12),
+      y: startY - Math.sin(sprite.rotation) * (burst ? 2 : 12),
+      alpha: 0,
+      scaleX: ghost.scaleX * (burst ? 1.45 : 1.9),
+      scaleY: ghost.scaleY * (burst ? 1.25 : 0.58),
+      duration: burst ? 135 : 185,
+      ease: "Quad.easeOut",
+      onComplete: () => ghost.destroy()
+    });
   }
 
   private spawnProfileAnimation(profile: VfxProfile, x: number, y: number, radius: number, depth: number, rotation: number): void {
@@ -1190,7 +1392,11 @@ export class BattleScene extends Phaser.Scene {
           hp: Math.round(state.player.hp),
           level: state.player.level,
           xp: Math.round(state.player.xp),
-          nextXp: state.player.nextXp
+          nextXp: state.player.nextXp,
+          ultimateTimer: Number(state.player.ultimateTimer.toFixed(2)),
+          animation: this.playerSprite?.anims.currentAnim?.key ?? null,
+          animationPlaying: this.playerSprite?.anims.isPlaying ?? false,
+          texture: this.playerSprite?.texture.key ?? null
         },
         camera: {
           zoom: Number(this.cameraBaseZoom.toFixed(3)),
@@ -1205,6 +1411,15 @@ export class BattleScene extends Phaser.Scene {
           title: state.objective.title,
           progress: state.objective.progress,
           goal: state.objective.goal
+        },
+        chapter: {
+          id: state.chapterId,
+          name: state.chapterName,
+          room: state.roomIndex + 1,
+          roomCount: state.roomCount,
+          roomType: state.roomType,
+          doorOpen: state.doorOpen,
+          cleared: state.chapterCleared
         },
         pendingUpgradeIds: state.pendingUpgradeIds,
         modalOpen: Boolean(document.querySelector(".hud-modal.is-open"))
@@ -1255,6 +1470,7 @@ export class BattleScene extends Phaser.Scene {
     this.enemyPool = [];
     this.projectileSprites.clear();
     this.projectileTrailTimestamps.clear();
+    this.projectileAfterimageTimestamps.clear();
     this.xpOrbSprites.clear();
     this.xpOrbTrailTimestamps.clear();
     this.areaGraphics.clear();
@@ -1280,6 +1496,9 @@ export class BattleScene extends Phaser.Scene {
     this.playerAttackTimers = [];
     this.playerAttackActive = false;
     this.playerAttackAnimUntil = 0;
+    this.playerUltimateAnimationActive = false;
+    this.playerUltimateAnimUntil = 0;
+    this.recentKillTimestamps = [];
   }
 }
 
@@ -1309,6 +1528,16 @@ function playableAnimationForProfile(
     }
   }
   return undefined;
+}
+
+function playableAnimationForMeleeFx(
+  scene: Phaser.Scene,
+  profile: VfxProfile
+): { animationKey: string; textureKey: string } | undefined {
+  if (profile.presentationKind === "meleeArc") {
+    return undefined;
+  }
+  return playableAnimationForProfile(scene, profile);
 }
 
 function applyProfileTint(sprite: Phaser.GameObjects.Sprite, profile: VfxProfile): Phaser.GameObjects.Sprite {
@@ -1350,6 +1579,19 @@ function isMeleeProfile(profile: VfxProfile): boolean {
 
 function usesStaticParticleBurst(profile: VfxProfile): boolean {
   return isMeleeProfile(profile) || profile.textureKey === "melee_arc" || profile.particleKey === "particle_spark";
+}
+
+function projectileAfterimageInterval(vfxKey: string): number {
+  if (vfxKey.includes("fire") || vfxKey.includes("phoenix")) {
+    return 42;
+  }
+  if (vfxKey.includes("arrow") || vfxKey.includes("crossbow")) {
+    return 52;
+  }
+  if (vfxKey.includes("enemy")) {
+    return 76;
+  }
+  return 58;
 }
 
 function meleeScale(profile: VfxProfile, radius: number): number {
@@ -1398,9 +1640,12 @@ function drawAreaTelegraph(
 ): void {
   const color = profile.color;
   const pulse = Math.sin(now / 95 + area.uid) * 0.045;
+  const shimmer = 0.5 + Math.sin(now / 145 + area.uid * 0.37) * 0.5;
   if (profile.presentationKind === "meleeArc") {
     const arc = Phaser.Math.DegToRad(profile.arcDegrees ?? 160);
     const baseAngle = now / 520 + area.uid * 0.7;
+    graphics.fillStyle(color, 0.06 + shimmer * 0.04);
+    graphics.fillCircle(area.x, area.y, area.radius * 0.42);
     graphics.lineStyle(Math.max(5, area.radius * 0.055), color, 0.34);
     graphics.beginPath();
     graphics.arc(area.x, area.y, area.radius * 0.72, baseAngle - arc / 2, baseAngle + arc / 2);
@@ -1409,6 +1654,16 @@ function drawAreaTelegraph(
     graphics.beginPath();
     graphics.arc(area.x, area.y, area.radius * 0.45, baseAngle - arc / 2 + 0.2, baseAngle + arc / 2 - 0.2);
     graphics.strokePath();
+    graphics.lineStyle(2, color, 0.22);
+    for (let index = 0; index < 5; index += 1) {
+      const slashAngle = baseAngle - arc * 0.42 + (arc * index) / 4;
+      graphics.lineBetween(
+        area.x + Math.cos(slashAngle) * area.radius * 0.28,
+        area.y + Math.sin(slashAngle) * area.radius * 0.28,
+        area.x + Math.cos(slashAngle) * area.radius * 0.82,
+        area.y + Math.sin(slashAngle) * area.radius * 0.82
+      );
+    }
     return;
   }
   if (profile.presentationKind === "aura") {
@@ -1418,6 +1673,16 @@ function drawAreaTelegraph(
     graphics.strokeCircle(area.x, area.y, area.radius * (0.74 + pulse));
     graphics.lineStyle(1, 0xfff1cf, 0.24);
     graphics.strokeCircle(area.x, area.y, area.radius * (0.48 - pulse));
+    graphics.lineStyle(2, color, 0.22);
+    for (let index = 0; index < 12; index += 1) {
+      const angle = now / 650 + (Math.PI * 2 * index) / 12;
+      graphics.lineBetween(
+        area.x + Math.cos(angle) * area.radius * 0.58,
+        area.y + Math.sin(angle) * area.radius * 0.58,
+        area.x + Math.cos(angle) * area.radius * 0.74,
+        area.y + Math.sin(angle) * area.radius * 0.74
+      );
+    }
     return;
   }
   const alpha = area.vfxKey.includes("petal") || area.vfxKey.includes("allure") ? 0.13 : area.vfxKey.includes("fire") ? 0.2 : 0.16;
@@ -1435,6 +1700,8 @@ function drawAreaTelegraph(
       const x = area.x + Math.cos(angle) * area.radius * 0.62;
       const y = area.y + Math.sin(angle) * area.radius * 0.44;
       graphics.lineBetween(x - 16, y - 42, x + 8, y + 18);
+      graphics.fillStyle(color, 0.18 + shimmer * 0.08);
+      graphics.fillEllipse(x + 8, y + 18, area.radius * 0.12, area.radius * 0.04);
     }
   } else if (profile.telegraphShape === "slash") {
     graphics.lineStyle(5, color, 0.28);
@@ -1445,12 +1712,29 @@ function drawAreaTelegraph(
     graphics.beginPath();
     graphics.arc(area.x, area.y, area.radius * 0.48, 2.4 - pulse, 4.2 - pulse);
     graphics.strokePath();
+    graphics.lineStyle(2, color, 0.24);
+    for (let index = 0; index < 4; index += 1) {
+      const angle = -0.72 + index * 0.48 + pulse;
+      graphics.lineBetween(
+        area.x + Math.cos(angle) * area.radius * 0.24,
+        area.y + Math.sin(angle) * area.radius * 0.24,
+        area.x + Math.cos(angle) * area.radius * 0.9,
+        area.y + Math.sin(angle) * area.radius * 0.9
+      );
+    }
   } else if (profile.telegraphShape === "storm") {
     graphics.fillStyle(color, 0.18);
     for (let index = 0; index < 14; index += 1) {
       const angle = now / 420 + (Math.PI * 2 * index) / 14;
       const ring = area.radius * (0.28 + (index % 4) * 0.14);
       graphics.fillEllipse(area.x + Math.cos(angle) * ring, area.y + Math.sin(angle) * ring * 0.68, 12, 4);
+    }
+    graphics.lineStyle(2, color, 0.3);
+    for (let index = 0; index < 3; index += 1) {
+      const radius = area.radius * (0.34 + index * 0.18);
+      graphics.beginPath();
+      graphics.arc(area.x, area.y, radius, now / 760 + index * 1.7, now / 760 + index * 1.7 + Math.PI * 0.9);
+      graphics.strokePath();
     }
   } else if (profile.telegraphShape === "burst") {
     graphics.lineStyle(2, color, 0.32);
@@ -1463,6 +1747,8 @@ function drawAreaTelegraph(
         area.y + Math.sin(angle) * area.radius * 0.86
       );
     }
+    graphics.lineStyle(2, 0xfff1cf, 0.18 + shimmer * 0.12);
+    graphics.strokeCircle(area.x, area.y, area.radius * (0.24 + shimmer * 0.18));
   }
 }
 
@@ -1523,6 +1809,10 @@ function usesGraphicsOnlyHitEvent(event: CombatEventState): boolean {
 }
 
 function areaColor(vfxKey: string): number {
+  const explicitProfile = vfxProfiles[vfxKey];
+  if (explicitProfile) {
+    return explicitProfile.color;
+  }
   if (vfxKey.includes("crit") || vfxKey.includes("level") || vfxKey.includes("evolution")) {
     return 0xffdd7a;
   }

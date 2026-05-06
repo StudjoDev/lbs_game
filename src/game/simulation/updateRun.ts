@@ -6,6 +6,7 @@ import { addBossShockwave, addEnemyArrow, executeAbility } from "./abilities";
 import {
   addCombatEvent,
   addFloatingText,
+  claimObjectiveReward,
   damageEnemy,
   damagePlayer,
   gainXp,
@@ -13,6 +14,7 @@ import {
   resolveDeadEnemies,
   updateCombatEvents
 } from "./combat";
+import { updateChapterRoom } from "./chapterRun";
 import { clamp, distance, normalize } from "./math";
 import { updateSpawner } from "./spawn";
 
@@ -26,21 +28,39 @@ export function updateRun(state: RunState, input: InputState, dt: number): void 
   state.player.autoCooldown = Math.max(0, state.player.autoCooldown - safeDt);
   state.player.manualCooldown = Math.max(0, state.player.manualCooldown - safeDt);
   state.player.companionCooldown = Math.max(0, state.player.companionCooldown - safeDt);
+  state.player.orbitCooldown = Math.max(0, state.player.orbitCooldown - safeDt);
+  const wasUltimateActive = state.player.ultimateTimer > 0;
   state.player.ultimateTimer = Math.max(0, state.player.ultimateTimer - safeDt);
   state.player.ultimatePulseCooldown = Math.max(0, state.player.ultimatePulseCooldown - safeDt);
   updateTechniqueCooldowns(state, safeDt);
   state.player.berserkTimer = Math.max(0, state.player.berserkTimer - safeDt);
+  if (wasUltimateActive && state.player.ultimateTimer <= 0.25 && !state.player.ultimateFinisherTriggered) {
+    triggerUltimateFinisher(state, ultimateByHeroId[state.hero.id]);
+  }
   if (state.player.ultimateTimer <= 0) {
     state.player.ultimatePulseCooldown = 0;
     state.player.ultimatePulseCount = 0;
+    state.player.ultimateFinisherTriggered = false;
   }
   if (state.player.regen > 0) {
     healPlayer(state, state.player.regen * safeDt);
   }
 
   movePlayer(state, input, safeDt);
+  claimObjectiveReward(state, updateChapterRoom(state, input.manualPressed, safeDt));
+  if (state.status !== "playing") {
+    updateFloatingTexts(state, safeDt);
+    updateCombatEvents(state, safeDt);
+    return;
+  }
+  if (state.roomStatus !== "fighting") {
+    updateFloatingTexts(state, safeDt);
+    updateCombatEvents(state, safeDt);
+    return;
+  }
   updateSpawner(state, safeDt);
   updateAbilities(state, input);
+  updateBuildSupport(state);
   updateUltimateSupport(state);
   updateTechniqueSupport(state);
   updateCompanionSupport(state);
@@ -94,6 +114,28 @@ function updateAbilities(state: RunState, input: InputState): void {
   }
 }
 
+function updateBuildSupport(state: RunState): void {
+  if (state.player.orbitGuard <= 0 || state.player.orbitCooldown > 0 || state.enemies.length === 0) {
+    return;
+  }
+  const stacks = Math.min(4, Math.floor(state.player.orbitGuard));
+  state.areas.push({
+    uid: state.nextUid++,
+    source: "player",
+    target: "enemy",
+    x: state.player.x,
+    y: state.player.y,
+    radius: (74 + stacks * 12) * state.player.areaScale,
+    damagePerSecond: (34 + stacks * 13) * state.player.damageScale,
+    ttl: 0.5,
+    tickTimer: 0,
+    tickEvery: 0.12,
+    tags: ["blade", "shock"],
+    vfxKey: "guard_swords"
+  });
+  state.player.orbitCooldown = Math.max(0.72, 1.55 - stacks * 0.16);
+}
+
 function activateUltimate(state: RunState): number {
   const profile = ultimateByHeroId[state.hero.id];
   const duration = profile.duration + state.player.ultimateDurationBonus;
@@ -103,8 +145,9 @@ function activateUltimate(state: RunState): number {
   if (state.hero.id === "xiahoudun") {
     state.player.berserkTimer = Math.max(state.player.berserkTimer, duration);
   }
+  state.player.ultimateFinisherTriggered = false;
   addFloatingText(state, state.player.x, state.player.y - 92, profile.name, "xp");
-  addCombatEvent(state, "ultimate", state.player.x, state.player.y, 1.75, profile.vfxKey, profile.name);
+  addCombatEvent(state, "ultimate", state.player.x, state.player.y, 1.75, profile.presentation.startVfxKey, profile.name);
   return duration;
 }
 
@@ -119,10 +162,20 @@ function updateUltimateSupport(state: RunState): void {
       executeAbility(state, ability);
     }
     if (state.player.ultimatePulseCount % 3 === 0) {
-      addCombatEvent(state, "ultimate", state.player.x, state.player.y, 0.62, profile.vfxKey, profile.name);
+      addCombatEvent(state, "ultimate", state.player.x, state.player.y, 0.62, profile.presentation.pulseVfxKey, profile.presentation.shortLabel);
     }
     state.player.ultimatePulseCooldown += Math.max(0.3, profile.pulseEvery);
   }
+}
+
+function triggerUltimateFinisher(state: RunState, profile: UltimateProfile): void {
+  state.player.ultimateFinisherTriggered = true;
+  executeAbility(state, profile.finisherAbility);
+  if (state.hero.id === "huatuo") {
+    healPlayer(state, 18 + state.player.level * (1.2 + state.player.ultimatePower));
+  }
+  addFloatingText(state, state.player.x, state.player.y - 100, profile.presentation.shortLabel, "xp");
+  addCombatEvent(state, "ultimate", state.player.x, state.player.y, 1.45, profile.finisherVfxKey, profile.finisherAbility.name);
 }
 
 function pulseAbilitiesFor(state: RunState, profile: UltimateProfile) {
@@ -166,9 +219,10 @@ function updateCompanionSupport(state: RunState): void {
   }
   const hasFactionCompanion =
     state.unlocks.wei_tiger_guard || state.unlocks.shu_oath || state.unlocks.wu_chain_fire || state.unlocks.qun_flower_guard;
-  if (!hasFactionCompanion || state.enemies.length === 0) {
+  if ((!hasFactionCompanion && state.player.companionCount <= 0) || state.enemies.length === 0) {
     return;
   }
+  const summoned = Math.min(3, Math.floor(state.player.companionCount));
   executeAbility(state, {
     id: "companion_support",
     name: "陣營支援",
@@ -177,7 +231,7 @@ function updateCompanionSupport(state: RunState): void {
     cooldown: 3.5,
     range: 560,
     radius: state.unlocks.wu_chain_fire ? 48 : state.unlocks.qun_flower_guard ? 46 : 38,
-    damage: 46 * state.player.companionDamage,
+    damage: (46 + summoned * 12) * state.player.companionDamage,
     damageTags: state.unlocks.wu_chain_fire
       ? ["arrow", "fire"]
       : state.unlocks.qun_flower_guard
@@ -200,7 +254,10 @@ function updateCompanionSupport(state: RunState): void {
           ? "companion_oath"
           : "companion_charge"
   });
-  state.player.companionCooldown = state.unlocks.wei_tiger_guard ? 2.8 : state.unlocks.qun_flower_guard ? 3.1 : 3.5;
+  state.player.companionCooldown = Math.max(
+    2.1,
+    (state.unlocks.wei_tiger_guard ? 2.8 : state.unlocks.qun_flower_guard ? 3.1 : 3.5) - summoned * 0.22
+  );
 }
 
 function updateEnemies(state: RunState, dt: number): void {
@@ -295,8 +352,10 @@ function updateProjectiles(state: RunState, dt: number): void {
             enemy.stunTimer = Math.max(enemy.stunTimer, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.36 : 0.22));
           }
           if (projectile.hitIds.length > projectile.pierce) {
-            projectile.ttl = 0;
-            break;
+            if (!redirectRicochet(state, projectile)) {
+              projectile.ttl = 0;
+              break;
+            }
           }
         }
       }
@@ -310,6 +369,42 @@ function updateProjectiles(state: RunState, dt: number): void {
     }
   }
   state.projectiles = survivors;
+}
+
+function redirectRicochet(state: RunState, projectile: ProjectileState): boolean {
+  if (state.player.ricochet <= 0) {
+    return false;
+  }
+  const remainingBounces = Math.floor(state.player.ricochet) - projectile.hitIds.length + projectile.pierce + 1;
+  if (remainingBounces <= 0) {
+    return false;
+  }
+  let nearest:
+    | {
+        enemy: { uid: number; x: number; y: number };
+        distance: number;
+      }
+    | undefined;
+  for (const enemy of state.enemies) {
+    if (enemy.hp <= 0 || projectile.hitIds.includes(enemy.uid)) {
+      continue;
+    }
+    const current = distance(projectile, enemy);
+    if (current > 360 || (nearest && current >= nearest.distance)) {
+      continue;
+    }
+    nearest = { enemy, distance: current };
+  }
+  if (!nearest) {
+    return false;
+  }
+  const velocity = Math.max(260, Math.hypot(projectile.vx, projectile.vy));
+  const direction = normalize({ x: nearest.enemy.x - projectile.x, y: nearest.enemy.y - projectile.y });
+  projectile.vx = direction.x * velocity;
+  projectile.vy = direction.y * velocity;
+  projectile.pierce += 1;
+  projectile.ttl = Math.max(projectile.ttl, 0.22);
+  return true;
 }
 
 function updateAreas(state: RunState, dt: number): void {

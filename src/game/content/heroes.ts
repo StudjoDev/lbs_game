@@ -172,6 +172,38 @@ export const heroes: HeroDef[] = [
     }
   }),
   createHero({
+    id: "machao",
+    factionId: "shu",
+    name: "馬超",
+    title: "西涼錦將",
+    role: "撕裂突進",
+    passiveName: "鐵騎錦槍",
+    passiveText: "技能節奏緊湊，能以連刺與突進撕裂狹長敵線。",
+    baseStats: { maxHp: 132, moveSpeed: 248, armor: 3, pickupRadius: 100 },
+    autoAbility: {
+      name: "錦槍連閃",
+      description: "連刺穿透槍芒，對狹長路徑特別有效。",
+      cooldown: 0.74,
+      range: 410,
+      radius: 26,
+      damage: 21,
+      damageTags: ["pierce"],
+      vfxKey: "spear_flash",
+      effectId: "spear_flurry"
+    },
+    manualAbility: {
+      name: "潼關突騎",
+      description: "向前疾突並橫掃路徑上的敵人。",
+      cooldown: 6.5,
+      range: 340,
+      radius: 60,
+      damage: 64,
+      damageTags: ["pierce", "shock"],
+      vfxKey: "dragon_dash",
+      effectId: "seven_dashes"
+    }
+  }),
+  createHero({
     id: "zhugeliang",
     factionId: "shu",
     name: "諸葛亮",

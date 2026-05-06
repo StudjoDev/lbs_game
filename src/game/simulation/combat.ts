@@ -2,8 +2,9 @@ import { enemyById } from "../content/enemies";
 import { factionById } from "../content/factions";
 import { upgradeById, upgrades } from "../content/upgrades";
 import type { CombatEventType, DamageTag, EnemyState, RunState, UpgradeDef, UpgradeRarity } from "../types";
+import { advanceRoomObjective, completeBossRoom } from "./chapterRun";
 import { distance, normalize } from "./math";
-import { advanceObjective, type CompletedObjective } from "./objectives";
+import type { CompletedObjective } from "./objectives";
 import { nextRandom } from "./rng";
 
 export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: number, tags: DamageTag[]): number {
@@ -31,6 +32,9 @@ export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: numb
   }
   if (player.heroId === "xiahoudun") {
     amount *= 1 + (1 - player.hp / player.maxHp) * 0.45;
+  }
+  if (player.lowHpPower > 0 && player.hp / player.maxHp <= 0.35) {
+    amount *= 1 + player.lowHpPower;
   }
   if (player.berserkTimer > 0) {
     amount *= state.unlocks.evolution_xiahoudun ? 1.82 : 1.55;
@@ -146,6 +150,24 @@ export function applyUpgrade(state: RunState, upgradeId: string): UpgradeDef {
       state.player.ultimatePower += effect.amount;
     } else if (effect.stat === "bossDamage") {
       state.player.bossDamage += effect.amount;
+    } else if (effect.stat === "frontShot") {
+      state.player.frontShot += effect.amount;
+    } else if (effect.stat === "rearShot") {
+      state.player.rearShot += effect.amount;
+    } else if (effect.stat === "extraVolley") {
+      state.player.extraVolley += effect.amount;
+    } else if (effect.stat === "projectilePierce") {
+      state.player.projectilePierce += effect.amount;
+    } else if (effect.stat === "ricochet") {
+      state.player.ricochet += effect.amount;
+    } else if (effect.stat === "orbitGuard") {
+      state.player.orbitGuard += effect.amount;
+    } else if (effect.stat === "killHeal") {
+      state.player.killHeal += effect.amount;
+    } else if (effect.stat === "lowHpPower") {
+      state.player.lowHpPower += effect.amount;
+    } else if (effect.stat === "companionCount") {
+      state.player.companionCount += effect.amount;
     }
   }
 
@@ -168,20 +190,28 @@ export function resolveDeadEnemies(state: RunState): void {
     state.kills += 1;
     state.score += def.score;
     addCombatEvent(state, "kill", enemy.x, enemy.y, def.tags.includes("elite") ? 1 : 0.5, def.tags.includes("boss") ? "evolution_burst" : "hit_spark");
+    if (state.player.killHeal > 0) {
+      healPlayer(state, state.player.killHeal);
+    }
     if (enemy.defId === "lubu") {
-      state.status = "won";
+      const completed = state.roomType === "boss" ? completeBossRoom(state) : undefined;
+      if (completed) {
+        claimObjectiveReward(state, completed);
+      } else {
+        state.status = "won";
+      }
       addFloatingText(state, enemy.x, enemy.y - 70, "天下歸一", "xp");
       addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", "呂布已敗");
     } else {
-      claimObjectiveReward(state, advanceObjective(state, "kill"));
+      claimObjectiveReward(state, advanceRoomObjective(state, "kill"));
       if (def.tags.includes("elite")) {
-        claimObjectiveReward(state, advanceObjective(state, "eliteKill"));
+        claimObjectiveReward(state, advanceRoomObjective(state, "eliteKill"));
       }
       gainMorale(state, def.tags.includes("elite") ? 16 : 5);
       dropXpOrb(state, enemy.x, enemy.y, def.xp);
     }
   }
-  state.enemies = survivors;
+  state.enemies = state.roomStatus === "cleared" ? [] : survivors;
 }
 
 export function findNearestEnemy(state: RunState, range: number): EnemyState | undefined {
@@ -252,9 +282,7 @@ function chooseUpgradeOptions(state: RunState): string[] {
     picks.push(heroPick.id);
   }
 
-  const buildChanging = eligible.filter((upgrade) =>
-    ["technique", "faction", "hero", "evolution", "relic"].includes(upgrade.rarity)
-  );
+  const buildChanging = eligible.filter((upgrade) => isBuildChangingRarity(upgrade.rarity));
   if (picks.length === 0) {
     const firstPick = pickWeightedUpgrade(state, buildChanging.length > 0 ? buildChanging : eligible, picks);
     if (firstPick) {
@@ -303,6 +331,9 @@ function isUpgradeEligible(state: RunState, upgrade: UpgradeDef): boolean {
 
 function weightForRarity(rarity: UpgradeRarity): number {
   if (rarity === "evolution") {
+    return 7;
+  }
+  if (rarity === "build") {
     return 7;
   }
   if (rarity === "technique") {
@@ -371,14 +402,18 @@ function triggerMoraleBurst(state: RunState): void {
   const moraleText = factionById[state.faction.id]?.passiveName ?? "士氣爆發";
   addFloatingText(state, state.player.x, state.player.y - 90, moraleText, "xp");
   addCombatEvent(state, "morale", state.player.x, state.player.y, 1.55, isWuLike(state) ? "morale_fire" : isShu ? "morale_dragon" : "morale_banner");
-  claimObjectiveReward(state, advanceObjective(state, "moraleBurst"));
+  claimObjectiveReward(state, advanceRoomObjective(state, "moraleBurst"));
 }
 
 function isWuLike(state: RunState): boolean {
   return state.faction.id === "wu" || state.unlocks.wu_chain_fire;
 }
 
-function claimObjectiveReward(state: RunState, completed: CompletedObjective | undefined): void {
+function isBuildChangingRarity(rarity: UpgradeRarity): boolean {
+  return ["build", "technique", "faction", "hero", "evolution", "relic"].includes(rarity);
+}
+
+export function claimObjectiveReward(state: RunState, completed: CompletedObjective | undefined): void {
   if (!completed) {
     return;
   }

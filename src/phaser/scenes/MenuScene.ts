@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
-import type { HeroId } from "../../game/types";
+import type { ChapterId, HeroId } from "../../game/types";
 import { getAudioController } from "../audio/AudioController";
 import { MenuController } from "../../ui/menu";
 
@@ -29,10 +29,10 @@ export class MenuScene extends Phaser.Scene {
       onAudioCue: (key) => {
         audio.playSfx(this, key);
       },
-      onStart: (heroId: HeroId) => {
+      onStart: (heroId: HeroId, chapterId: ChapterId) => {
         audio.playSfx(this, "sfx_ui_confirm");
         this.menu?.destroy();
-        this.scene.start("BattleScene", { heroId });
+        this.scene.start("BattleScene", { heroId, chapterId });
       }
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.menu?.destroy());

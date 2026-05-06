@@ -27,6 +27,13 @@ describe("character art manifest", () => {
       expect(art.attackFrames).toHaveLength(4);
       expect(art.attackFrames.every((path) => path.endsWith(".png"))).toBe(true);
       expect(art.attackFrameKeys).toHaveLength(4);
+      if (art.playable) {
+        expect(art.animations?.ultimate?.framePaths).toHaveLength(8);
+        expect(art.animations?.ultimate?.frameKeys).toHaveLength(8);
+        expect(art.animations?.ultimate?.frameRate).toBe(20);
+      } else {
+        expect(art.animations?.ultimate).toBeUndefined();
+      }
       expect(art.stars).toBeGreaterThanOrEqual(4);
       expect(art.bondIds.length).toBeGreaterThan(0);
     }
@@ -43,7 +50,13 @@ describe("character art manifest", () => {
   });
 
   it("has generated browser assets for each manifest path", () => {
-    const paths = characterArts.flatMap((art) => [art.cardImage, art.battleImage, art.attackStrip, ...art.attackFrames]);
+    const paths = characterArts.flatMap((art) => [
+      art.cardImage,
+      art.battleImage,
+      art.attackStrip,
+      ...art.attackFrames,
+      ...Object.values(art.animations ?? {}).flatMap((animation) => animation.framePaths)
+    ]);
 
     for (const path of paths) {
       const filePath = join(projectRoot, "public", publicRelativeFromBrowserPath(path));
@@ -64,6 +77,12 @@ describe("character art manifest", () => {
       for (const framePath of art.attackFrames) {
         expect(framePath).not.toBe(art.cardImage);
         expect(pngSize(framePath)).toEqual({ width: 192, height: 224 });
+      }
+      if (art.playable) {
+        for (const framePath of art.animations?.ultimate?.framePaths ?? []) {
+          expect(framePath).not.toBe(art.cardImage);
+          expect(pngSize(framePath)).toEqual({ width: 192, height: 224 });
+        }
       }
       expect(pngSize(art.attackStrip)).toEqual({ width: 768, height: 224 });
     }

@@ -420,10 +420,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createMeleeFxTextures(): void {
-    this.createArcTexture("melee_arc", "#fff1cf", "#75f0aa", 210, 150, 0.58);
-    this.createThrustTexture("spear_thrust", "#dffcff", "#75f0aa", 230, 58);
-    this.createArcTexture("petal_blade", "#ffd4eb", "#ff78b7", 180, 132, 0.48);
-    this.createArcTexture("heavy_cleave_wave", "#ffe2b8", "#ff7a45", 240, 170, 0.66);
+    this.createArcTexture("melee_arc", "#fff1cf", "#75f0aa", 300, 220, 0.44);
+    this.createThrustTexture("spear_thrust", "#dffcff", "#75f0aa", 300, 86);
+    this.createArcTexture("petal_blade", "#ffd4eb", "#ff78b7", 280, 210, 0.34);
+    this.createArcTexture("heavy_cleave_wave", "#ffe2b8", "#ff7a45", 340, 250, 0.48);
   }
 
   private createArcTexture(key: string, core: string, edge: string, width: number, height: number, thickness: number): void {
@@ -437,6 +437,18 @@ export class BootScene extends Phaser.Scene {
     const centerY = height * 0.58;
     const outer = Math.min(width, height) * thickness;
     const inner = outer * 0.56;
+    const glow = ctx.createRadialGradient(centerX, centerY, inner * 0.4, centerX, centerY, outer * 1.35);
+    glow.addColorStop(0, "rgba(255,255,255,0)");
+    glow.addColorStop(0.55, edge);
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = glow;
+    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(22, height * 0.22);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outer, -2.42, 0.38);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     const gradient = ctx.createRadialGradient(centerX, centerY, inner * 0.55, centerX, centerY, outer * 1.15);
     gradient.addColorStop(0, "rgba(255,255,255,0)");
     gradient.addColorStop(0.42, edge);
@@ -445,7 +457,7 @@ export class BootScene extends Phaser.Scene {
     gradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.strokeStyle = gradient;
     ctx.lineCap = "round";
-    ctx.lineWidth = Math.max(14, height * 0.2);
+    ctx.lineWidth = Math.max(16, height * 0.16);
     ctx.beginPath();
     ctx.arc(centerX, centerY, outer, -2.38, 0.34);
     ctx.stroke();
@@ -476,21 +488,21 @@ export class BootScene extends Phaser.Scene {
     ctx.clearRect(0, 0, width, height);
     const gradient = ctx.createLinearGradient(0, height / 2, width, height / 2);
     gradient.addColorStop(0, "rgba(255,255,255,0)");
-    gradient.addColorStop(0.18, edge);
+    gradient.addColorStop(0.24, edge);
     gradient.addColorStop(0.58, core);
-    gradient.addColorStop(0.86, "rgba(255,255,255,0.92)");
+    gradient.addColorStop(0.78, "rgba(255,255,255,0.92)");
     gradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.moveTo(width * 0.04, height * 0.5);
-    ctx.quadraticCurveTo(width * 0.42, height * 0.08, width * 0.96, height * 0.5);
-    ctx.quadraticCurveTo(width * 0.42, height * 0.92, width * 0.04, height * 0.5);
+    ctx.moveTo(width * 0.14, height * 0.5);
+    ctx.quadraticCurveTo(width * 0.43, height * 0.14, width * 0.86, height * 0.5);
+    ctx.quadraticCurveTo(width * 0.43, height * 0.86, width * 0.14, height * 0.5);
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.7)";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(width * 0.06, height * 0.5);
-    ctx.lineTo(width * 0.95, height * 0.5);
+    ctx.moveTo(width * 0.16, height * 0.5);
+    ctx.lineTo(width * 0.84, height * 0.5);
     ctx.stroke();
     texture.refresh();
   }

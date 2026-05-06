@@ -6,6 +6,7 @@ const heroTextureIds = [
   "guanyu",
   "zhangfei",
   "zhaoyun",
+  "machao",
   "zhugeliang",
   "caocao",
   "xiahoudun",
@@ -239,7 +240,7 @@ const animatedEnemyIds = ["infantry", "archer", "shield", "cavalry", "captain", 
 const enemyAnimationIds = ["walk", "hit", "death"] as const satisfies readonly EnemyAnimationId[];
 const enemyAnimationFrameCounts: Record<EnemyAnimationId, number> = {
   walk: 4,
-  hit: 3,
+  hit: 4,
   death: 5
 };
 const enemyAnimationFrameRates: Record<EnemyAnimationId, number> = {
@@ -308,6 +309,35 @@ export const defaultVfxProfile: VfxProfile = {
   originMode: "targetArea",
   motionStyle: "cast"
 };
+
+function musouVfxProfile(
+  textureKey: string,
+  color: number,
+  presentationKind: NonNullable<VfxProfile["presentationKind"]>,
+  telegraphShape: NonNullable<VfxProfile["telegraphShape"]>,
+  motionStyle: NonNullable<VfxProfile["motionStyle"]>,
+  scale: number,
+  lifetime: number,
+  particleKey: string,
+  extras: Partial<VfxProfile> = {}
+): VfxProfile {
+  const originMode =
+    presentationKind === "rangedProjectile" ? "projectile" : presentationKind === "areaField" || presentationKind === "rain" ? "targetArea" : "playerAnchored";
+  return {
+    textureKey,
+    color,
+    blendMode: "add",
+    scale,
+    lifetime,
+    particleKey,
+    telegraphShape,
+    presentationKind,
+    originMode,
+    motionStyle,
+    followPlayer: originMode === "playerAnchored",
+    ...extras
+  };
+}
 
 export const vfxProfiles: Record<string, VfxProfile> = {
   qinglong_arc: {
@@ -695,7 +725,67 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     lifetime: 0.24,
     particleKey: "particle_spark",
     telegraphShape: "burst"
-  }
+  },
+  liubei_musou_oath: musouVfxProfile("siege_drums", 0xffd36a, "areaField", "burst", "cast", 1.28, 0.7, "particle_dirt"),
+  liubei_musou_swords: musouVfxProfile("melee_arc", 0xffe2a0, "meleeArc", "slash", "slashLunge", 0.84, 0.42, "particle_spark", {
+    arcDegrees: 220,
+    animationKey: slashAnimationKey
+  }),
+  guanyu_musou_dragon: musouVfxProfile("melee_arc", 0x5dff9f, "meleeArc", "slash", "slashLunge", 1.18, 0.5, "particle_spark", {
+    arcDegrees: 238,
+    animationKey: slashAnimationKey
+  }),
+  zhangfei_musou_roar: musouVfxProfile("blood_rage", 0xff6248, "aura", "burst", "spin", 1.34, 0.66, "particle_dirt", {
+    arcDegrees: 360
+  }),
+  zhaoyun_musou_dashes: musouVfxProfile("spear_thrust", 0x9bf3ff, "dash", "slash", "thrust", 1.08, 0.36, "particle_magic", {
+    arcDegrees: 72
+  }),
+  machao_musou_cavalry: musouVfxProfile("spear_thrust", 0x74cfff, "dash", "slash", "thrust", 1.12, 0.38, "particle_dirt", {
+    arcDegrees: 86
+  }),
+  zhugeliang_musou_bagua: musouVfxProfile("frost_lotus", 0xbff8ff, "areaField", "burst", "cast", 1.26, 0.66, "particle_magic", {
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true
+  }),
+  caocao_musou_weiwu: musouVfxProfile("tiger_cavalry", 0xa8b8ff, "rangedProjectile", "storm", "cast", 1.26, 0.52, "particle_dirt"),
+  xiahoudun_musou_bloodblade: musouVfxProfile("heavy_cleave_wave", 0xff695c, "meleeArc", "slash", "slashLunge", 1.02, 0.48, "particle_smoke", {
+    arcDegrees: 220,
+    animationKey: slashAnimationKey
+  }),
+  xuchu_musou_guard: musouVfxProfile("heavy_cleave_wave", 0xffb15c, "aura", "burst", "spin", 1.26, 0.62, "particle_dirt", {
+    arcDegrees: 360
+  }),
+  zhangliao_musou_hefei: musouVfxProfile("spear_thrust", 0x7da6ff, "dash", "slash", "thrust", 1.1, 0.36, "particle_magic", {
+    arcDegrees: 80
+  }),
+  simayi_musou_thunder: musouVfxProfile("thunder_charm", 0xc9a8ff, "areaField", "burst", "cast", 1.18, 0.52, "particle_brackeys_spark", {
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true
+  }),
+  sunquan_musou_banner: musouVfxProfile("siege_drums", 0xffbb70, "areaField", "burst", "cast", 1.22, 0.64, "particle_brackeys_fire"),
+  zhouyu_musou_red_cliff: musouVfxProfile("red_cliff_fire", 0xff5a32, "areaField", "storm", "cast", 1.3, 0.84, "particle_brackeys_fire", {
+    animationKeys: [brackeysFireRingAnimationKey],
+    nativeColor: true
+  }),
+  sunshangxiang_musou_arrowstorm: musouVfxProfile("arrow_rain", 0xffcf64, "rain", "rain", "cast", 1.1, 0.52, "particle_spark"),
+  ganning_musou_nightraid: musouVfxProfile("melee_arc", 0xd9e1ff, "meleeArc", "slash", "slashLunge", 1.02, 0.42, "particle_magic", {
+    arcDegrees: 210,
+    animationKey: slashAnimationKey
+  }),
+  taishici_musou_phoenix: musouVfxProfile("phoenix_feathers", 0xff8a4f, "rangedProjectile", "rain", "cast", 1.08, 0.44, "particle_spark"),
+  diaochan_musou_moon_dance: musouVfxProfile("petal_blade", 0xff9acb, "aura", "storm", "spin", 1.28, 0.78, "particle_magic", {
+    arcDegrees: 360
+  }),
+  zhangjiao_musou_yellow_sky: musouVfxProfile("thunder_charm", 0xe7c45f, "areaField", "burst", "cast", 1.22, 0.56, "particle_brackeys_spark", {
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true
+  }),
+  yuanshao_musou_alliance: musouVfxProfile("tiger_cavalry", 0xd5a2ff, "rangedProjectile", "storm", "cast", 1.24, 0.52, "particle_magic"),
+  dongzhuo_musou_tyrant: musouVfxProfile("blood_rage", 0xff4e74, "aura", "burst", "spin", 1.38, 0.72, "particle_smoke", {
+    arcDegrees: 360
+  }),
+  huatuo_musou_qingnang: musouVfxProfile("frost_lotus", 0x9ff7c6, "areaField", "burst", "cast", 1.2, 0.68, "particle_magic")
 };
 
 export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
