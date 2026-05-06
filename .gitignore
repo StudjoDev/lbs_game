@@ -12,3 +12,8 @@ test-results/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# Cursor / local agent workspace files
+.cursor/
+CURSOR_AUTORUN_SETUP.txt
+cursor-autorun.permissions*.json
