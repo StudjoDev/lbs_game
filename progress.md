@@ -9,6 +9,42 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Implement 統一天下 v1 city conquest and gatekeeper recruitment.
+Notes:
+- Added conquest city content with 17 cities across Shu, Wei, Wu, Qun, and final Luoyang routes. Four entry cities start unlocked, and Luoyang unlocks only after the four route finales are conquered.
+- Extended meta progression with `conquest.cities` and `unifiedAt`, including normalization for old saves, city attempts, best room, conquered timestamps, first-clear rewards, newly unlocked cities, and unification settlement data.
+- Switched collection storage to v2 so old all-owned v1 saves do not bypass recruitment. Defaults now own only Liu Bei, Cao Cao, Sun Quan, and Diaochan; other playable heroes are revealed but locked until recruited.
+- Added conquest-aware battle startup, city gatekeeper spawning with existing hero battle art, gatekeeper boss-room victory handling, settlement recruitment, and HUD result summaries for conquered cities, recruited heroes, new city unlocks, and unification.
+- Added the main menu 天下 page with compact region/city cards, locked/conquered states, guard portraits, first-clear rewards, and responsive desktop/mobile styling.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 61 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- develop-web-game client smoke ran against localhost:5178; its known canvas screenshot path still captured black.
+- Direct Playwright smoke passed on desktop 1280x720 and mobile 390x844: 天下 page rendered 17 cities with 4 initially attackable, launching 巨鹿 produced a BattleScene state with `conquest.cityId=julu` and gatekeeper 張角, and there were no console/page errors. Screenshots/results are in `output/web-game/conquest-qa/`.
+
+TODO:
+- None for this request.
+
+Current request: Let Lu Bu fire a boss musou too.
+Notes:
+- Added Lu Bu-only `ultimateCooldown` / `ultimateWindup` enemy state so the boss periodically telegraphs and fires an enemy-side musou instead of only using normal chase/shockwave behavior.
+- Lu Bu now shows a "方天無雙" windup, pauses normal movement/attacks during charge, then fires "鬼神亂舞" as overlapping player-targeted danger zones plus halberd projectiles.
+- Added authored VFX profile aliases `lubu_musou_warning`, `lubu_musou_rampage`, and `lubu_musou_halberd`, reusing existing texture families with Lu Bu-specific red/pink presentation.
+- BattleScene now renders Lu Bu windup scale/tint/frame pulses, applies short boss-musou camera flash/zoom/shake, and exposes dev-only `spawnDebugLubu()` plus boss/threat state in `render_game_to_text`.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test -- --run src/game/simulation/simulation.test.ts src/game/assets/manifest.test.ts` passed.
+- `npm test` passed: 8 files, 56 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Direct Playwright Lu Bu QA passed on desktop 1280x720 and iPhone 390x844 using `spawnDebugLubu()`: windup started, fired state reset windup/cooldown, player HP dropped, and enemy `lubu_musou_rampage` / `lubu_musou_halberd` threats appeared. Screenshots/results are under `output/web-game/lubu-musou-qa/`.
+- develop-web-game client smoke ran against localhost:5173 and a fresh localhost:5174 server. State output showed gameplay and player ultimate animation working with no console/page errors in the clean 5174 headless smoke; the client canvas screenshot path still captured black PNGs, so Lu Bu visual QA uses direct full-page Playwright screenshots.
+
+TODO:
+- None for this request.
+
 Current request: Fix ultimate animation feeling unchanged after activation.
 Notes:
 - BattleScene now keeps replaying the hero's `ultimate` animation while `ultimateTimer > 0`, instead of only playing it during the short startup/finisher lock.
