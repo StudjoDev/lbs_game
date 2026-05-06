@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { entryCityIds } from "../content/conquest";
 import { createRun } from "../simulation/createRun";
 import {
   accrueIdleRewards,
@@ -56,6 +57,9 @@ describe("meta progression", () => {
     expect(normalized.idle.lastClaimedAt).toBe(new Date(0).toISOString());
     expect(normalized.idle.unclaimed).toEqual({ merit: 4, provisions: 0, renown: 1 });
     expect(normalized.stats).toEqual({ runsPlayed: 1, wins: 0, bestKills: 33, bossDefeats: 0 });
+    expect(Object.keys(normalized.conquest.cities).filter((id) => normalized.conquest.cities[id as keyof typeof normalized.conquest.cities].unlocked)).toEqual(
+      [...entryCityIds]
+    );
   });
 
   it("calculates capped offline rewards and claims them into resources", () => {
@@ -104,6 +108,81 @@ describe("meta progression", () => {
     expect(loss.settlement.resources).toEqual({ merit: 32, provisions: 24, renown: 0 });
     expect(loss.state.stats.runsPlayed).toBe(2);
     expect(loss.state.stats.wins).toBe(1);
+  });
+
+  it("settles conquest city victories, recruitment, and repeat clears", () => {
+    const state = createDefaultMetaProgressionState(0);
+
+    const first = applyRunSettlement(state, {
+      heroId: "liubei",
+      status: "won",
+      kills: 72,
+      score: 520,
+      playerLevel: 5,
+      chapterId: "yellow_turbans",
+      conquestCityId: "jingzhou",
+      roomIndex: 7,
+      roomCount: 8,
+      chapterCleared: true
+    });
+
+    expect(first.state.conquest.cities.jingzhou.conquered).toBe(true);
+    expect(first.settlement.conqueredCityId).toBe("jingzhou");
+    expect(first.settlement.recruitedHeroId).toBe("guanyu");
+    expect(first.settlement.unlockedCityIds).toContain("changban");
+    expect(first.settlement.resources.merit).toBeGreaterThan(92);
+    expect(first.settlement.chestKeys).toBeGreaterThan(2);
+
+    const repeat = applyRunSettlement(first.state, {
+      heroId: "liubei",
+      status: "won",
+      kills: 72,
+      score: 520,
+      playerLevel: 5,
+      chapterId: "yellow_turbans",
+      conquestCityId: "jingzhou",
+      roomIndex: 7,
+      roomCount: 8,
+      chapterCleared: true
+    });
+
+    expect(repeat.state.conquest.cities.jingzhou.attempts).toBe(2);
+    expect(repeat.settlement.recruitedHeroId).toBeUndefined();
+    expect(repeat.settlement.conqueredCityId).toBeUndefined();
+    expect(repeat.settlement.resources.merit).toBeLessThan(first.settlement.resources.merit);
+  });
+
+  it("unlocks Luoyang after four routes and marks unification after conquering it", () => {
+    const state = createDefaultMetaProgressionState(0);
+    for (const cityId of ["longzhong", "yecheng", "shenting", "qingnang_valley"] as const) {
+      state.conquest.cities[cityId] = {
+        ...state.conquest.cities[cityId],
+        unlocked: true,
+        conquered: true,
+        conqueredAt: new Date(0).toISOString()
+      };
+    }
+    const normalized = normalizeMetaProgressionState(state, 0);
+
+    expect(normalized.conquest.cities.luoyang.unlocked).toBe(true);
+
+    const result = applyRunSettlement(normalized, {
+      heroId: "diaochan",
+      status: "won",
+      kills: 90,
+      score: 900,
+      playerLevel: 7,
+      chapterId: "red_cliff_line",
+      conquestCityId: "luoyang",
+      roomIndex: 7,
+      roomCount: 8,
+      chapterCleared: true
+    });
+
+    expect(result.state.conquest.cities.luoyang.conquered).toBe(true);
+    expect(result.state.conquest.unifiedAt).toBeTruthy();
+    expect(result.settlement.unified).toBe(true);
+    expect(result.settlement.recruitedHeroId).toBe("dongzhuo");
   });
 
   it("upgrades facilities only when resources are available", () => {

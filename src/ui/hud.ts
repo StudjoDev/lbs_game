@@ -61,7 +61,11 @@ export class BattleHud {
     const manualReady = state.doorOpen || state.player.manualCooldown <= 0;
     const bossText = state.bossSpawned ? "呂布已現身" : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} 呂布`;
     const buildChips = getBuildChips(state);
-    const roomText = state.doorOpen ? "門已開" : `${state.chapterName} · ${roomTypeLabel(state.roomType)}`;
+    const roomText = state.doorOpen
+      ? "門已開"
+      : state.conquestCityName
+        ? `${state.conquestCityName} · ${roomTypeLabel(state.roomType)}`
+        : `${state.chapterName} · ${roomTypeLabel(state.roomType)}`;
     void bossText;
     const objectiveProgress = Math.min(state.roomObjective.goal, Math.floor(state.roomObjective.progress));
 
@@ -248,7 +252,7 @@ export class BattleHud {
 
   private renderResultModal(state: RunState, settlement?: MetaRunSettlement): void {
     const rewardKey = settlement
-      ? `${settlement.resources.merit}-${settlement.resources.provisions}-${settlement.resources.renown}-${settlement.heroXp}-${settlement.heroLevelAfter}`
+      ? `${settlement.resources.merit}-${settlement.resources.provisions}-${settlement.resources.renown}-${settlement.heroXp}-${settlement.heroLevelAfter}-${settlement.conqueredCityId ?? ""}-${settlement.recruitedHeroId ?? ""}-${settlement.unlockedCityIds.join(",")}-${settlement.unified}`
       : "pending";
     const key = `${state.status}-${state.kills}-${state.score}-${rewardKey}`;
     if (key === this.lastResult) {
@@ -264,6 +268,7 @@ export class BattleHud {
         <p>${state.hero.name} 斬敵 ${state.kills}，戰功 ${state.score}</p>
         ${settlement ? renderSettlementRewards(settlement) : ""}
         ${settlement ? renderChapterSettlement(settlement) : ""}
+        ${settlement ? renderConquestSettlement(settlement) : ""}
         <div class="pause-actions">
           <button data-restart="true">再戰一局</button>
           <button data-menu="true">回主選單</button>
@@ -297,6 +302,20 @@ function renderChapterSettlement(settlement: MetaRunSettlement): string {
       <span><b>寶箱鑰匙</b>+${settlement.chestKeys}</span>
       <span><b>任務完成</b>${settlement.missionsCompleted.length}</span>
       <span><b>裝備碎片</b>${settlement.equipmentFragments.map((item) => `${item.name}x${item.amount}`).join(" / ") || "無"}</span>
+    </div>
+  `;
+}
+
+function renderConquestSettlement(settlement: MetaRunSettlement): string {
+  if (!settlement.conqueredCityId && settlement.unlockedCityIds.length === 0 && !settlement.unified) {
+    return "";
+  }
+  return `
+    <div class="settlement-rewards conquest-settlement">
+      ${settlement.conqueredCityName ? `<span><b>城池</b>攻下 ${settlement.conqueredCityName}</span>` : ""}
+      ${settlement.recruitedHeroName ? `<span><b>守將加入</b>${settlement.recruitedHeroName}</span>` : ""}
+      ${settlement.unlockedCityNames.length > 0 ? `<span><b>新城解鎖</b>${settlement.unlockedCityNames.join(" / ")}</span>` : ""}
+      ${settlement.unified ? "<span><b>天下</b>統一完成</span>" : ""}
     </div>
   `;
 }

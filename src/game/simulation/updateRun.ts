@@ -1,8 +1,8 @@
 import { enemyById } from "../content/enemies";
 import { techniques } from "../content/techniques";
 import { ultimateByHeroId, type UltimateProfile } from "../content/ultimates";
-import type { AreaState, InputState, ProjectileState, RunState, XpOrbState } from "../types";
-import { addBossShockwave, addEnemyArrow, executeAbility } from "./abilities";
+import type { AreaState, EnemyState, InputState, ProjectileState, RunState, XpOrbState } from "../types";
+import { addBossMusou, addBossShockwave, addEnemyArrow, executeAbility } from "./abilities";
 import {
   addCombatEvent,
   addFloatingText,
@@ -263,6 +263,7 @@ function updateCompanionSupport(state: RunState): void {
 function updateEnemies(state: RunState, dt: number): void {
   for (const enemy of state.enemies) {
     enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
+    enemy.ultimateCooldown = Math.max(0, enemy.ultimateCooldown - dt);
     enemy.stunTimer = Math.max(0, enemy.stunTimer - dt);
     enemy.flashTimer = Math.max(0, enemy.flashTimer - dt);
     if (enemy.burnTimer > 0) {
@@ -277,6 +278,9 @@ function updateEnemies(state: RunState, dt: number): void {
     updateBossPhase(state, enemy);
     const toPlayer = normalize({ x: state.player.x - enemy.x, y: state.player.y - enemy.y });
     const playerDistance = distance(enemy, state.player);
+    if (updateLubuUltimate(state, enemy, playerDistance, dt)) {
+      continue;
+    }
 
     if (def.tags.includes("ranged")) {
       const moveSign = playerDistance < 230 ? -1 : playerDistance > 315 ? 1 : 0;
@@ -305,7 +309,17 @@ function updateEnemies(state: RunState, dt: number): void {
 
 function updateBossPhase(
   state: RunState,
-  enemy: { defId: string; hp: number; maxHp: number; phase: number; speed: number; damage: number; x: number; y: number }
+  enemy: {
+    defId: string;
+    hp: number;
+    maxHp: number;
+    phase: number;
+    speed: number;
+    damage: number;
+    x: number;
+    y: number;
+    ultimateCooldown: number;
+  }
 ): void {
   if (enemy.defId !== "lubu") {
     return;
@@ -318,6 +332,7 @@ function updateBossPhase(
   enemy.phase = nextPhase;
   enemy.speed += nextPhase === 2 ? 22 : 30;
   enemy.damage += nextPhase === 2 ? 8 : 12;
+  enemy.ultimateCooldown = Math.min(enemy.ultimateCooldown, nextPhase === 2 ? 0.75 : 0.28);
   addBossShockwave(state, enemy.x, enemy.y);
   addFloatingText(state, enemy.x, enemy.y - 96, nextPhase === 2 ? "飛將震怒" : "無雙爆發", "alert");
   addCombatEvent(state, "boss", enemy.x, enemy.y, nextPhase === 2 ? 1.4 : 2, "evolution_burst", "呂布覺醒");
@@ -328,6 +343,40 @@ function bossPhaseSpeed(enemy: { defId: string; phase: number }): number {
     return 1;
   }
   return enemy.phase === 3 ? 1.55 : enemy.phase === 2 ? 1.25 : 1;
+}
+
+function updateLubuUltimate(state: RunState, enemy: EnemyState, playerDistance: number, dt: number): boolean {
+  if (enemy.defId !== "lubu") {
+    return false;
+  }
+  if (enemy.ultimateWindup > 0) {
+    enemy.ultimateWindup = Math.max(0, enemy.ultimateWindup - dt);
+    if (enemy.ultimateWindup <= 0) {
+      fireLubuUltimate(state, enemy);
+    }
+    return true;
+  }
+  if (enemy.ultimateCooldown > 0 || playerDistance > 720) {
+    return false;
+  }
+  startLubuUltimate(state, enemy);
+  return true;
+}
+
+function startLubuUltimate(state: RunState, enemy: EnemyState): void {
+  enemy.ultimateWindup = enemy.phase >= 3 ? 0.62 : enemy.phase >= 2 ? 0.72 : 0.84;
+  enemy.ultimateCooldown = 99;
+  enemy.attackCooldown = Math.max(enemy.attackCooldown, enemy.ultimateWindup + 0.35);
+  addFloatingText(state, enemy.x, enemy.y - 118, "方天無雙", "alert");
+  addCombatEvent(state, "boss", enemy.x, enemy.y, 1.65, "lubu_musou_warning", "方天無雙");
+}
+
+function fireLubuUltimate(state: RunState, enemy: EnemyState): void {
+  addBossMusou(state, enemy.x, enemy.y, enemy.phase);
+  enemy.attackCooldown = Math.max(enemy.attackCooldown, 1.1);
+  enemy.ultimateCooldown = enemy.phase >= 3 ? 4.9 : enemy.phase >= 2 ? 5.8 : 7.2;
+  addFloatingText(state, enemy.x, enemy.y - 118, "鬼神亂舞", "alert");
+  addCombatEvent(state, "boss", enemy.x, enemy.y, enemy.phase >= 3 ? 2.45 : 2.1, "lubu_musou_rampage", "鬼神亂舞");
 }
 
 function updateProjectiles(state: RunState, dt: number): void {

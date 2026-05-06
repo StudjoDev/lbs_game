@@ -40,6 +40,9 @@ describe("visual asset manifest", () => {
         authoredKeys.add(ultimate.bonusPulseAbility.vfxKey);
       }
     }
+    authoredKeys.add("lubu_musou_warning");
+    authoredKeys.add("lubu_musou_rampage");
+    authoredKeys.add("lubu_musou_halberd");
 
     for (const key of authoredKeys) {
       expect(vfxProfiles[key], key).toBeDefined();

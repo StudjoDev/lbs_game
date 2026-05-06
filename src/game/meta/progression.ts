@@ -1,6 +1,13 @@
 import { chapters, defaultChapterId } from "../content/chapters";
+import {
+  conquestCities,
+  conquestCityById,
+  entryCityIds,
+  finalCityId,
+  type ConquestCityDef
+} from "../content/conquest";
 import { heroes } from "../content/heroes";
-import type { ChapterId, FactionId, HeroId, RunStatus } from "../types";
+import type { ChapterId, ConquestCityId, FactionId, HeroId, RunStatus } from "../types";
 
 export type MetaResourceKey = "merit" | "provisions" | "renown";
 export type FacilityId = "trainingGround" | "arsenal" | "granary";
@@ -75,6 +82,19 @@ export interface ChapterProgressEntry {
   firstClearClaimed: boolean;
 }
 
+export interface ConquestCityProgressEntry {
+  unlocked: boolean;
+  conquered: boolean;
+  attempts: number;
+  bestRoom: number;
+  conqueredAt?: string;
+}
+
+export interface ConquestProgressState {
+  cities: Record<ConquestCityId, ConquestCityProgressEntry>;
+  unifiedAt?: string;
+}
+
 export interface DailyMissionEntry {
   id: DailyMissionId;
   label: string;
@@ -93,6 +113,7 @@ export interface MetaProgressionState {
     inventory: Record<string, EquipmentInventoryEntry>;
   };
   chapterProgress: Record<ChapterId, ChapterProgressEntry>;
+  conquest: ConquestProgressState;
   dailyMissions: {
     date: string;
     missions: Record<DailyMissionId, DailyMissionEntry>;
@@ -136,6 +157,7 @@ export interface MetaRunSettlementInput {
   playerLevel: number;
   bossDefeated?: boolean;
   chapterId?: ChapterId;
+  conquestCityId?: ConquestCityId;
   roomIndex?: number;
   roomCount?: number;
   chapterCleared?: boolean;
@@ -156,6 +178,13 @@ export interface MetaRunSettlement {
   chestKeys: number;
   missionsCompleted: DailyMissionId[];
   equipmentFragments: Array<{ defId: string; name: string; amount: number }>;
+  conqueredCityId?: ConquestCityId;
+  conqueredCityName?: string;
+  recruitedHeroId?: HeroId;
+  recruitedHeroName?: string;
+  unlockedCityIds: ConquestCityId[];
+  unlockedCityNames: string[];
+  unified: boolean;
 }
 
 export interface UpgradeFacilityResult {
@@ -285,6 +314,10 @@ type MetaProgressionInput = {
   talents?: Partial<Record<TalentId, number>>;
   equipment?: MetaEquipmentInput;
   chapterProgress?: Partial<Record<ChapterId, Partial<ChapterProgressEntry>>>;
+  conquest?: {
+    cities?: Partial<Record<ConquestCityId, Partial<ConquestCityProgressEntry>>>;
+    unifiedAt?: string;
+  };
   dailyMissions?: MetaDailyMissionsInput;
   chapterChests?: {
     keys?: number;
@@ -339,6 +372,7 @@ export function createDefaultMetaProgressionState(now = Date.now()): MetaProgres
         }
       ])
     ) as Record<ChapterId, ChapterProgressEntry>,
+    conquest: createDefaultConquestProgress(),
     dailyMissions: createDailyMissions(date),
     chapterChests: {
       keys: 0,
@@ -376,6 +410,7 @@ export function normalizeMetaProgressionState(
     talents: normalizeTalents(value?.talents),
     equipment: normalizeEquipment(value?.equipment),
     chapterProgress: normalizeChapterProgress(value?.chapterProgress),
+    conquest: normalizeConquestProgress(value?.conquest),
     dailyMissions:
       value?.dailyMissions?.date === today ? normalizeDailyMissions(value.dailyMissions, today) : createDailyMissions(today),
     chapterChests: {
@@ -645,12 +680,19 @@ export function applyRunSettlement(
   const resourceScale = won ? 1 : 0.7;
   const baseMerit = Math.max(0, Math.floor(input.kills) + Math.floor(input.score / 100));
   const baseProvisions = Math.max(0, Math.floor(input.kills / 2) + Math.floor(input.playerLevel) * 3);
-  const resources: MetaResources = {
+  const baseResources: MetaResources = {
     merit: Math.floor(baseMerit * resourceScale + roomReached * 8 * progressScale),
     provisions: Math.floor(baseProvisions * resourceScale + roomReached * 5 * progressScale),
     renown: (won ? 1 : 0) + (firstChapterClear ? 1 : 0)
   };
-  const chestKeys = chapterCleared ? 2 : roomReached >= 4 ? 1 : 0;
+  const conquestOutcome = settleConquestProgress(
+    normalized.conquest,
+    input.conquestCityId ? conquestCityById[input.conquestCityId] : undefined,
+    chapterCleared,
+    roomReached
+  );
+  const resources = addResources(baseResources, conquestOutcome.rewards);
+  const chestKeys = (chapterCleared ? 2 : roomReached >= 4 ? 1 : 0) + conquestOutcome.chestKeys;
   const equipmentFragments = chapterCleared ? chapterEquipmentReward(chapter.id) : [];
   const heroXp = Math.max(0, Math.floor(input.kills / 8) + Math.floor(input.playerLevel) * 2);
   const before = normalized.heroMastery[input.heroId] ?? { level: 1, xp: 0 };
@@ -679,6 +721,7 @@ export function applyRunSettlement(
       [input.heroId]: after
     },
     chapterProgress,
+    conquest: conquestOutcome.conquest,
     chapterChests: {
       keys: normalized.chapterChests.keys + chestKeys,
       opened: normalized.chapterChests.opened,
@@ -716,8 +759,94 @@ export function applyRunSettlement(
       firstChapterClear,
       chestKeys,
       missionsCompleted,
-      equipmentFragments
+      equipmentFragments,
+      conqueredCityId: conquestOutcome.conqueredCityId,
+      conqueredCityName: conquestOutcome.conqueredCityName,
+      recruitedHeroId: conquestOutcome.recruitedHeroId,
+      recruitedHeroName: conquestOutcome.recruitedHeroName,
+      unlockedCityIds: conquestOutcome.unlockedCityIds,
+      unlockedCityNames: conquestOutcome.unlockedCityNames,
+      unified: conquestOutcome.unified
     }
+  };
+}
+
+interface ConquestSettlementOutcome {
+  conquest: ConquestProgressState;
+  rewards: MetaResources;
+  chestKeys: number;
+  conqueredCityId?: ConquestCityId;
+  conqueredCityName?: string;
+  recruitedHeroId?: HeroId;
+  recruitedHeroName?: string;
+  unlockedCityIds: ConquestCityId[];
+  unlockedCityNames: string[];
+  unified: boolean;
+}
+
+function settleConquestProgress(
+  current: ConquestProgressState,
+  cityDef: ConquestCityDef | undefined,
+  chapterCleared: boolean,
+  roomReached: number
+): ConquestSettlementOutcome {
+  if (!cityDef) {
+    return {
+      conquest: current,
+      rewards: { ...defaultResources },
+      chestKeys: 0,
+      unlockedCityIds: [],
+      unlockedCityNames: [],
+      unified: false
+    };
+  }
+
+  const before = recalculateConquestUnlocks(current);
+  const beforeUnlocked = new Set(
+    conquestCities.filter((city) => before.cities[city.id].unlocked).map((city) => city.id)
+  );
+  const entry = before.cities[cityDef.id];
+  const firstConquest = chapterCleared && entry.unlocked && !entry.conquered;
+  const nextCities: Record<ConquestCityId, ConquestCityProgressEntry> = {
+    ...before.cities,
+    [cityDef.id]: {
+      ...entry,
+      attempts: entry.attempts + 1,
+      bestRoom: Math.max(entry.bestRoom, roomReached),
+      conquered: entry.conquered || firstConquest,
+      conqueredAt: firstConquest ? new Date().toISOString() : entry.conqueredAt
+    }
+  };
+  const after = recalculateConquestUnlocks({
+    cities: nextCities,
+    unifiedAt:
+      firstConquest && cityDef.id === finalCityId
+        ? (before.unifiedAt ?? new Date().toISOString())
+        : before.unifiedAt
+  });
+  const unlockedCityIds = conquestCities
+    .filter((city) => after.cities[city.id].unlocked && !beforeUnlocked.has(city.id))
+    .map((city) => city.id);
+  const rewards = firstConquest
+    ? {
+        merit: cityDef.firstClearRewards.merit,
+        provisions: cityDef.firstClearRewards.provisions,
+        renown: cityDef.firstClearRewards.renown
+      }
+    : { ...defaultResources };
+  const recruitedHero = firstConquest ? heroes.find((hero) => hero.id === cityDef.gatekeeperHeroId) : undefined;
+
+  return {
+    conquest: after,
+    rewards,
+    chestKeys: firstConquest ? cityDef.firstClearRewards.chestKeys : 0,
+    conqueredCityId: firstConquest ? cityDef.id : undefined,
+    conqueredCityName: firstConquest ? cityDef.name : undefined,
+    recruitedHeroId: recruitedHero?.id,
+    recruitedHeroName: recruitedHero?.name,
+    unlockedCityIds,
+    unlockedCityNames: unlockedCityIds.map((cityId) => conquestCityById[cityId].name),
+    unified: Boolean(firstConquest && cityDef.id === finalCityId)
   };
 }
 
@@ -907,6 +1036,52 @@ function normalizeChapterProgress(
   ) as Record<ChapterId, ChapterProgressEntry>;
 }
 
+function createDefaultConquestProgress(): ConquestProgressState {
+  return {
+    cities: Object.fromEntries(
+      conquestCities.map((cityDef) => [
+        cityDef.id,
+        {
+          unlocked: (entryCityIds as readonly ConquestCityId[]).includes(cityDef.id),
+          conquered: false,
+          attempts: 0,
+          bestRoom: 0
+        }
+      ])
+    ) as Record<ConquestCityId, ConquestCityProgressEntry>
+  };
+}
+
+function normalizeConquestProgress(value: MetaProgressionInput["conquest"] | undefined): ConquestProgressState {
+  const defaults = createDefaultConquestProgress();
+  const cities = Object.fromEntries(
+    conquestCities.map((cityDef) => {
+      const incoming = value?.cities?.[cityDef.id];
+      const conquered = Boolean(incoming?.conquered);
+      return [
+        cityDef.id,
+        {
+          unlocked: Boolean(incoming?.unlocked ?? defaults.cities[cityDef.id].unlocked),
+          conquered,
+          attempts: normalizeCount(incoming?.attempts),
+          bestRoom: normalizeLevel(incoming?.bestRoom, 8),
+          conqueredAt: conquered ? normalizeOptionalIsoDate(incoming?.conqueredAt) : undefined
+        }
+      ];
+    })
+  ) as Record<ConquestCityId, ConquestCityProgressEntry>;
+
+  let normalized: ConquestProgressState = {
+    cities,
+    unifiedAt: normalizeOptionalIsoDate(value?.unifiedAt)
+  };
+  normalized = recalculateConquestUnlocks(normalized);
+  if (!normalized.cities[finalCityId].conquered) {
+    delete normalized.unifiedAt;
+  }
+  return normalized;
+}
+
 function normalizeDailyMissions(
   value: MetaDailyMissionsInput | undefined,
   date: string
@@ -935,6 +1110,26 @@ function normalizeResources(value: Partial<MetaResources> | undefined): MetaReso
     merit: normalizeCount(value?.merit),
     provisions: normalizeCount(value?.provisions),
     renown: normalizeCount(value?.renown)
+  };
+}
+
+function recalculateConquestUnlocks(state: ConquestProgressState): ConquestProgressState {
+  const cities = { ...state.cities };
+  for (const cityDef of conquestCities) {
+    const entry = cities[cityDef.id];
+    const unlocked =
+      entry.unlocked ||
+      entry.conquered ||
+      (entryCityIds as readonly ConquestCityId[]).includes(cityDef.id) ||
+      cityDef.prerequisiteCityIds.every((cityId) => cities[cityId]?.conquered);
+    cities[cityDef.id] = {
+      ...entry,
+      unlocked
+    };
+  }
+  return {
+    ...state,
+    cities
   };
 }
 
@@ -1126,6 +1321,17 @@ function normalizeIsoDate(value: unknown, fallback: string): string {
   const timestamp = new Date(value).getTime();
   if (!Number.isFinite(timestamp)) {
     return fallback;
+  }
+  return new Date(timestamp).toISOString();
+}
+
+function normalizeOptionalIsoDate(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return undefined;
   }
   return new Date(timestamp).toISOString();
 }

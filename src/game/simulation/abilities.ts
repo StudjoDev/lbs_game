@@ -191,6 +191,60 @@ export function addBossShockwave(state: RunState, x: number, y: number): void {
   state.areas.push(area);
 }
 
+export function addBossMusou(state: RunState, x: number, y: number, phase: number): void {
+  const phaseScale = phase >= 3 ? 1.18 : phase >= 2 ? 1.08 : 1;
+  state.areas.push({
+    uid: state.nextUid++,
+    source: "enemy",
+    target: "player",
+    x,
+    y,
+    radius: 168 * phaseScale,
+    damagePerSecond: 58 + phase * 9,
+    ttl: 0.74,
+    tickTimer: 0.08,
+    tickEvery: 0.16,
+    tags: ["blade", "shock"],
+    vfxKey: "lubu_musou_rampage"
+  });
+  state.areas.push({
+    uid: state.nextUid++,
+    source: "enemy",
+    target: "player",
+    x: state.player.x,
+    y: state.player.y,
+    radius: 126 * phaseScale,
+    damagePerSecond: 42 + phase * 7,
+    ttl: 0.62,
+    tickTimer: 0.12,
+    tickEvery: 0.16,
+    tags: ["shock"],
+    vfxKey: "lubu_musou_rampage"
+  });
+
+  const facing = Math.atan2(state.player.y - y, state.player.x - x);
+  const offsets = phase >= 3 ? [-0.7, -0.35, 0, 0.35, 0.7] : [-0.45, 0, 0.45];
+  for (const offset of offsets) {
+    const direction = fromAngle(facing + offset);
+    state.projectiles.push({
+      uid: state.nextUid++,
+      source: "enemy",
+      target: "player",
+      x,
+      y,
+      vx: direction.x * (410 + phase * 34),
+      vy: direction.y * (410 + phase * 34),
+      radius: 20 + phase * 2,
+      damage: 20 + phase * 7,
+      ttl: 1.18,
+      pierce: 0,
+      hitIds: [],
+      tags: ["blade", "shock"],
+      vfxKey: "lubu_musou_halberd"
+    });
+  }
+}
+
 function addProjectile(
   state: RunState,
   ability: AbilityDef,

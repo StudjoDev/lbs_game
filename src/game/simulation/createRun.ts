@@ -1,8 +1,9 @@
 import { factionById } from "../content/factions";
 import { heroById } from "../content/heroes";
 import { defaultChapterId, getChapterDef } from "../content/chapters";
+import { getConquestCityDef } from "../content/conquest";
 import type { MetaRunBonuses } from "../meta/progression";
-import type { ChapterId, FactionId, HeroId, PlayerState, RunState } from "../types";
+import type { ChapterId, ConquestCityId, FactionId, HeroId, PlayerState, RunState } from "../types";
 import { initializeChapterRun } from "./chapterRun";
 import { createObjective } from "./objectives";
 
@@ -12,12 +13,14 @@ export function createRun(
   heroId: HeroId,
   seed = 12891,
   bonuses?: MetaRunBonuses,
-  chapterId: ChapterId = defaultChapterId
+  chapterId: ChapterId = defaultChapterId,
+  conquestCityId?: ConquestCityId
 ): RunState {
   const hero = heroById[heroId];
   const faction = factionById[hero.factionId as FactionId];
   const player = createPlayer(heroId, bonuses);
-  const chapter = getChapterDef(chapterId);
+  const conquestCity = getConquestCityDef(conquestCityId);
+  const chapter = getChapterDef(conquestCity?.chapterId ?? chapterId);
   const objective = createObjective();
 
   const state: RunState = {
@@ -35,6 +38,11 @@ export function createRun(
     objectiveIndex: 0,
     chapterId: chapter.id,
     chapterName: chapter.name,
+    conquestCityId: conquestCity?.id,
+    conquestCityName: conquestCity?.name,
+    gatekeeperHeroId: conquestCity?.gatekeeperHeroId,
+    gatekeeperName: conquestCity ? heroById[conquestCity.gatekeeperHeroId].name : undefined,
+    gatekeeperDefeated: false,
     roomIndex: 0,
     roomCount: chapter.rooms.length,
     roomType: chapter.rooms[0].type,

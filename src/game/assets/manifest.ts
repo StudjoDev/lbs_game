@@ -679,6 +679,47 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     originMode: "targetArea",
     motionStyle: "cast"
   },
+  lubu_musou_warning: {
+    textureKey: "shock",
+    color: 0xff4e74,
+    blendMode: "add",
+    scale: 1.42,
+    lifetime: 0.62,
+    particleKey: "particle_brackeys_light",
+    animationKeys: [brackeysElectricRingAnimationKey],
+    nativeColor: true,
+    telegraphShape: "burst",
+    presentationKind: "areaField",
+    originMode: "targetArea",
+    motionStyle: "cast"
+  },
+  lubu_musou_rampage: {
+    textureKey: "blood_rage",
+    color: 0xff3f72,
+    blendMode: "add",
+    scale: 1.34,
+    lifetime: 0.72,
+    particleKey: "particle_smoke",
+    telegraphShape: "burst",
+    presentationKind: "aura",
+    originMode: "targetArea",
+    motionStyle: "spin",
+    arcDegrees: 360
+  },
+  lubu_musou_halberd: {
+    textureKey: "heavy_cleave_wave",
+    color: 0xff6a9e,
+    blendMode: "add",
+    scale: 0.92,
+    lifetime: 0.42,
+    particleKey: "particle_spark",
+    animationKey: slashAnimationKey,
+    telegraphShape: "slash",
+    presentationKind: "rangedProjectile",
+    originMode: "projectile",
+    motionStyle: "thrust",
+    arcDegrees: 190
+  },
   hit_spark: {
     textureKey: "particle_spark",
     color: 0xfff1cf,

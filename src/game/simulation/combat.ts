@@ -1,5 +1,6 @@
 import { enemyById } from "../content/enemies";
 import { factionById } from "../content/factions";
+import { heroById } from "../content/heroes";
 import { upgradeById, upgrades } from "../content/upgrades";
 import type { CombatEventType, DamageTag, EnemyState, RunState, UpgradeDef, UpgradeRarity } from "../types";
 import { advanceRoomObjective, completeBossRoom } from "./chapterRun";
@@ -188,20 +189,24 @@ export function resolveDeadEnemies(state: RunState): void {
     }
     const def = enemyById[enemy.defId];
     state.kills += 1;
-    state.score += def.score;
+    state.score += enemy.gatekeeperHeroId ? Math.max(def.score, Math.floor(enemy.maxHp * 0.45)) : def.score;
     addCombatEvent(state, "kill", enemy.x, enemy.y, def.tags.includes("elite") ? 1 : 0.5, def.tags.includes("boss") ? "evolution_burst" : "hit_spark");
     if (state.player.killHeal > 0) {
       healPlayer(state, state.player.killHeal);
     }
-    if (enemy.defId === "lubu") {
+    if (enemy.defId === "lubu" || (state.roomType === "boss" && enemy.gatekeeperHeroId)) {
       const completed = state.roomType === "boss" ? completeBossRoom(state) : undefined;
       if (completed) {
         claimObjectiveReward(state, completed);
       } else {
         state.status = "won";
       }
-      addFloatingText(state, enemy.x, enemy.y - 70, "天下歸一", "xp");
-      addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", "呂布已敗");
+      if (enemy.gatekeeperHeroId) {
+        state.gatekeeperDefeated = true;
+      }
+      const bossName = enemy.gatekeeperHeroId ? heroById[enemy.gatekeeperHeroId].name : "呂布";
+      addFloatingText(state, enemy.x, enemy.y - 70, `${bossName} 退陣`, "xp");
+      addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", `${bossName} 敗退`);
     } else {
       claimObjectiveReward(state, advanceRoomObjective(state, "kill"));
       if (def.tags.includes("elite")) {

@@ -364,6 +364,19 @@ describe("combat simulation", () => {
     expect(state.enemies.some((enemy) => enemy.defId === "lubu")).toBe(true);
   });
 
+  it("spawns the conquest city gatekeeper in boss rooms", () => {
+    const state = createRun("liubei", 5, undefined, "yellow_turbans", "jingzhou");
+    enterChapterRoom(state, 7);
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.02);
+
+    expect(state.conquestCityId).toBe("jingzhou");
+    expect(state.gatekeeperHeroId).toBe("guanyu");
+    expect(state.bossSpawned).toBe(true);
+    expect(state.enemies.some((enemy) => enemy.gatekeeperHeroId === "guanyu")).toBe(true);
+    expect(state.enemies.some((enemy) => enemy.defId === "lubu")).toBe(false);
+  });
+
   it("wins when Lu Bu is defeated", () => {
     const state = createRun("sunshangxiang", 7);
     enterChapterRoom(state, 7);
@@ -377,6 +390,22 @@ describe("combat simulation", () => {
     expect(state.score).toBeGreaterThan(0);
   });
 
+  it("wins a conquest boss room when the gatekeeper is defeated", () => {
+    const state = createRun("liubei", 8, undefined, "yellow_turbans", "jingzhou");
+    enterChapterRoom(state, 7);
+    const gatekeeper = spawnEnemy(state, "captain", 100);
+    gatekeeper.gatekeeperHeroId = "guanyu";
+    gatekeeper.maxHp = 1000;
+    gatekeeper.hp = 0;
+
+    resolveDeadEnemies(state);
+
+    expect(state.status).toBe("won");
+    expect(state.chapterCleared).toBe(true);
+    expect(state.gatekeeperDefeated).toBe(true);
+    expect(state.score).toBeGreaterThan(110);
+  });
+
   it("moves Lu Bu into later combat phases", () => {
     const state = createRun("caocao", 21);
     const boss = spawnEnemy(state, "lubu", 120);
@@ -386,5 +415,26 @@ describe("combat simulation", () => {
 
     expect(boss.phase).toBe(3);
     expect(state.combatEvents.some((event) => event.type === "boss")).toBe(true);
+  });
+
+  it("lets Lu Bu telegraph and fire a boss musou", () => {
+    const state = createRun("caocao", 22);
+    const boss = spawnEnemy(state, "lubu", 320);
+    boss.x = state.player.x + 320;
+    boss.y = state.player.y;
+    boss.ultimateCooldown = 0;
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+    expect(boss.ultimateWindup).toBeGreaterThan(0);
+    expect(state.combatEvents.some((event) => event.vfxKey === "lubu_musou_warning")).toBe(true);
+
+    advanceRun(state, 1);
+
+    expect(boss.ultimateWindup).toBe(0);
+    expect(boss.ultimateCooldown).toBeGreaterThan(0);
+    expect(state.areas.some((area) => area.vfxKey === "lubu_musou_rampage" && area.target === "player")).toBe(true);
+    expect(state.projectiles.some((projectile) => projectile.vfxKey === "lubu_musou_halberd" && projectile.target === "player")).toBe(true);
+    expect(state.combatEvents.some((event) => event.vfxKey === "lubu_musou_rampage")).toBe(true);
   });
 });

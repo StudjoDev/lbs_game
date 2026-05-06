@@ -28,6 +28,24 @@ export type DamageTag = "blade" | "pierce" | "fire" | "command" | "shock" | "arr
 export type RunStatus = "playing" | "levelUp" | "paused" | "won" | "lost";
 export type UpgradeRarity = "common" | "build" | "technique" | "faction" | "hero" | "evolution" | "relic";
 export type ChapterId = "yellow_turbans" | "hulao_outer" | "red_cliff_line";
+export type ConquestCityId =
+  | "jingzhou"
+  | "changban"
+  | "hanzhong"
+  | "tongguan"
+  | "longzhong"
+  | "xuchang"
+  | "qiaojun"
+  | "hefei"
+  | "yecheng"
+  | "jianye"
+  | "wujun"
+  | "jinfan_camp"
+  | "shenting"
+  | "julu"
+  | "guandu"
+  | "qingnang_valley"
+  | "luoyang";
 export type ChapterRoomType = "normal" | "elite" | "treasure" | "rest" | "boss";
 export type ChapterRoomStatus = "fighting" | "cleared";
 export type ObjectiveEvent = "kill" | "eliteKill" | "moraleBurst" | "survive" | "bossKill" | "treasure" | "rest";
@@ -285,6 +303,9 @@ export interface EnemyState {
   stunTimer: number;
   flashTimer: number;
   phase: number;
+  ultimateCooldown: number;
+  ultimateWindup: number;
+  gatekeeperHeroId?: HeroId;
 }
 
 export interface ProjectileState {
@@ -379,6 +400,11 @@ export interface RunState {
   objectiveIndex: number;
   chapterId: ChapterId;
   chapterName: string;
+  conquestCityId?: ConquestCityId;
+  conquestCityName?: string;
+  gatekeeperHeroId?: HeroId;
+  gatekeeperName?: string;
+  gatekeeperDefeated: boolean;
   roomIndex: number;
   roomCount: number;
   roomType: ChapterRoomType;

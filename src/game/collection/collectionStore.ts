@@ -1,22 +1,26 @@
 import { characterArtById, characterArts } from "../content/characterArt";
-import type { CharacterId, CollectionEntry, CollectionState } from "../types";
+import { starterHeroIds } from "../content/conquest";
+import type { CharacterId, CollectionEntry, CollectionState, HeroId } from "../types";
 
-export const collectionStorageKey = "luanshi.collection.v1";
+export const collectionStorageKey = "luanshi.collection.v2";
 
 type CollectionStorage = Pick<Storage, "getItem" | "setItem">;
 
 export function createDefaultCollectionState(): CollectionState {
   return Object.fromEntries(
-    characterArts.map((art) => [
-      art.id,
-      {
-        characterId: art.id,
-        owned: art.playable,
-        revealed: art.playable,
-        stars: art.stars,
-        bondIds: art.bondIds
-      }
-    ])
+    characterArts.map((art) => {
+      const starter = art.playable && (starterHeroIds as readonly CharacterId[]).includes(art.id);
+      return [
+        art.id,
+        {
+          characterId: art.id,
+          owned: starter,
+          revealed: art.playable ? true : starter,
+          stars: art.stars,
+          bondIds: art.bondIds
+        }
+      ];
+    })
   ) as CollectionState;
 }
 
@@ -60,6 +64,10 @@ export function unlockCharacter(characterId: CharacterId, storage = getCollectio
   };
   saveCollection(state, storage);
   return state;
+}
+
+export function recruitCharacter(heroId: HeroId, storage = getCollectionStorage()): CollectionState {
+  return unlockCharacter(heroId, storage);
 }
 
 export function revealBossDefeat(characterId: CharacterId, storage = getCollectionStorage()): CollectionState {

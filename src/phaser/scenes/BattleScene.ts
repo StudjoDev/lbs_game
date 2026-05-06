@@ -15,7 +15,7 @@ import {
   type VfxProfile
 } from "../../game/assets/manifest";
 import type { MusicKey } from "../../game/audio/catalog";
-import { revealBossDefeat } from "../../game/collection/collectionStore";
+import { recruitCharacter, revealBossDefeat } from "../../game/collection/collectionStore";
 import { characterArtById } from "../../game/content/characterArt";
 import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import { ultimateByHeroId } from "../../game/content/ultimates";
@@ -29,6 +29,7 @@ import {
 } from "../../game/meta/progression";
 import { applyUpgrade } from "../../game/simulation/combat";
 import { createRun } from "../../game/simulation/createRun";
+import { spawnEnemy } from "../../game/simulation/spawn";
 import { collectDebugXp, setPaused, updateRun } from "../../game/simulation/updateRun";
 import type {
   AreaState,
@@ -38,6 +39,7 @@ import type {
   FloatingTextState,
   CharacterAnimationId,
   ChapterId,
+  ConquestCityId,
   HeroId,
   ProjectileState,
   RunState,
@@ -51,6 +53,7 @@ import { BattleHud } from "../../ui/hud";
 interface BattleData {
   heroId?: HeroId;
   chapterId?: ChapterId;
+  conquestCityId?: ConquestCityId;
 }
 
 interface PlayerVisualState {
@@ -150,6 +153,7 @@ export class BattleScene extends Phaser.Scene {
   create(data: BattleData): void {
     const heroId = data.heroId ?? "guanyu";
     const chapterId = data.chapterId ?? "yellow_turbans";
+    const conquestCityId = data.conquestCityId;
     this.displaySettings = loadDisplaySettings();
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
     this.playerAttackTimers = [];
@@ -161,7 +165,7 @@ export class BattleScene extends Phaser.Scene {
     this.lastResultSfx = undefined;
     this.metaSettlement = undefined;
     const metaProgression = loadMetaProgression();
-    this.run = createRun(heroId, Date.now() >>> 0, getMetaRunBonuses(metaProgression, heroId), chapterId);
+    this.run = createRun(heroId, Date.now() >>> 0, getMetaRunBonuses(metaProgression, heroId), chapterId, conquestCityId);
     this.lastPlayerPosition = new Phaser.Math.Vector2(this.run.player.x, this.run.player.y);
     this.playerVisualState = {
       visualX: this.run.player.x,
@@ -231,7 +235,7 @@ export class BattleScene extends Phaser.Scene {
       },
       onRestart: () => {
         audio.playSfx(this, "sfx_ui_confirm");
-        this.scene.restart({ heroId, chapterId });
+        this.scene.restart({ heroId, chapterId, conquestCityId });
       },
       onMenu: () => {
         audio.playSfx(this, "sfx_ui_select");
@@ -253,7 +257,7 @@ export class BattleScene extends Phaser.Scene {
       setPaused(this.run, this.run.status !== "paused");
     }
     updateRun(this.run, input, deltaMs / 1000);
-    if (this.run.status === "won" && !this.bossUnlockSaved) {
+    if (this.run.status === "won" && !this.bossUnlockSaved && !this.run.conquestCityId) {
       revealBossDefeat("lubu");
       this.bossUnlockSaved = true;
     }
@@ -277,11 +281,15 @@ export class BattleScene extends Phaser.Scene {
       bossDefeated: state.status === "won",
       factionId: state.faction.id,
       chapterId: state.chapterId,
+      conquestCityId: state.conquestCityId,
       roomIndex: state.roomIndex,
       roomCount: state.roomCount,
       chapterCleared: state.chapterCleared
     });
     saveMetaProgression(result.state);
+    if (result.settlement.recruitedHeroId) {
+      recruitCharacter(result.settlement.recruitedHeroId);
+    }
     this.metaSettlement = result.settlement;
   }
 
@@ -443,17 +451,35 @@ export class BattleScene extends Phaser.Scene {
     const liveIds = new Set<number>();
     for (const enemy of enemies) {
       liveIds.add(enemy.uid);
-      const visual = enemyVisualProfiles[enemy.defId];
+      const gatekeeperArt = enemy.gatekeeperHeroId ? characterArtById[enemy.gatekeeperHeroId] : undefined;
+      const visual: EnemyVisualProfile = gatekeeperArt
+        ? {
+            spriteKey: gatekeeperArt.textureKey,
+            shadowScale: 1.18,
+            hitTint: 0xfff1cf,
+            deathFxKey: "evolution_burst",
+            baseScale: (gatekeeperArt.battleScale ?? 0.72) * 1.45,
+            animationScale: (gatekeeperArt.battleScale ?? 0.72) * 1.45,
+            eliteFrame: 1,
+            outlineColor: 0xf0c46b
+          }
+        : enemyVisualProfiles[enemy.defId];
       let sprite = this.enemySprites.get(enemy.uid);
       if (!sprite) {
-        sprite = this.acquireEnemySprite(enemyInitialTextureKey(this, enemy.defId, visual.spriteKey));
+        sprite = this.acquireEnemySprite(gatekeeperArt ? gatekeeperArt.textureKey : enemyInitialTextureKey(this, enemy.defId, visual.spriteKey));
         sprite.setData("enemyDefId", enemy.defId);
         sprite.setData("baseTextureKey", visual.spriteKey);
-        this.playEnemyAnimation(sprite, enemy.defId, "walk", true);
+        sprite.setData("gatekeeperHeroId", enemy.gatekeeperHeroId ?? "");
+        if (gatekeeperArt) {
+          this.syncGatekeeperAnimation(sprite, gatekeeperArt);
+        } else {
+          this.playEnemyAnimation(sprite, enemy.defId, "walk", true);
+        }
         this.enemySprites.set(enemy.uid, sprite);
       } else {
         sprite.setData("enemyDefId", enemy.defId);
         sprite.setData("baseTextureKey", visual.spriteKey);
+        sprite.setData("gatekeeperHeroId", enemy.gatekeeperHeroId ?? "");
       }
       let shadow = this.enemyShadows.get(enemy.uid);
       if (!shadow) {
@@ -462,20 +488,24 @@ export class BattleScene extends Phaser.Scene {
         this.enemyShadows.set(enemy.uid, shadow);
       }
       let frame = this.enemyFrames.get(enemy.uid);
-      if (!frame && enemyVisualProfiles[enemy.defId].eliteFrame) {
+      if (!frame && visual.eliteFrame) {
         frame = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
         this.areaLayer?.add(frame);
         this.enemyFrames.set(enemy.uid, frame);
       }
       const healthRatio = Math.max(0, enemy.hp / enemy.maxHp);
       const flash = enemy.flashTimer > 0;
-      const hasAnimatedEnemy = hasEnemyAnimation(this, enemy.defId, "walk");
+      const bossUltimateWindup = enemy.defId === "lubu" && enemy.ultimateWindup > 0;
+      const hasAnimatedEnemy = gatekeeperArt ? hasCharacterAnimation(this, gatekeeperArt.textureKey, "run") : hasEnemyAnimation(this, enemy.defId, "walk");
       const wobble = hasAnimatedEnemy ? 0 : Math.sin(this.time.now / 180 + enemy.uid) * 0.025;
       const hitScale = flash ? (hasAnimatedEnemy ? 1.06 : 1.1) : 1;
-      const baseScale = enemyRenderScale(visual, hasAnimatedEnemy) * hitScale * (enemy.stunTimer > 0 ? 0.97 : 1);
+      const windupScale = bossUltimateWindup ? 1.06 + Math.sin(this.time.now / 80) * 0.025 : 1;
+      const baseScale = enemyRenderScale(visual, hasAnimatedEnemy) * hitScale * windupScale * (enemy.stunTimer > 0 ? 0.97 : 1);
       sprite.setPosition(enemy.x, enemy.y);
       sprite.setDepth(enemy.y - 5);
-      if (hasAnimatedEnemy) {
+      if (gatekeeperArt) {
+        this.syncGatekeeperAnimation(sprite, gatekeeperArt);
+      } else if (hasAnimatedEnemy) {
         this.syncEnemyAnimation(sprite, enemy, flash);
       } else {
         sprite.setTexture(enemyInitialTextureKey(this, enemy.defId, visual.spriteKey));
@@ -504,7 +534,7 @@ export class BattleScene extends Phaser.Scene {
           });
         }
       } else {
-        sprite.setTint(enemy.burnTimer > 0 ? 0xff9e57 : 0xffffff);
+        sprite.setTint(bossUltimateWindup ? 0xff6f9e : enemy.burnTimer > 0 ? 0xff9e57 : 0xffffff);
       }
       if (frame) {
         drawEnemyFrame(frame, enemy, visual, this.time.now);
@@ -713,6 +743,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.type === "hit") {
       return;
     }
+    const bossUltimateEvent = event.type === "boss" && event.vfxKey.startsWith("lubu_musou");
     const duration = event.type === "evolution" || event.type === "boss" || event.type === "ultimate" ? 260 : 90;
     const intensity =
       event.type === "crit" ? 0.0045 : event.type === "playerHit" ? 0.006 : event.type === "ultimate" ? 0.0042 : 0.003 * event.intensity;
@@ -720,9 +751,9 @@ export class BattleScene extends Phaser.Scene {
     if (shakeScale > 0) {
       this.cameras.main.shake(duration, intensity * shakeScale);
     }
-    if (event.type === "manual" || event.type === "evolution" || event.type === "morale" || event.type === "ultimate") {
-      this.cameras.main.flash(event.type === "evolution" || event.type === "ultimate" ? 160 : 80, 255, 225, 160, false);
-      const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" ? 1.04 : 1.018);
+    if (event.type === "manual" || event.type === "evolution" || event.type === "morale" || event.type === "ultimate" || bossUltimateEvent) {
+      this.cameras.main.flash(event.type === "evolution" || event.type === "ultimate" || bossUltimateEvent ? 160 : 80, 255, 225, 160, false);
+      const impulseZoom = this.cameraBaseZoom * (event.type === "ultimate" || event.type === "evolution" || bossUltimateEvent ? 1.04 : 1.018);
       this.cameras.main.zoomTo(impulseZoom, 80);
       this.time.delayedCall(120, () => this.cameras.main.zoomTo(this.cameraBaseZoom, 160));
     }
@@ -861,6 +892,21 @@ export class BattleScene extends Phaser.Scene {
     }
     if (!playingHit && (currentKey !== walkKey || !sprite.anims.isPlaying)) {
       this.playEnemyAnimation(sprite, enemy.defId, "walk");
+    }
+  }
+
+  private syncGatekeeperAnimation(sprite: Phaser.GameObjects.Sprite, art: { textureKey: string }): void {
+    const runKey = characterAnimationKey(art.textureKey, "run");
+    const idleKey = characterAnimationKey(art.textureKey, "idle");
+    const nextKey = this.anims.exists(runKey) ? runKey : idleKey;
+    if (this.anims.exists(nextKey)) {
+      if (sprite.anims.currentAnim?.key !== nextKey || !sprite.anims.isPlaying) {
+        sprite.play(nextKey);
+      }
+      return;
+    }
+    if (this.textures.exists(art.textureKey) && sprite.texture.key !== art.textureKey) {
+      sprite.setTexture(art.textureKey);
     }
   }
 
@@ -1375,6 +1421,7 @@ export class BattleScene extends Phaser.Scene {
     const debugWindow = window as Window & {
       advanceTime?: (ms: number) => void;
       collectDebugXp?: (amount?: number) => void;
+      spawnDebugLubu?: () => void;
       render_game_to_text?: () => string;
     };
     const render = () => {
@@ -1406,12 +1453,47 @@ export class BattleScene extends Phaser.Scene {
           worldViewHeight: Math.round(this.scale.gameSize.height / this.cameraBaseZoom)
         },
         enemies: state.enemies.length,
+        bosses: state.enemies
+          .filter((enemy) => enemy.defId === "lubu")
+          .map((enemy) => ({
+            x: Math.round(enemy.x),
+            y: Math.round(enemy.y),
+            hp: Math.round(enemy.hp),
+            phase: enemy.phase,
+            ultimateCooldown: Number(enemy.ultimateCooldown.toFixed(2)),
+            ultimateWindup: Number(enemy.ultimateWindup.toFixed(2))
+          })),
+        enemyThreats: {
+          areas: state.areas
+            .filter((area) => area.source === "enemy")
+            .map((area) => ({
+              vfxKey: area.vfxKey,
+              ttl: Number(area.ttl.toFixed(2)),
+              radius: Math.round(area.radius)
+            })),
+          projectiles: state.projectiles
+            .filter((projectile) => projectile.source === "enemy")
+            .map((projectile) => ({
+              vfxKey: projectile.vfxKey,
+              ttl: Number(projectile.ttl.toFixed(2)),
+              radius: Math.round(projectile.radius)
+            }))
+        },
         xpOrbs: state.xpOrbs.length,
         objective: {
           title: state.objective.title,
           progress: state.objective.progress,
           goal: state.objective.goal
         },
+        conquest: state.conquestCityId
+          ? {
+              cityId: state.conquestCityId,
+              cityName: state.conquestCityName,
+              gatekeeperHeroId: state.gatekeeperHeroId,
+              gatekeeperName: state.gatekeeperName,
+              gatekeeperDefeated: state.gatekeeperDefeated
+            }
+          : undefined,
         chapter: {
           id: state.chapterId,
           name: state.chapterName,
@@ -1439,10 +1521,27 @@ export class BattleScene extends Phaser.Scene {
       collectDebugXp(this.run, amount);
       this.hud?.update(this.run);
     };
+    const spawnDebugLubu = () => {
+      if (!this.run) {
+        return;
+      }
+      const existing = this.run.enemies.find((enemy) => enemy.defId === "lubu");
+      const boss = existing ?? spawnEnemy(this.run, "lubu", 320);
+      boss.x = this.run.player.x + 320;
+      boss.y = this.run.player.y;
+      boss.hp = boss.maxHp;
+      boss.phase = Math.max(boss.phase, 2);
+      boss.ultimateCooldown = 0;
+      boss.ultimateWindup = 0;
+      this.run.bossSpawned = true;
+      this.syncRender(this.run);
+      this.hud?.update(this.run, this.metaSettlement);
+    };
 
     debugWindow.render_game_to_text = render;
     debugWindow.advanceTime = advanceTime;
     debugWindow.collectDebugXp = collectXp;
+    debugWindow.spawnDebugLubu = spawnDebugLubu;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (debugWindow.render_game_to_text === render) {
         delete debugWindow.render_game_to_text;
@@ -1452,6 +1551,9 @@ export class BattleScene extends Phaser.Scene {
       }
       if (debugWindow.collectDebugXp === collectXp) {
         delete debugWindow.collectDebugXp;
+      }
+      if (debugWindow.spawnDebugLubu === spawnDebugLubu) {
+        delete debugWindow.spawnDebugLubu;
       }
     });
   }
@@ -1629,6 +1731,13 @@ function drawEnemyFrame(
   graphics.strokeEllipse(enemy.x, enemy.y + enemy.radius * 0.18, enemy.radius * 2.45, enemy.radius * 0.92);
   graphics.lineStyle(1, 0xfff1cf, pulse * 0.35);
   graphics.strokeEllipse(enemy.x, enemy.y + enemy.radius * 0.18, enemy.radius * 1.72, enemy.radius * 0.62);
+  if (enemy.defId === "lubu" && enemy.ultimateWindup > 0) {
+    const windup = 0.5 + Math.sin(now / 58) * 0.32;
+    graphics.lineStyle(5, 0xff4e74, 0.48 + windup * 0.28);
+    graphics.strokeCircle(enemy.x, enemy.y, enemy.radius * (2.15 + windup * 0.34));
+    graphics.lineStyle(2, 0xfff1cf, 0.26 + windup * 0.2);
+    graphics.strokeCircle(enemy.x, enemy.y, enemy.radius * (1.35 + windup * 0.22));
+  }
   graphics.setDepth(enemy.y - 22);
 }
 

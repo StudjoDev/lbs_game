@@ -1,6 +1,11 @@
 import { loadCollection } from "../game/collection/collectionStore";
 import { bondById, characterArtById, characterArts } from "../game/content/characterArt";
 import { chapters } from "../game/content/chapters";
+import {
+  conquestCities,
+  conquestCityById,
+  getConquestCityForHero
+} from "../game/content/conquest";
 import { factions } from "../game/content/factions";
 import { heroes } from "../game/content/heroes";
 import type { DisplaySettings } from "../game/display/settings";
@@ -20,7 +25,7 @@ import {
   type MetaProgressionState,
   type TalentId
 } from "../game/meta/progression";
-import type { ChapterId, CharacterArtDef, CharacterId, CollectionState, FactionId, HeroId } from "../game/types";
+import type { ChapterId, CharacterArtDef, CharacterId, CollectionState, ConquestCityId, FactionId, HeroId } from "../game/types";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 import { bindBasePanel, renderBasePanel, type BaseTab } from "./base";
 import { createUiLayer, removeUiLayer } from "./layer";
@@ -29,16 +34,17 @@ import { bindSettingsPanel, renderSettingsPanel } from "./settingsPanel";
 interface MenuCallbacks extends AudioControlCallbacks {
   getDisplaySettings: () => DisplaySettings;
   onDisplaySettingsChange: (settings: DisplaySettings) => void;
-  onStart: (heroId: HeroId, chapterId: ChapterId) => void;
+  onStart: (heroId: HeroId, chapterId: ChapterId, conquestCityId?: ConquestCityId) => void;
 }
 
-type MenuMode = "select" | "collection" | "settings" | "base" | "chapter";
+type MenuMode = "select" | "collection" | "settings" | "base" | "chapter" | "conquest";
 
 export class MenuController {
   private readonly root = createUiLayer("menu-ui");
   private selectedFaction: FactionId = "qun";
   private selectedHero: HeroId = "diaochan";
   private selectedChapter: ChapterId = "yellow_turbans";
+  private selectedConquestCity: ConquestCityId = "julu";
   private selectedCollectionCharacter: CharacterId = "diaochan";
   private mode: MenuMode = "select";
   private baseTab: BaseTab = "overview";
@@ -67,6 +73,10 @@ export class MenuController {
       this.renderChapter();
       return;
     }
+    if (this.mode === "conquest") {
+      this.renderConquest();
+      return;
+    }
     if (this.mode === "collection") {
       this.renderCollection(collection);
       return;
@@ -78,11 +88,13 @@ export class MenuController {
     this.meta = loadMetaProgression();
     const faction = factions.find((item) => item.id === this.selectedFaction) ?? factions[0];
     const visibleHeroes = heroes.filter((hero) => hero.factionId === this.selectedFaction);
-    if (!visibleHeroes.some((hero) => hero.id === this.selectedHero)) {
-      this.selectedHero = visibleHeroes[0].id;
+    const ownedVisibleHeroes = visibleHeroes.filter((hero) => collection[hero.artId]?.owned);
+    if (!visibleHeroes.some((hero) => hero.id === this.selectedHero) || !collection[this.selectedHero]?.owned) {
+      this.selectedHero = (ownedVisibleHeroes[0] ?? visibleHeroes[0]).id;
     }
     const selectedHero = heroes.find((hero) => hero.id === this.selectedHero) ?? visibleHeroes[0];
     const selectedArt = characterArtById[selectedHero.artId];
+    const selectedOwned = collection[selectedHero.artId]?.owned === true;
 
     this.root.innerHTML = `
       <main class="menu-stage">
@@ -102,7 +114,7 @@ export class MenuController {
               <strong>${selectedHero.name}</strong>
               <small>Lv.${this.meta.heroMastery[selectedHero.id].level} · ${selectedHero.manualAbility.name} · ${faction.passiveName}</small>
             </div>
-            <button class="start-button quick-start-button" data-start="true">立即開戰</button>
+            <button class="start-button quick-start-button" data-start="true" ${selectedOwned ? "" : "disabled"}>立即開戰</button>
           </div>
           <div class="hero-preview card-preview" style="${artVars(selectedArt)}">
             <img class="hero-preview-art" src="${selectedArt.cardImage}" alt="${selectedArt.name}" draggable="false" />
@@ -159,9 +171,10 @@ export class MenuController {
           <div class="menu-actions">
             <button class="codex-button" data-collection="true">武將圖鑑</button>
             <button class="codex-button" data-chapter="true">章節</button>
+            <button class="codex-button" data-conquest="true">天下</button>
             <button class="codex-button" data-base="true">基地</button>
             <button class="codex-button" data-settings="true">設定</button>
-            <button class="start-button" data-start="true">開戰</button>
+            <button class="start-button" data-start="true" ${selectedOwned ? "" : "disabled"}>開戰</button>
           </div>
         </section>
       </main>
@@ -176,6 +189,10 @@ export class MenuController {
     });
     this.root.querySelectorAll<HTMLButtonElement>("[data-hero]").forEach((button) => {
       button.addEventListener("click", () => {
+        if (button.disabled) {
+          this.callbacks.onAudioCue("sfx_ui_select");
+          return;
+        }
         this.callbacks.onAudioCue("sfx_ui_select");
         this.selectedHero = button.dataset.hero as HeroId;
         this.selectedCollectionCharacter = this.selectedHero;
@@ -203,8 +220,18 @@ export class MenuController {
       this.mode = "chapter";
       this.render();
     });
+    this.root.querySelector<HTMLButtonElement>("[data-conquest]")?.addEventListener("click", () => {
+      this.callbacks.onAudioCue("sfx_ui_select");
+      this.mode = "conquest";
+      this.root.parentElement?.scrollTo(0, 0);
+      this.render();
+    });
     this.root.querySelectorAll<HTMLButtonElement>("[data-start]").forEach((button) => {
       button.addEventListener("click", () => {
+        if (!collection[this.selectedHero]?.owned) {
+          this.callbacks.onAudioCue("sfx_ui_select");
+          return;
+        }
         this.callbacks.onStart(this.selectedHero, this.selectedChapter);
       });
     });
@@ -351,6 +378,85 @@ export class MenuController {
     });
   }
 
+  private renderConquest(): void {
+    this.meta = loadMetaProgression();
+    const conquest = this.meta.conquest;
+    const selectable =
+      conquestCities.find((city) => city.id === this.selectedConquestCity && conquest.cities[city.id].unlocked) ??
+      conquestCities.find((city) => conquest.cities[city.id].unlocked && !conquest.cities[city.id].conquered) ??
+      conquestCities.find((city) => conquest.cities[city.id].unlocked) ??
+      conquestCities[0];
+    this.selectedConquestCity = selectable.id;
+    const selectedCity = conquestCityById[this.selectedConquestCity];
+    const selectedProgress = conquest.cities[selectedCity.id];
+    const selectedHero = heroes.find((hero) => hero.id === selectedCity.gatekeeperHeroId)!;
+    const selectedArt = characterArtById[selectedHero.artId];
+    const conqueredCount = conquestCities.filter((city) => conquest.cities[city.id].conquered).length;
+    const unified = Boolean(conquest.unifiedAt);
+
+    this.root.innerHTML = `
+      <main class="conquest-stage">
+        <section class="base-topline">
+          <div>
+            <span class="panel-kicker">Conquest</span>
+            <h2>統一天下</h2>
+          </div>
+          <button class="codex-back" data-conquest-back="true">返回</button>
+        </section>
+        <section class="conquest-summary" style="${artVars(selectedArt)}">
+          <div>
+            <span>${selectedCity.regionName} · ${selectedCity.recommendedPower} 戰力</span>
+            <strong>${selectedCity.name}</strong>
+            <small>守門武將 ${selectedHero.name} · ${selectedProgress.conquered ? "已加入" : selectedProgress.unlocked ? "可攻打" : "未開放"}</small>
+          </div>
+          <img src="${selectedArt.cardImage}" alt="${selectedHero.name}" draggable="false" />
+          <div class="conquest-summary-stats">
+            <span>進度 ${conqueredCount}/${conquestCities.length}</span>
+            <span>首勝 +${selectedCity.firstClearRewards.merit} 戰功 / +${selectedCity.firstClearRewards.renown} 聲望</span>
+            <span>${unified ? "天下已定" : "四路平定後開洛陽"}</span>
+          </div>
+        </section>
+        <section class="conquest-map" aria-label="天下城池地圖">
+          ${renderConquestMap(conquest, this.selectedConquestCity)}
+        </section>
+        <div class="menu-actions chapter-actions">
+          <button class="codex-button" data-conquest-back="true">返回選角</button>
+          <button class="start-button" data-start-conquest="true" ${selectedProgress.unlocked ? "" : "disabled"}>
+            ${selectedProgress.conquered ? "重訪城池" : "攻打城池"}
+          </button>
+        </div>
+      </main>
+    `;
+
+    this.root.querySelectorAll<HTMLButtonElement>("[data-conquest-back]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.mode = "select";
+        this.render();
+      });
+    });
+    this.root.querySelectorAll<HTMLButtonElement>("[data-city-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) {
+          this.callbacks.onAudioCue("sfx_ui_select");
+          return;
+        }
+        this.selectedConquestCity = button.dataset.cityId as ConquestCityId;
+        this.callbacks.onAudioCue("sfx_ui_select");
+        this.renderConquest();
+      });
+    });
+    this.root.querySelector<HTMLButtonElement>("[data-start-conquest]")?.addEventListener("click", () => {
+      const city = conquestCityById[this.selectedConquestCity];
+      const progress = loadMetaProgression().conquest.cities[city.id];
+      if (!progress.unlocked) {
+        this.callbacks.onAudioCue("sfx_ui_select");
+        return;
+      }
+      this.callbacks.onStart(this.selectedHero, city.chapterId, city.id);
+    });
+  }
+
   private renderCollection(collection: CollectionState): void {
     const selectedArt = characterArtById[this.selectedCollectionCharacter];
     const selectedEntry = collection[selectedArt.id];
@@ -445,22 +551,126 @@ export class MenuController {
   }
 }
 
+const conquestMapPositions = {
+  jingzhou: { x: 15, y: 36 },
+  changban: { x: 25, y: 49 },
+  hanzhong: { x: 16, y: 66 },
+  tongguan: { x: 31, y: 77 },
+  longzhong: { x: 42, y: 62 },
+  xuchang: { x: 49, y: 24 },
+  qiaojun: { x: 63, y: 36 },
+  hefei: { x: 70, y: 54 },
+  yecheng: { x: 65, y: 76 },
+  jianye: { x: 82, y: 27 },
+  wujun: { x: 91, y: 44 },
+  jinfan_camp: { x: 83, y: 65 },
+  shenting: { x: 92, y: 82 },
+  julu: { x: 34, y: 17 },
+  guandu: { x: 40, y: 36 },
+  qingnang_valley: { x: 50, y: 83 },
+  luoyang: { x: 54, y: 48 }
+} satisfies Record<ConquestCityId, { x: number; y: number }>;
+
+const conquestMapLabels = [
+  { label: "蜀線", className: "region-shu", x: 14, y: 21 },
+  { label: "魏線", className: "region-wei", x: 58, y: 18 },
+  { label: "吳線", className: "region-wu", x: 86, y: 18 },
+  { label: "群雄", className: "region-qun", x: 35, y: 8 },
+  { label: "洛陽", className: "region-final", x: 55, y: 45 }
+];
+
+function renderConquestMap(conquest: MetaProgressionState["conquest"], selectedCityId: ConquestCityId): string {
+  return `
+    <div class="conquest-map-board">
+      ${renderConquestRoads(conquest)}
+      ${conquestMapLabels
+        .map(
+          (item) => `
+            <span class="conquest-territory-label ${item.className}" style="--x:${item.x}%; --y:${item.y}%">
+              ${item.label}
+            </span>
+          `
+        )
+        .join("")}
+      ${conquestCities.map((city) => renderConquestMapNode(city.id, conquest, selectedCityId)).join("")}
+    </div>
+    <div class="conquest-map-legend" aria-hidden="true">
+      <span class="is-open">可攻打</span>
+      <span class="is-conquered">已攻下</span>
+      <span class="is-locked">未解鎖</span>
+    </div>
+  `;
+}
+
+function renderConquestRoads(conquest: MetaProgressionState["conquest"]): string {
+  return `
+    <svg class="conquest-roads" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      ${conquestCities
+        .flatMap((city) =>
+          city.prerequisiteCityIds.map((prerequisiteId) => {
+            const from = conquestMapPositions[prerequisiteId];
+            const to = conquestMapPositions[city.id];
+            const progress = conquest.cities[city.id];
+            const roadClass = progress.conquered ? "is-conquered" : progress.unlocked ? "is-open" : "is-locked";
+            return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" class="${roadClass}" />`;
+          })
+        )
+        .join("")}
+    </svg>
+  `;
+}
+
+function renderConquestMapNode(
+  cityId: ConquestCityId,
+  conquest: MetaProgressionState["conquest"],
+  selectedCityId: ConquestCityId
+): string {
+  const city = conquestCityById[cityId];
+  const progress = conquest.cities[city.id];
+  const hero = heroes.find((item) => item.id === city.gatekeeperHeroId)!;
+  const art = characterArtById[hero.artId];
+  const locked = !progress.unlocked;
+  const selected = city.id === selectedCityId;
+  const stateLabel = progress.conquered ? "已攻下" : locked ? "鎖定" : "可攻打";
+  const prereq = city.prerequisiteCityIds.map((id) => conquestCityById[id].name).join("、") || "入口城";
+  const metaLine = locked ? `需攻下 ${prereq}` : `房 ${progress.bestRoom}/8 · ${progress.attempts} 戰`;
+  const position = conquestMapPositions[city.id];
+  return `
+    <button
+      class="conquest-map-node ${selected ? "is-selected" : ""} ${progress.conquered ? "is-conquered" : ""} ${locked ? "is-locked" : "is-open"}"
+      data-city-id="${city.id}"
+      style="${artVars(art)} --x:${position.x}%; --y:${position.y}%;"
+      ${locked ? "disabled" : ""}
+    >
+      <img src="${art.cardImage}" alt="${hero.name}" draggable="false" />
+      <div>
+        <strong>${city.name}</strong>
+        <span>${hero.name}</span>
+        <small>${stateLabel} · 戰力 ${city.recommendedPower}</small>
+        <em>${metaLine}</em>
+      </div>
+    </button>
+  `;
+}
+
 function renderHeroPick(heroId: HeroId, collection: CollectionState, selected: boolean, meta: MetaProgressionState): string {
   const hero = heroes.find((item) => item.id === heroId)!;
   const art = characterArtById[hero.artId];
   const entry = collection[art.id];
   const mastery = meta.heroMastery[heroId];
+  const recruitCity = getConquestCityForHero(heroId);
+  const locked = !entry.owned;
   return `
-    <button class="hero-card character-pick ${selected ? "is-selected" : ""}" data-hero="${hero.id}" style="${artVars(art)}">
+    <button class="hero-card character-pick ${selected ? "is-selected" : ""} ${locked ? "is-locked" : ""}" data-hero="${hero.id}" style="${artVars(art)}" ${locked ? "disabled" : ""}>
       <img class="mini-card-art" src="${art.cardImage}" alt="${art.name}" draggable="false" />
       <div>
         <div class="card-meta-line">
-          ${renderStars(art.stars)}
-          <span>${entry.owned ? "已擁有" : "未擁有"}</span>
+          ${renderStars(art.stars, locked)}
+          <span>${entry.owned ? "已擁有" : "未招降"}</span>
         </div>
         <strong>${hero.name}</strong>
         <span>${hero.title}</span>
-        <small>Lv.${mastery.level} · 生命 +${mastery.level}% · 傷害 +${mastery.level}%</small>
+        <small>${locked && recruitCity ? `攻下 ${recruitCity.name} 後加入` : `Lv.${mastery.level} · 生命 +${mastery.level}% · 傷害 +${mastery.level}%`}</small>
         <small>${hero.autoAbility.name} / ${hero.manualAbility.name}</small>
         <div class="bond-row">${renderBondChips(art.bondIds)}</div>
       </div>

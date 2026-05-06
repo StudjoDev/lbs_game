@@ -1,4 +1,6 @@
 import { enemyById } from "../content/enemies";
+import { getConquestCityDef } from "../content/conquest";
+import { heroById } from "../content/heroes";
 import type { EnemyId, EnemyState, RunState } from "../types";
 import { currentRoomDef } from "./chapterRun";
 import { clamp, fromAngle, scale } from "./math";
@@ -16,10 +18,14 @@ export function updateSpawner(state: RunState, dt: number): void {
   }
 
   if (room.type === "boss" && !state.bossSpawned) {
-    const boss = spawnEnemy(state, "lubu", 420);
-    const chapterScale = state.chapterId === "red_cliff_line" ? 1.25 : state.chapterId === "hulao_outer" ? 1.12 : 1;
-    boss.maxHp = Math.round(boss.maxHp * chapterScale);
-    boss.hp = boss.maxHp;
+    if (state.conquestCityId) {
+      spawnGatekeeper(state);
+    } else {
+      const boss = spawnEnemy(state, "lubu", 420);
+      const chapterScale = state.chapterId === "red_cliff_line" ? 1.25 : state.chapterId === "hulao_outer" ? 1.12 : 1;
+      boss.maxHp = Math.round(boss.maxHp * chapterScale);
+      boss.hp = boss.maxHp;
+    }
     state.bossSpawned = true;
   }
 
@@ -52,9 +58,29 @@ export function spawnEnemy(state: RunState, defId: EnemyId, distanceFromPlayer =
     burnDps: 0,
     stunTimer: 0,
     flashTimer: 0,
-    phase: 1
+    phase: 1,
+    ultimateCooldown: defId === "lubu" ? randomRange(state, 2.4, 4.2) : 0,
+    ultimateWindup: 0,
+    gatekeeperHeroId: undefined
   };
   state.enemies.push(enemy);
+  return enemy;
+}
+
+function spawnGatekeeper(state: RunState): EnemyState {
+  const city = getConquestCityDef(state.conquestCityId);
+  const hero = city ? heroById[city.gatekeeperHeroId] : undefined;
+  const enemy = spawnEnemy(state, "captain", 420);
+  const tier = city?.tier ?? 1;
+  enemy.gatekeeperHeroId = hero?.id;
+  enemy.maxHp = Math.round(780 + tier * 360 + (hero?.baseStats.maxHp ?? 130) * 2.2);
+  enemy.hp = enemy.maxHp;
+  enemy.damage = Math.round(18 + tier * 4 + (hero?.baseStats.armor ?? 2));
+  enemy.speed = Math.min(150, Math.max(92, (hero?.baseStats.moveSpeed ?? 220) * 0.54));
+  enemy.radius = 38;
+  enemy.attackCooldown = randomRange(state, 0.45, 0.95);
+  state.gatekeeperHeroId = hero?.id;
+  state.gatekeeperName = hero?.name;
   return enemy;
 }
 
