@@ -6,6 +6,8 @@
   "scripts": {
     "assets:audio": "node scripts/generate-audio-assets.mjs",
     "assets:characters": "node scripts/generate-character-bitmaps.mjs",
+    "assets:enemies": "python scripts/generate_enemy_animation_assets.py",
+    "assets:enemies:audit": "python scripts/audit_enemy_runtime_frames.py",
     "warrior:new": "python scripts/generate_warrior_pipeline.py",
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",

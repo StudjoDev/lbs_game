@@ -24,9 +24,16 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_ROOT = ROOT / "public" / "assets" / "enemies"
 SOURCE_ROOT = ROOT / "scripts" / "source" / "enemy-anims"
 AI_SHEET_PATH = SOURCE_ROOT / "ai-minion-sheet.png"
-FRAME_SIZE = 192
+FRAME_WIDTH = 192
+FRAME_HEIGHT = 224
+FRAME_SIZE = FRAME_WIDTH
+FRAME_CENTER_X = FRAME_WIDTH // 2
+FRAME_CENTER_Y = FRAME_HEIGHT // 2
+SAFE_BOX_WIDTH = 122
+SAFE_BOX_HEIGHT = 144
 SCALE = 4
-CANVAS_SIZE = FRAME_SIZE * SCALE
+CANVAS_WIDTH = FRAME_WIDTH * SCALE
+CANVAS_HEIGHT = FRAME_HEIGHT * SCALE
 
 
 Color = tuple[int, int, int, int]
@@ -69,21 +76,21 @@ AI_SHEET_LAYOUT: dict[str, tuple[int, int]] = {
 }
 
 AI_TARGET_HEIGHT: dict[str, int] = {
-    "infantry": 154,
-    "archer": 150,
-    "shield": 154,
-    "cavalry": 164,
-    "captain": 168,
-    "lubu": 174,
+    "infantry": 110,
+    "archer": 108,
+    "shield": 112,
+    "cavalry": 116,
+    "captain": 122,
+    "lubu": 138,
 }
 
 AI_TARGET_WIDTH: dict[str, int] = {
-    "infantry": 142,
-    "archer": 154,
-    "shield": 154,
-    "cavalry": 180,
-    "captain": 166,
-    "lubu": 180,
+    "infantry": 102,
+    "archer": 112,
+    "shield": 112,
+    "cavalry": 126,
+    "captain": 118,
+    "lubu": 124,
 }
 
 
@@ -182,7 +189,7 @@ def keep_largest_alpha_component(image: Image.Image) -> Image.Image:
 def normalize_source_sprite(sprite: Image.Image, enemy_id: str) -> Image.Image:
     alpha_bbox = sprite.getchannel("A").getbbox()
     if alpha_bbox is None:
-        return Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
+        return Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (0, 0, 0, 0))
 
     left, top, right, bottom = alpha_bbox
     pad = 8
@@ -192,10 +199,35 @@ def normalize_source_sprite(sprite: Image.Image, enemy_id: str) -> Image.Image:
     scale = min(target_width / cropped.width, target_height / cropped.height)
     resized = cropped.resize((max(1, round(cropped.width * scale)), max(1, round(cropped.height * scale))), Image.Resampling.LANCZOS)
 
-    canvas = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
-    x = round((FRAME_SIZE - resized.width) / 2)
-    y = 178 - resized.height
+    canvas = Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (0, 0, 0, 0))
+    x = round((FRAME_WIDTH - resized.width) / 2)
+    y = round((FRAME_HEIGHT - resized.height) / 2)
     canvas.alpha_composite(resized, (x, y))
+    return canvas
+
+
+def normalize_runtime_frame(frame: Image.Image) -> Image.Image:
+    """Center enemy alpha in the same runtime frame used by warrior sprites."""
+    rgba = frame.convert("RGBA")
+    alpha_bbox = rgba.getchannel("A").getbbox()
+    if alpha_bbox is None:
+        return Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (0, 0, 0, 0))
+
+    left, top, right, bottom = alpha_bbox
+    cropped = rgba.crop((left, top, right, bottom))
+    bbox_width = right - left
+    bbox_height = bottom - top
+    scale = min(1, SAFE_BOX_WIDTH / bbox_width, SAFE_BOX_HEIGHT / bbox_height)
+    if scale < 1:
+        cropped = cropped.resize(
+            (max(1, round(cropped.width * scale)), max(1, round(cropped.height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+
+    canvas = Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (0, 0, 0, 0))
+    x = round(FRAME_CENTER_X - cropped.width / 2)
+    y = round(FRAME_CENTER_Y - cropped.height / 2)
+    canvas.alpha_composite(cropped, (x, y))
     return canvas
 
 
@@ -226,16 +258,12 @@ def draw_eye(draw: ImageDraw.ImageDraw, cx: float, cy: float, radius: float, col
     ellipse(draw, (cx - radius * 0.34, cy - radius * 0.5, cx, cy - radius * 0.16), (255, 255, 255, 235))
 
 
-def add_card_finish(image: Image.Image, accent: str) -> Image.Image:
+def add_sprite_finish(image: Image.Image, accent: str) -> Image.Image:
     alpha = image.getchannel("A")
-    outline_alpha = alpha.filter(ImageFilter.MaxFilter(13)).filter(ImageFilter.GaussianBlur(0.8 * SCALE))
-    glow_alpha = alpha.filter(ImageFilter.GaussianBlur(5 * SCALE)).point(lambda value: round(value * 0.28))
+    outline_alpha = alpha.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(0.45 * SCALE))
     outline = Image.new("RGBA", image.size, (38, 17, 24, 220))
     outline.putalpha(outline_alpha.point(lambda value: round(value * 0.7)))
-    glow = Image.new("RGBA", image.size, with_alpha(accent, 120))
-    glow.putalpha(glow_alpha)
     result = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    result.alpha_composite(glow)
     result.alpha_composite(outline)
     result.alpha_composite(image)
     return ImageEnhance.Contrast(ImageEnhance.Color(result).enhance(1.12)).enhance(1.08)
@@ -300,7 +328,7 @@ def draw_weapon(draw: ImageDraw.ImageDraw, look: EnemyLook, mid: float, base_y: 
 
 
 def draw_enemy(look: EnemyLook, pose: dict[str, float]) -> Image.Image:
-    image = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE), (0, 0, 0, 0))
+    image = Image.new("RGBA", (CANVAS_WIDTH, CANVAS_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
 
     size = look.size
@@ -313,8 +341,6 @@ def draw_enemy(look: EnemyLook, pose: dict[str, float]) -> Image.Image:
     primary = with_alpha(look.primary, alpha)
     accent = with_alpha(look.accent, alpha)
     skin = with_alpha(look.skin, alpha)
-
-    draw_shadow(draw, mid, 166, size * 0.34 * look.shadow_scale * (1 + abs(pose.get("dx", 0)) * 0.006), size * 0.11)
 
     if look.role == "cavalry":
         horse_y = base_y - size * 0.04
@@ -406,25 +432,9 @@ def draw_enemy(look: EnemyLook, pose: dict[str, float]) -> Image.Image:
     rounded_rect(draw, (mid - size * 0.22 + lean * 0.1, base_y - size * 0.2, mid + size * 0.22 + lean * 0.1, base_y + size * 0.05), size * 0.07, primary, accent, size * 0.04)
     draw_weapon(draw, look, mid, base_y, size, pose)
 
-    if pose.get("hit_flash", 0) > 0:
-        flash = Image.new("RGBA", image.size, (255, 245, 210, 0))
-        flash.putalpha(image.getchannel("A").point(lambda value: round(value * 0.38)))
-        image.alpha_composite(flash)
-
-    if pose.get("dust", 0) > 0:
-        dust = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        dust_draw = ImageDraw.Draw(dust)
-        dust_alpha = round(120 * pose["dust"])
-        for index in range(7):
-            x = (mid - 48 + index * 16 + pose.get("dx", 0) * 0.4) * SCALE
-            y = (166 - (index % 3) * 6) * SCALE
-            r = (4 + index % 4) * SCALE
-            dust_draw.ellipse((x - r, y - r * 0.6, x + r, y + r * 0.6), fill=(222, 208, 176, dust_alpha))
-        image.alpha_composite(dust.filter(ImageFilter.GaussianBlur(1.1 * SCALE)))
-
-    image = add_card_finish(image, look.accent)
-    image = image.resize((FRAME_SIZE, FRAME_SIZE), Image.Resampling.LANCZOS)
-    return image
+    image = add_sprite_finish(image, look.accent)
+    image = image.resize((FRAME_WIDTH, FRAME_HEIGHT), Image.Resampling.LANCZOS)
+    return normalize_runtime_frame(image)
 
 
 def offset_no_wrap(image: Image.Image, dx: int, dy: int) -> Image.Image:
@@ -453,7 +463,7 @@ def transform_source_sprite(base: Image.Image, dx: int = 0, dy: int = 0, angle: 
     rotated = base.rotate(
         angle,
         resample=Image.Resampling.BICUBIC,
-        center=(FRAME_SIZE / 2, 176),
+        center=(FRAME_CENTER_X, FRAME_CENTER_Y),
         fillcolor=(0, 0, 0, 0),
     )
     shifted = offset_no_wrap(rotated, dx, dy)
@@ -496,18 +506,18 @@ def make_ai_frames(look: EnemyLook, action: str) -> list[Image.Image] | None:
         return [transform_source_sprite(base, dx, dy, angle) for dx, dy, angle in poses]
     if action == "hit":
         return [
-            add_sprite_flash(transform_source_sprite(base, 8, -3, 5.2), 0.4),
+            transform_source_sprite(base, 8, -3, 5.2),
             transform_source_sprite(base, -5, 1, -5.0),
-            add_sprite_flash(transform_source_sprite(base, 3, -1, 2.4), 0.18),
+            transform_source_sprite(base, 3, -1, 2.4),
             transform_source_sprite(base),
         ]
     if action == "death":
         frames = [
-            add_ground_dust(transform_source_sprite(base), 0.25),
-            add_ground_dust(transform_source_sprite(base, 6, 5, 9, 0.94), 0.52),
-            add_ground_dust(transform_source_sprite(base, 13, 14, 20, 0.8), 0.72),
-            add_ground_dust(transform_source_sprite(base, 18, 25, 32, 0.58), 0.9),
-            add_ground_dust(transform_source_sprite(base, 22, 39, 45, 0.32), 1),
+            transform_source_sprite(base),
+            transform_source_sprite(base, 6, 5, 9, 0.94),
+            transform_source_sprite(base, 13, 14, 20, 0.8),
+            transform_source_sprite(base, 18, 25, 32, 0.58),
+            transform_source_sprite(base, 22, 39, 45, 0.32),
         ]
         return frames
     raise ValueError(f"Unknown action: {action}")
@@ -533,7 +543,7 @@ def make_frames(look: EnemyLook, action: str) -> list[Image.Image]:
             {"dx": 1, "dy": -4, "lean": 5, "phase": 4.8, "weapon_sway": -1},
         ]
         frames = [draw_enemy(look, pose) for pose in poses]
-        return [add_smear(frame, look.accent, -4 if index < 2 else 4, 0, 0.16) for index, frame in enumerate(frames)]
+        return frames
     if action == "hit":
         poses = [
             {"dx": 7, "dy": -2, "lean": 9, "sx": 1.08, "sy": 0.94, "hit_face": 1, "hit_flash": 1, "weapon_sway": 5},
@@ -559,24 +569,24 @@ def make_frames(look: EnemyLook, action: str) -> list[Image.Image]:
 
 def make_preview(frames: list[Image.Image]) -> Image.Image:
     gutter = 10
-    preview = Image.new("RGBA", (FRAME_SIZE * len(frames) + gutter * (len(frames) - 1), FRAME_SIZE), (28, 18, 24, 255))
+    preview = Image.new("RGBA", (FRAME_WIDTH * len(frames) + gutter * (len(frames) - 1), FRAME_HEIGHT), (28, 18, 24, 255))
     for index, frame in enumerate(frames):
-        tile = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (38, 24, 34, 255))
+        tile = Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (38, 24, 34, 255))
         draw = ImageDraw.Draw(tile)
-        for y in range(0, FRAME_SIZE, 16):
-            for x in range(0, FRAME_SIZE, 16):
+        for y in range(0, FRAME_HEIGHT, 16):
+            for x in range(0, FRAME_WIDTH, 16):
                 if (x // 16 + y // 16) % 2 == 0:
                     draw.rectangle((x, y, x + 15, y + 15), fill=(49, 32, 44, 255))
         tile.alpha_composite(frame)
-        preview.alpha_composite(tile, (index * (FRAME_SIZE + gutter), 0))
+        preview.alpha_composite(tile, (index * (FRAME_WIDTH + gutter), 0))
     return preview
 
 
 def make_reference(frames: list[Image.Image]) -> Image.Image:
     gutter = 20
-    strip = Image.new("RGBA", (FRAME_SIZE * len(frames) + gutter * (len(frames) - 1), FRAME_SIZE), (0, 0, 0, 0))
+    strip = Image.new("RGBA", (FRAME_WIDTH * len(frames) + gutter * (len(frames) - 1), FRAME_HEIGHT), (0, 0, 0, 0))
     for index, frame in enumerate(frames):
-        strip.alpha_composite(frame, (index * (FRAME_SIZE + gutter), 0))
+        strip.alpha_composite(frame, (index * (FRAME_WIDTH + gutter), 0))
     return strip
 
 
@@ -591,6 +601,7 @@ def write_animation(look: EnemyLook, action: str) -> list[Path]:
 
     written: list[Path] = []
     for index, frame in enumerate(frames, start=1):
+        frame = normalize_runtime_frame(frame)
         path = out_dir / f"{index:02d}.png"
         frame.save(path)
         raw_path = raw_dir / f"{index:02d}.png"
@@ -614,7 +625,7 @@ def main() -> None:
             written = write_animation(look, action)
             count += expected_count
             print(f"{look.enemy_id}/{action}: {expected_count} frames -> {PUBLIC_ROOT / look.enemy_id / action}")
-    print(f"Generated {count} transparent {FRAME_SIZE}x{FRAME_SIZE} PNG frames.")
+    print(f"Generated {count} transparent {FRAME_WIDTH}x{FRAME_HEIGHT} PNG frames.")
 
 
 if __name__ == "__main__":

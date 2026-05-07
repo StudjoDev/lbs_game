@@ -1117,7 +1117,7 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     shadowScale: 0.8,
     hitTint: 0xfff1cf,
     deathFxKey: "particle_dirt",
-    baseScale: 1,
+    baseScale: 0.72,
     animationScale: 0.72,
     outlineColor: 0xded0b0
   },
@@ -1126,45 +1126,45 @@ export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {
     shadowScale: 0.76,
     hitTint: 0xffdf91,
     deathFxKey: "particle_dirt",
-    baseScale: 0.96,
-    animationScale: 0.7,
+    baseScale: 0.72,
+    animationScale: 0.72,
     outlineColor: 0xd6c17a
   },
   shield: {
     spriteKey: "enemy_shield",
-    shadowScale: 0.94,
+    shadowScale: 0.9,
     hitTint: 0xdfe8ff,
     deathFxKey: "particle_dirt",
-    baseScale: 1.04,
-    animationScale: 0.76,
+    baseScale: 0.74,
+    animationScale: 0.74,
     outlineColor: 0xc5cbd6
   },
   cavalry: {
     spriteKey: "enemy_cavalry",
-    shadowScale: 1.1,
+    shadowScale: 1.04,
     hitTint: 0xffcf86,
     deathFxKey: "particle_dirt",
-    baseScale: 1.06,
+    baseScale: 0.74,
     animationScale: 0.74,
     outlineColor: 0xe0b16b
   },
   captain: {
     spriteKey: "enemy_captain",
-    shadowScale: 1.22,
+    shadowScale: 1.1,
     hitTint: 0xffdc86,
     deathFxKey: "particle_smoke",
-    baseScale: 1.12,
-    animationScale: 0.78,
+    baseScale: 0.76,
+    animationScale: 0.76,
     eliteFrame: 1,
     outlineColor: 0xe2b55f
   },
   lubu: {
     spriteKey: "enemy_lubu",
-    shadowScale: 1.72,
+    shadowScale: 1.36,
     hitTint: 0xff7bb4,
     deathFxKey: "particle_magic",
-    baseScale: 1.14,
-    animationScale: 0.82,
+    baseScale: 0.78,
+    animationScale: 0.78,
     eliteFrame: 2,
     outlineColor: 0xff4e74
   }
