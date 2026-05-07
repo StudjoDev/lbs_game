@@ -9,6 +9,60 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Make Diaochan's actions visibly different and fully upgrade her motion.
+Notes:
+- Upgraded Diaochan from subtle 4-frame runtime motion to richer state-specific motion: idle now uses 6 frames, run uses 6 frames, attack uses 8 frames, and ultimate remains 8 frames with stronger ribbon dance poses.
+- Added Diaochan-specific ribbon trail generation in `scripts/generate_character_animation_assets.py`, including wider streamer arcs, larger side-to-side step changes, stronger attack windup/strike/follow-through frames, and preview/source outputs under `scripts/source/character-anims/diaochan/`.
+- Added per-character animation frame count support in `src/game/content/characterArt.ts`, so only Diaochan uses the expanded idle/run/attack counts while the rest of the roster keeps existing frame counts.
+- Added a Diaochan-specific `ribbon_dance` ultimate style in `scripts/generate_ultimate_animation_assets.py`, with foreground/background ribbon trails and more aggressive transform poses.
+- Regenerated Diaochan idle/run/attack/ultimate PNGs and wrote the visual preview to `output/web-game/diaochan-motion-upgrade-preview.png`.
+
+Verification:
+- `python -m py_compile scripts/generate_character_animation_assets.py scripts/generate_ultimate_animation_assets.py` passed.
+- Diaochan asset validation passed: idle 6, run 6, attack 8, ultimate 8; all frames are `192x224` PNGs with visible alpha and strong per-frame alpha differences.
+- `npm run typecheck` passed.
+- `npm test` passed: 9 files, 65 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Browser smoke on localhost:5173 loaded all expanded Diaochan frame assets, triggered her manual/ultimate, and confirmed `hero_diaochan_ultimate` played with no page errors or unexpected console errors.
+
+TODO:
+- None for this request.
+
+Follow-up request: Ensure newly added heroes use the same generated art style as the existing roster.
+Notes:
+- Reworked `scripts/generate_new_roster_sources.py` so Zhenji and Xiaoqiao are generated from existing high-detail Q-style source assets rather than simplified vector-like placeholders.
+- Regenerated `output/ai-character-sources/zhenji-*.png` and `xiaoqiao-*.png`, then reran the existing processing scripts to refresh card, battle, attack, and ultimate assets.
+- Visually checked the refreshed Zhenji/Xiaoqiao card and battle sprites; they now match the existing dense anime/Q-version card style much more closely.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 62 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Asset size check passed: card 1024x1024, battle 192x224, attack strip 768x224, ultimate frames 192x224 for both Zhenji and Xiaoqiao.
+
+TODO:
+- None for this follow-up.
+
+Current request: Fill all four factions to six playable heroes and make conquest bosses city gatekeepers.
+Notes:
+- Expanded `HeroId`/roster to 24 playable heroes: added Wei Zhenji, Wu Xiaoqiao, and made Lu Bu a normal Qun hero.
+- Added conquest cities Luoshui, Wan City, and Hu Lao Gate. Luoyang now unlocks from Longzhong, Luoshui, Wan City, and Hu Lao Gate, and remains guarded by Dong Zhuo.
+- Removed the BattleScene Lu Bu boss-defeat codex unlock flow; Lu Bu is now recruited through Hu Lao Gate settlement like other conquest gatekeepers.
+- HUD boss countdown now uses `gatekeeperName` in conquest mode. Codex copy no longer references Hu Lao/Lu Bu as a special boss unlock path.
+- Added generated PNG assets for Zhenji and Xiaoqiao cards/battle/idle/run/attack/ultimate, and added Lu Bu playable ultimate frames while preserving enemy Lu Bu texture keys.
+- Updated tests for 20 conquest cities, 4 initial attackable cities, 24 playable art entries, new route-end recruitment, and gatekeeper boss spawning for Luoshui/Wan City/Hu Lao Gate.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 62 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Asset verification confirmed Zhenji, Xiaoqiao, and Lu Bu battle/attack/ultimate PNGs exist and battle/animation frames are 192x224.
+- develop-web-game client smoke ran against localhost:5180; its existing canvas-only screenshot path still captured black.
+- Direct Playwright smoke passed: each faction roster rendered 6 heroes with only its starter enabled on fresh storage; conquest map rendered 20 cities with 4 initially attackable; Hu Lao Gate boss-room state reported `gatekeeperHeroId=lubu`, spawned a gatekeeper enemy, and did not spawn old `enemy_lubu`. Full-page screenshot/result JSON are in `output/web-game/conquest-page.png` and `output/web-game/browser-smoke-result.json`.
+
+TODO:
+- None for this request.
+
 Current request: Implement 統一天下 v1 city conquest and gatekeeper recruitment.
 Notes:
 - Added conquest city content with 17 cities across Shu, Wei, Wu, Qun, and final Luoyang routes. Four entry cities start unlocked, and Luoyang unlocks only after the four route finales are conquered.
@@ -58,6 +112,24 @@ Verification:
 - `npm run build` passed; Vite still reports the existing large chunk warning.
 - develop-web-game smoke ran against localhost:5173. Its existing screenshot path still produced black captures, but `state-1.json` confirmed Diaochan was playing `hero_diaochan_ultimate`.
 - Direct Playwright sustain QA passed 14/14 cases for Guan Yu, Zhao Yun, Zhou Yu, Sun Shangxiang, Diaochan, Dong Zhuo, and Hua Tuo across desktop and iPhone viewports. Results are in `output/web-game/ultimate-qa/ultimate-sustain-qa-results.json`.
+
+TODO:
+- None for this request.
+
+Current request: Check whether replaced-character actions and musou moves match their updated weapon art.
+Notes:
+- Reviewed the replaced/weapon-corrected heroes: Liu Bei, Zhang Fei, Ma Chao, Gan Ning, Zhenji, Xiaoqiao, Diaochan, Zhang Jiao, Yuan Shao, and Dong Zhuo.
+- Synchronized hero skill names, descriptions, codex biographies, ultimate labels, and finisher labels with the current weapon direction: Liu Bei dual swords, Zhang Fei Zhangba serpent spear, Gan Ning chain sickle/short blade, Zhenji flute/iron flute, Xiaoqiao twin fans, Diaochan ribbon/streamers, Zhang Jiao Taoist staff, Yuan Shao sword/banner, Dong Zhuo chain mace, and Ma Chao spear/cavalry.
+- Removed Diaochan's remaining blade tags from her own kit and ultimate pulses/finisher, changed her visible manual skill to ribbon wording, and switched her petal/allure VFX texture to the new `ribbon_arc` arc texture.
+- Updated Liu Bei's ultimate animation generation style from command to slash and regenerated all playable ultimate frames so the contact sheet remains complete.
+
+Verification:
+- `python -m py_compile scripts/generate_ultimate_animation_assets.py` passed.
+- Animation frame check passed for Liu Bei, Zhang Fei, Ma Chao, Gan Ning, Zhenji, Xiaoqiao, Diaochan, Zhang Jiao, Yuan Shao, and Dong Zhuo: idle/run/attack have 4 frames and ultimate has 8 frames, all `192x224`.
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 62 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Browser smoke on localhost:5173 started Diaochan, triggered manual/ultimate, and confirmed `hero_diaochan_ultimate` played with active ultimate timer and no page errors or unexpected console errors.
 
 TODO:
 - None for this request.
@@ -341,6 +413,46 @@ Verification:
 TODO:
 - None for this request.
 
+Current request: Regenerate Xiaoqiao and Zhenji art and follow Dynasty Warriors weapon settings.
+Notes:
+- Regenerated Zhenji with a flute/iron flute weapon direction and removed fan-based visuals from her card and battle sprite.
+- Regenerated Xiaoqiao with paired twin fans visible in both card and battle sprite.
+- Reprocessed both characters through `scripts/process_ai_character_sources.py`, then regenerated their ultimate frames with `scripts/generate_ultimate_animation_assets.py`.
+- Updated `scripts/process_ai_character_sources.py` so wide weapons are fitted by width as well as height, and idle/run frames now pass through the same safe-bound fitting used for attack frames.
+- Updated `scripts/character-art-prompts.json` with Xiaoqiao and Zhenji prompts that preserve the correct weapon requirements for future batch generation.
+- Asset previews saved at `output/web-game/qiao-zhenji-regenerated-assets.png` and `output/web-game/qiao-zhenji-action-frames.png`.
+
+Verification:
+- All regenerated Xiaoqiao/Zhenji idle/run/attack/ultimate frames are `192x224` transparent PNGs with at least 12px visible-content margin.
+- `python -m py_compile scripts/process_ai_character_sources.py scripts/generate_ultimate_animation_assets.py` passed.
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 62 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Browser asset check on localhost:5173 loaded both characters' card, battle, attack strip, idle/run/attack/ultimate paths with no missing assets and no console/page errors.
+
+TODO:
+- None for this request.
+
+Current request: Replace Diaochan art and make her weapon ribbon-like.
+Notes:
+- Regenerated Diaochan's card and battle source with long silk ribbon / colorful streamer weapons, with no fan, blade, staff, or flute.
+- Copied the generated sources to `output/ai-character-sources/diaochan-card.png` and `output/ai-character-sources/diaochan-sprite.png`.
+- Reprocessed Diaochan through `scripts/process_ai_character_sources.py`, then regenerated ultimate frames with `scripts/generate_ultimate_animation_assets.py`.
+- Updated `scripts/character-art-prompts.json` so future Diaochan generation requires long silk ribbon weapons and forbids fan/blade weapons.
+- Asset preview saved at `output/web-game/diaochan-ribbon-regenerated-assets.png`.
+
+Verification:
+- Diaochan card is `1024x1024`; battle, idle, run, attack, and ultimate frames are `192x224`; attack strip is `768x224`.
+- All Diaochan idle/run/attack/ultimate frames have at least 12px visible-content margin.
+- `python -m py_compile scripts/process_ai_character_sources.py scripts/generate_ultimate_animation_assets.py` passed.
+- `npm run typecheck` passed.
+- `npm test` passed: 8 files, 62 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Browser asset check on localhost:5173 loaded Diaochan card, battle, attack strip, idle/run/attack/ultimate paths with no missing assets and no console/page errors.
+
+TODO:
+- None for this request.
+
 Current request: Upgrade playable hero ultimate / musou move experience.
 Notes:
 - Added playable `ultimate` character animations at 8 frames / 20fps and kept Lu Bu excluded from playable ultimate animation wiring.
@@ -374,6 +486,22 @@ Verification:
 - `npm run build` passed; Vite still reports the existing large chunk warning.
 - develop-web-game smoke ran against localhost:5173. Its existing screenshot path still produced black captures, but `state-1.json` confirmed Diaochan was playing `hero_diaochan_ultimate`.
 - Direct Playwright sustain QA passed 14/14 cases for Guan Yu, Zhao Yun, Zhou Yu, Sun Shangxiang, Diaochan, Dong Zhuo, and Hua Tuo across desktop and iPhone viewports. Results are in `output/web-game/ultimate-qa/ultimate-sustain-qa-results.json`.
+
+TODO:
+- None for this request.
+
+Current request: Add settings-page test mode so all heroes can sortie.
+Notes:
+- Added persistent `gameSettings.testMode` storage and surfaced it in the main settings page.
+- When test mode is enabled, unowned playable heroes become selectable from the roster and codex without changing collection ownership.
+- Centralized sortie guard still blocks unowned heroes when test mode is off.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 9 files, 65 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- develop-web-game client smoke ran against localhost:5182 with no console/page errors; its screenshot path still captured black.
+- Direct Playwright QA passed on desktop 1280x720 and mobile 390x844: Lu Bu was disabled before test mode, settings persisted `testMode: true`, Lu Bu became selectable with the test badge, and desktop battle started with Lu Bu's player animation/texture. Screenshots/results are in `output/web-game/test-mode-qa/`.
 
 TODO:
 - None for this request.
