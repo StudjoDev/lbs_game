@@ -4,26 +4,26 @@ export const bonds: BondDef[] = [
   {
     id: "taoyuan",
     name: "蜀漢同心",
-    description: "劉備、關羽、張飛、趙雲、諸葛亮同場象徵仁義、突進與軍略互補。",
-    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "machao", "zhugeliang"]
+    description: "蜀漢武將同場象徵仁義、突進、軍略、神射與機關術互補。",
+    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "machao", "zhugeliang", "huangzhong", "yueying"]
   },
   {
     id: "weiwu",
     name: "魏武霸業",
-    description: "曹操、夏侯惇、許褚、張遼、司馬懿、甄姬組成軍令、護衛與謀略核心。",
-    characterIds: ["caocao", "xiahoudun", "xuchu", "zhangliao", "simayi", "zhenji"]
+    description: "魏武武將組成軍令、護衛、猛攻與謀略核心。",
+    characterIds: ["caocao", "xiahoudun", "xuchu", "zhangliao", "simayi", "zhenji", "dianwei", "guojia"]
   },
   {
     id: "jiangdong",
     name: "江東烈焰",
-    description: "孫權、周瑜、孫尚香、甘寧、太史慈、小喬以火攻、箭雨與奇襲建立江東節奏。",
-    characterIds: ["sunquan", "zhouyu", "sunshangxiang", "ganning", "taishici", "xiaoqiao"]
+    description: "江東武將以火攻、箭雨、奇襲、雙劍與雙扇控場建立節奏。",
+    characterIds: ["sunquan", "zhouyu", "sunshangxiang", "ganning", "taishici", "xiaoqiao", "luxun", "daqiao"]
   },
   {
     id: "qunfang",
     name: "群雄異彩",
-    description: "貂蟬、張角、袁紹、董卓、華佗、呂布各具奇術、軍勢、重壓與爆發風格。",
-    characterIds: ["diaochan", "zhangjiao", "yuanshao", "dongzhuo", "huatuo", "lubu"]
+    description: "群雄武將各具奇術、軍勢、重壓、幻法與飛將系爆發風格。",
+    characterIds: ["diaochan", "zhangjiao", "yuanshao", "dongzhuo", "huatuo", "zuoci", "lulingqi", "lubu"]
   },
   {
     id: "feijiang",
@@ -249,6 +249,36 @@ export const characterArts: CharacterArtDef[] = [
     palette: { primary: "#7bd6c4", secondary: "#143a36", accent: "#f7f0b6" }
   }),
   createPlayableArt({
+    id: "huangzhong",
+    assetId: "huangzhong",
+    factionId: "shu",
+    name: "黃忠",
+    title: "定軍神射",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "遠程狙擊",
+    quote: "弓弦一響，敵陣先寒。",
+    biography: "蜀軍老將，以長弓神射貫穿敵線。定軍山的老當益壯以金色箭軌和穩定拉弓節奏呈現。",
+    bondIds: ["taoyuan"],
+    palette: { primary: "#d7b35a", secondary: "#2d3424", accent: "#fff0a6" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
+    id: "yueying",
+    assetId: "yueying",
+    factionId: "shu",
+    name: "月英",
+    title: "機關巧匠",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "機關支援",
+    quote: "巧思不止於紙上。",
+    biography: "蜀軍機關術代表。以戰戈、飛輪與木牛連弩建立不同於軍師法術的機械控場風格。",
+    bondIds: ["taoyuan"],
+    palette: { primary: "#3cecc2", secondary: "#14524a", accent: "#f0b24a" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
     id: "caocao",
     assetId: "caocao",
     factionId: "wei",
@@ -332,6 +362,36 @@ export const characterArts: CharacterArtDef[] = [
     bondIds: ["weiwu"],
     palette: { primary: "#8fb8ff", secondary: "#18223c", accent: "#d8f4ff" },
     animationFrameCounts: { idle: 6, run: 6, attack: 8 }
+  }),
+  createPlayableArt({
+    id: "dianwei",
+    assetId: "dianwei",
+    factionId: "wei",
+    name: "典韋",
+    title: "惡來護衛",
+    rarityLabel: "SR",
+    stars: 4,
+    role: "短兵護主",
+    quote: "主公身前，雙戟開路。",
+    biography: "魏軍近身護衛猛將。以短雙戟、重步伐與地裂衝擊和許褚的護主重錘區分。",
+    bondIds: ["weiwu"],
+    palette: { primary: "#355f9f", secondary: "#101827", accent: "#d49a3e" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
+    id: "guojia",
+    assetId: "guojia",
+    factionId: "wei",
+    name: "郭嘉",
+    title: "天妒奇佐",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "冰晶謀士",
+    quote: "奇謀一落，勝負已偏。",
+    biography: "魏軍天才謀士。以法球、冰星與星圖形成獨立的冰晶軌跡，避免與司馬懿雷符重疊。",
+    bondIds: ["weiwu"],
+    palette: { primary: "#72d7ff", secondary: "#14294d", accent: "#f6fbff" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
   }),
   createPlayableArt({
     id: "sunquan",
@@ -419,6 +479,36 @@ export const characterArts: CharacterArtDef[] = [
     animationFrameCounts: { idle: 6, run: 6, attack: 8 }
   }),
   createPlayableArt({
+    id: "luxun",
+    assetId: "luxun",
+    factionId: "wu",
+    name: "陸遜",
+    title: "夷陵火策",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "火劍軍師",
+    quote: "連營一燃，退路無存。",
+    biography: "吳軍火策軍師。以雙劍與細長火線作為主體，和周瑜的琴火與小喬的扇舞火勢區分。",
+    bondIds: ["jiangdong"],
+    palette: { primary: "#f0602f", secondary: "#3a1712", accent: "#ffd166" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
+    id: "daqiao",
+    assetId: "daqiao",
+    factionId: "wu",
+    name: "大喬",
+    title: "江東清瀾",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "水風支援",
+    quote: "清瀾一開，兵鋒自散。",
+    biography: "江東喬氏姐妹中的清瀾支援。以雙扇水風、蓮花波紋與小喬的火扇形成對照。",
+    bondIds: ["jiangdong"],
+    palette: { primary: "#63d5e8", secondary: "#133a4c", accent: "#e8fff9" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
     id: "diaochan",
     assetId: "diaochan",
     factionId: "qun",
@@ -489,6 +579,36 @@ export const characterArts: CharacterArtDef[] = [
     biography: "群雄陣營的支援型武將。以法陣牽制與大拾取範圍維持安全距離。",
     bondIds: ["qunfang"],
     palette: { primary: "#82d7b4", secondary: "#153329", accent: "#fff0a6" }
+  }),
+  createPlayableArt({
+    id: "zuoci",
+    assetId: "zuoci",
+    factionId: "qun",
+    name: "左慈",
+    title: "遁甲仙人",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "五行幻術",
+    quote: "遁甲開門，真假難分。",
+    biography: "群雄幻術型武將。以符咒、分身與五行法陣做出和張角雷法、華佗藥陣不同的仙術語彙。",
+    bondIds: ["qunfang"],
+    palette: { primary: "#a8f5e6", secondary: "#123c36", accent: "#f6fff4" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+  }),
+  createPlayableArt({
+    id: "lulingqi",
+    assetId: "lulingqi",
+    factionId: "qun",
+    name: "呂玲綺",
+    title: "飛將戟姬",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "高速戟舞",
+    quote: "飛將之血，戟影不息。",
+    biography: "飛將血脈的高速戟舞武將。十字戟與紅紫殘影保留呂家壓迫感，但節奏更靈巧敏捷。",
+    bondIds: ["qunfang", "feijiang"],
+    palette: { primary: "#c053ff", secondary: "#26102f", accent: "#ff5f8f" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
   }),
   createPlayableArt({
     id: "lubu",

@@ -236,6 +236,70 @@ export const heroes: HeroDef[] = [
     }
   }),
   createHero({
+    id: "huangzhong",
+    factionId: "shu",
+    name: "黃忠",
+    title: "定軍神射",
+    role: "遠程狙擊",
+    passiveName: "老當益壯",
+    passiveText: "距離越遠越能維持穩定輸出，箭矢穿透力適合清理長列敵軍。",
+    baseStats: { maxHp: 122, moveSpeed: 226, armor: 2, pickupRadius: 112 },
+    autoAbility: {
+      name: "定軍穿雲",
+      description: "拉開大弓射出穿透箭矢。",
+      cooldown: 0.92,
+      range: 640,
+      radius: 22,
+      damage: 22,
+      damageTags: ["arrow", "pierce"],
+      vfxKey: "huangzhong_golden_arrow",
+      effectId: "fan_bolts"
+    },
+    manualAbility: {
+      name: "百步裂陣",
+      description: "蓄力射出破陣箭，貫穿前方敵軍。",
+      cooldown: 7.1,
+      range: 760,
+      radius: 34,
+      damage: 60,
+      damageTags: ["arrow", "pierce", "command"],
+      vfxKey: "huangzhong_arrowstorm",
+      effectId: "phoenix_feathers"
+    }
+  }),
+  createHero({
+    id: "yueying",
+    factionId: "shu",
+    name: "月英",
+    title: "機關巧匠",
+    role: "機關支援",
+    passiveName: "巧思連環",
+    passiveText: "機關攻勢能穩定牽制敵群，適合用中距離陣地戰補足蜀軍控場。",
+    baseStats: { maxHp: 118, moveSpeed: 222, armor: 2, pickupRadius: 116 },
+    autoAbility: {
+      name: "戰戈飛輪",
+      description: "揮動戰戈放出機關飛輪。",
+      cooldown: 1.12,
+      range: 500,
+      radius: 58,
+      damage: 23,
+      damageTags: ["command", "shock"],
+      vfxKey: "yueying_gear_wheel",
+      effectId: "frost_lotus"
+    },
+    manualAbility: {
+      name: "木牛連弩",
+      description: "展開機關弩陣，向前方連續齊射。",
+      cooldown: 8,
+      range: 620,
+      radius: 64,
+      damage: 48,
+      damageTags: ["command", "pierce"],
+      vfxKey: "yueying_repeating_crossbow",
+      effectId: "fan_bolts"
+    }
+  }),
+  createHero({
     id: "caocao",
     factionId: "wei",
     name: "曹操",
@@ -424,6 +488,70 @@ export const heroes: HeroDef[] = [
       damage: 49,
       damageTags: ["command", "shock", "charm"],
       vfxKey: "thunder_charm",
+      effectId: "thunder_charm"
+    }
+  }),
+  createHero({
+    id: "dianwei",
+    factionId: "wei",
+    name: "典韋",
+    title: "惡來護衛",
+    role: "短兵護主",
+    passiveName: "惡來鐵壁",
+    passiveText: "高護甲與近身爆發讓他能守住前線，雙戟攻勢擅長震開包圍。",
+    baseStats: { maxHp: 178, moveSpeed: 202, armor: 7, pickupRadius: 86 },
+    autoAbility: {
+      name: "雙戟惡斬",
+      description: "雙戟交錯重砍近身敵軍。",
+      cooldown: 1.12,
+      range: 220,
+      radius: 94,
+      damage: 32,
+      damageTags: ["blade", "shock"],
+      vfxKey: "dianwei_twin_axes",
+      effectId: "heavy_cleave"
+    },
+    manualAbility: {
+      name: "惡來碎地",
+      description: "雙戟砸地爆出短距震波。",
+      cooldown: 9.1,
+      range: 230,
+      radius: 148,
+      damage: 58,
+      damageTags: ["shock", "blade"],
+      vfxKey: "dianwei_ground_crack",
+      effectId: "blood_rage"
+    }
+  }),
+  createHero({
+    id: "guojia",
+    factionId: "wei",
+    name: "郭嘉",
+    title: "天妒奇佐",
+    role: "冰晶謀士",
+    passiveName: "冰星奇謀",
+    passiveText: "法球攻勢能在中遠距離牽制敵群，冰晶軌跡適合處理高威脅目標。",
+    baseStats: { maxHp: 112, moveSpeed: 230, armor: 1, pickupRadius: 126 },
+    autoAbility: {
+      name: "冰星法球",
+      description: "驅動法球彈射冰晶。",
+      cooldown: 1.02,
+      range: 570,
+      radius: 54,
+      damage: 20,
+      damageTags: ["command", "shock"],
+      vfxKey: "guojia_orb_ice",
+      effectId: "frost_lotus"
+    },
+    manualAbility: {
+      name: "天妒星圖",
+      description: "法球排成星圖後爆出冰晶雨。",
+      cooldown: 8.3,
+      range: 620,
+      radius: 96,
+      damage: 48,
+      damageTags: ["command", "shock"],
+      vfxKey: "guojia_ice_star",
       effectId: "thunder_charm"
     }
   }),
@@ -620,6 +748,70 @@ export const heroes: HeroDef[] = [
     }
   }),
   createHero({
+    id: "luxun",
+    factionId: "wu",
+    name: "陸遜",
+    title: "夷陵火策",
+    role: "火劍軍師",
+    passiveName: "連營火線",
+    passiveText: "雙劍火線能快速鋪開燃燒路徑，適合機動牽制與連鎖清場。",
+    baseStats: { maxHp: 118, moveSpeed: 250, armor: 2, pickupRadius: 108 },
+    autoAbility: {
+      name: "雙劍火線",
+      description: "雙劍交斬放出細長火線。",
+      cooldown: 0.88,
+      range: 450,
+      radius: 30,
+      damage: 23,
+      damageTags: ["blade", "fire"],
+      vfxKey: "luxun_fireline",
+      effectId: "fire_note"
+    },
+    manualAbility: {
+      name: "夷陵連營",
+      description: "點燃連營火陣，沿前方路徑連鎖爆燃。",
+      cooldown: 7.4,
+      range: 540,
+      radius: 76,
+      damage: 66,
+      damageTags: ["fire", "command"],
+      vfxKey: "luxun_camp_chain",
+      effectId: "red_cliff_fire"
+    }
+  }),
+  createHero({
+    id: "daqiao",
+    factionId: "wu",
+    name: "大喬",
+    title: "江東清瀾",
+    role: "水風支援",
+    passiveName: "清風護瀾",
+    passiveText: "水風扇舞能推開敵勢並穩定控場，和小喬火舞形成姐妹對照。",
+    baseStats: { maxHp: 116, moveSpeed: 236, armor: 2, pickupRadius: 128 },
+    autoAbility: {
+      name: "雙扇清波",
+      description: "雙扇推出清藍水風弧。",
+      cooldown: 0.98,
+      range: 480,
+      radius: 44,
+      damage: 18,
+      damageTags: ["charm", "shock", "command"],
+      vfxKey: "daqiao_clear_wave",
+      effectId: "frost_lotus"
+    },
+    manualAbility: {
+      name: "江東清瀾",
+      description: "展開蓮花水環，推離並壓制周遭敵群。",
+      cooldown: 8.4,
+      range: 390,
+      radius: 150,
+      damage: 38,
+      damageTags: ["charm", "shock", "command"],
+      vfxKey: "daqiao_lotus_wave",
+      effectId: "allure_dance"
+    }
+  }),
+  createHero({
     id: "diaochan",
     factionId: "qun",
     name: "貂蟬",
@@ -777,6 +969,70 @@ export const heroes: HeroDef[] = [
       damageTags: ["charm", "shock"],
       vfxKey: "allure_dance",
       effectId: "allure_dance"
+    }
+  }),
+  createHero({
+    id: "zuoci",
+    factionId: "qun",
+    name: "左慈",
+    title: "遁甲仙人",
+    role: "五行幻術",
+    passiveName: "遁甲奇門",
+    passiveText: "符咒與幻影能在遠距牽制敵群，五行法陣讓群雄路線多一名高階法師。",
+    baseStats: { maxHp: 114, moveSpeed: 234, armor: 1, pickupRadius: 128 },
+    autoAbility: {
+      name: "五行符令",
+      description: "放出五行符咒追擊敵人。",
+      cooldown: 1,
+      range: 580,
+      radius: 58,
+      damage: 20,
+      damageTags: ["command", "charm"],
+      vfxKey: "zuoci_five_talismans",
+      effectId: "thunder_charm"
+    },
+    manualAbility: {
+      name: "遁甲天書",
+      description: "展開五行幻陣，分身同時施法。",
+      cooldown: 8.5,
+      range: 560,
+      radius: 112,
+      damage: 46,
+      damageTags: ["command", "charm", "shock"],
+      vfxKey: "zuoci_dunjia_array",
+      effectId: "frost_lotus"
+    }
+  }),
+  createHero({
+    id: "lulingqi",
+    factionId: "qun",
+    name: "呂玲綺",
+    title: "飛將戟姬",
+    role: "高速戟舞",
+    passiveName: "飛將血脈",
+    passiveText: "十字戟連段迅疾，能以紅紫殘影切開近身敵群。",
+    baseStats: { maxHp: 126, moveSpeed: 256, armor: 3, pickupRadius: 104 },
+    autoAbility: {
+      name: "十字戟舞",
+      description: "快速揮出十字形戟痕。",
+      cooldown: 0.84,
+      range: 280,
+      radius: 82,
+      damage: 25,
+      damageTags: ["blade", "shock"],
+      vfxKey: "lulingqi_cross_halberd",
+      effectId: "arc_sweep"
+    },
+    manualAbility: {
+      name: "飛將血刃",
+      description: "突入敵群後連續戟舞爆開紅紫戟光。",
+      cooldown: 7.6,
+      range: 360,
+      radius: 78,
+      damage: 66,
+      damageTags: ["blade", "shock"],
+      vfxKey: "lulingqi_bloodline_dash",
+      effectId: "seven_dashes"
     }
   }),
   createHero({

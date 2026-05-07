@@ -5,6 +5,19 @@ import { heroes } from "./heroes";
 import { bonds, characterArtById, characterArts } from "./characterArt";
 
 const projectRoot = process.cwd();
+const upgradedAnimationIds = new Set([
+  "diaochan",
+  "xiaoqiao",
+  "zhenji",
+  "huangzhong",
+  "yueying",
+  "dianwei",
+  "guojia",
+  "luxun",
+  "daqiao",
+  "zuoci",
+  "lulingqi"
+]);
 
 /** Map Vite-resolved URL paths back to `public/`-relative paths for filesystem checks. */
 function publicRelativeFromBrowserPath(browserPath: string): string {
@@ -30,7 +43,7 @@ describe("character art manifest", () => {
       expect(art.animations?.idle?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
       expect(art.animations?.run?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
       expect(art.animations?.attack?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
-      if (["diaochan", "xiaoqiao", "zhenji"].includes(art.id)) {
+      if (upgradedAnimationIds.has(art.id)) {
         expect(art.animations?.idle?.framePaths).toHaveLength(6);
         expect(art.animations?.run?.framePaths).toHaveLength(6);
         expect(art.animations?.attack?.framePaths).toHaveLength(8);
@@ -101,6 +114,11 @@ describe("character art manifest", () => {
     const files = listFiles(activeRoot);
 
     expect(files.some((path) => path.endsWith(".svg"))).toBe(false);
+  });
+
+  it("does not keep or regenerate legacy SVG character placeholders", () => {
+    expect(existsSync(join(projectRoot, "scripts", "legacy", "generate-character-assets-svg.mjs"))).toBe(false);
+    expect(existsSync(join(projectRoot, "public", "assets", "legacy", "characters-svg"))).toBe(false);
   });
 
   it("defines collection bonds for every referenced bond id", () => {
