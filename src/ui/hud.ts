@@ -59,39 +59,32 @@ export class BattleHud {
     const remaining = Math.max(0, state.duration - state.elapsed);
     const ultimateActive = state.player.ultimateTimer > 0;
     const manualReady = state.doorOpen || state.player.manualCooldown <= 0;
-    const bossText = state.bossSpawned ? "呂布已現身" : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} 呂布`;
-    const buildChips = getBuildChips(state);
+    const bossName = state.conquestCityId ? (state.gatekeeperName ?? "守將") : "呂布";
+    const bossText = state.bossSpawned ? `${bossName}已現身` : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} ${bossName}`;
     const roomText = state.doorOpen
       ? "門已開"
       : state.conquestCityName
         ? `${state.conquestCityName} · ${roomTypeLabel(state.roomType)}`
         : `${state.chapterName} · ${roomTypeLabel(state.roomType)}`;
-    void bossText;
     const objectiveProgress = Math.min(state.roomObjective.goal, Math.floor(state.roomObjective.progress));
 
     this.status.innerHTML = `
-      <div class="hud-card hero-chip">
-        <span>${state.faction.name}</span>
-        <strong>${state.hero.name}</strong>
-        <small>${state.hero.title}</small>
-      </div>
-      <div class="hud-card bars">
+      <div class="hud-card bars hud-vitals">
         <div class="bar-row"><span>兵力</span><div class="bar"><i style="width:${hpPercent * 100}%"></i></div><b>${Math.ceil(state.player.hp)}</b></div>
         <div class="bar-row xp"><span>戰功</span><div class="bar"><i style="width:${xpPercent * 100}%"></i></div><b>Lv.${state.player.level}</b></div>
-        <div class="bar-row morale"><span>士氣</span><div class="bar"><i style="width:${moralePercent * 100}%"></i></div><b>${Math.floor(state.player.morale)}</b></div>
-      </div>
-      <div class="hud-card run-chip">
-        <span>${formatTime(remaining)}</span>
-        <strong>${state.kills} 斬</strong>
-        <small>${roomText}</small>
       </div>
       <div class="hud-card objective-chip">
         <span>戰場目標</span>
         <strong>${state.objective.title}</strong>
         <small>${objectiveProgress}/${state.objective.goal} · ${state.objective.description}</small>
       </div>
-      <div class="hud-card build-strip">
-        ${buildChips.map((chip) => `<span class="${chip.tone}">${chip.label}</span>`).join("")}
+      <div class="hud-meta">
+        <span>${state.hero.name}</span>
+        <span>${formatTime(remaining)}</span>
+        <span>${state.kills}斬</span>
+        <span>士氣 ${Math.floor(moralePercent * 100)}%</span>
+        <span>${bossText}</span>
+        <span>${roomText}</span>
       </div>
       <button class="pause-button" data-pause="true">暫停</button>
     `;
@@ -186,8 +179,11 @@ export class BattleHud {
     this.modal.className = "hud-modal is-open";
     this.modal.innerHTML = `
       <section class="upgrade-panel">
-        <span class="panel-kicker">戰功已滿</span>
-        <h2>選擇一項軍令</h2>
+        <div class="modal-heading">
+          <span class="panel-kicker">戰功已滿</span>
+          <h2>選擇軍令</h2>
+          <small>挑一項強化本局流派，選定後立即回到戰場。</small>
+        </div>
         <div class="upgrade-grid">
           ${options.map((upgrade) => renderUpgradeCard(upgrade, state.upgrades[upgrade.id] ?? 0)).join("")}
         </div>
@@ -217,8 +213,11 @@ export class BattleHud {
     this.modal.className = "hud-modal is-open";
     this.modal.innerHTML = `
       <section class="pause-panel">
-        <span class="panel-kicker">軍令暫停</span>
-        <h2>整軍再戰</h2>
+        <div class="modal-heading">
+          <span class="panel-kicker">軍令暫停</span>
+          <h2>整軍再戰</h2>
+        </div>
+        ${state ? renderPauseRunSummary(state) : ""}
         ${state ? renderCurrentBuildList(state) : ""}
         ${renderAudioControls(this.callbacks.getAudioSettings())}
         <div class="pause-actions">
@@ -263,9 +262,11 @@ export class BattleHud {
     this.modal.className = "hud-modal is-open";
     this.modal.innerHTML = `
       <section class="result-panel ${won ? "won" : "lost"}">
-        <span class="panel-kicker">${won ? "虎牢告捷" : "兵敗虎牢"}</span>
-        <h2>${won ? "呂布已敗" : "亂軍壓境"}</h2>
-        <p>${state.hero.name} 斬敵 ${state.kills}，戰功 ${state.score}</p>
+        <div class="modal-heading">
+          <span class="panel-kicker">${won ? "虎牢告捷" : "兵敗虎牢"}</span>
+          <h2>${won ? "呂布已敗" : "亂軍壓境"}</h2>
+          <small>${state.hero.name} 斬敵 ${state.kills}，戰功 ${state.score}</small>
+        </div>
         ${settlement ? renderSettlementRewards(settlement) : ""}
         ${settlement ? renderChapterSettlement(settlement) : ""}
         ${settlement ? renderConquestSettlement(settlement) : ""}
@@ -316,6 +317,20 @@ function renderConquestSettlement(settlement: MetaRunSettlement): string {
       ${settlement.recruitedHeroName ? `<span><b>守將加入</b>${settlement.recruitedHeroName}</span>` : ""}
       ${settlement.unlockedCityNames.length > 0 ? `<span><b>新城解鎖</b>${settlement.unlockedCityNames.join(" / ")}</span>` : ""}
       ${settlement.unified ? "<span><b>天下</b>統一完成</span>" : ""}
+    </div>
+  `;
+}
+
+function renderPauseRunSummary(state: RunState): string {
+  const remaining = Math.max(0, state.duration - state.elapsed);
+  const buildChips = getBuildChips(state);
+  return `
+    <div class="pause-run-summary">
+      <span><b>武將</b>${state.hero.name}</span>
+      <span><b>時間</b>${formatTime(remaining)}</span>
+      <span><b>斬敵</b>${state.kills}</span>
+      <span><b>房間</b>${state.roomIndex + 1}/${state.roomCount}</span>
+      <div>${buildChips.map((chip) => `<i class="${chip.tone}">${chip.label}</i>`).join("")}</div>
     </div>
   `;
 }

@@ -17,8 +17,8 @@ function publicRelativeFromBrowserPath(browserPath: string): string {
 }
 
 describe("character art manifest", () => {
-  it("contains the full playable roster plus Lu Bu with complete art slots", () => {
-    expect(characterArts).toHaveLength(heroes.length + 1);
+  it("contains the full playable roster with complete art slots", () => {
+    expect(characterArts).toHaveLength(heroes.length);
     for (const art of characterArts) {
       expect(art.cardImage).toMatch(/card\.png$/);
       expect(art.battleImage).toMatch(/battle-idle\.png$/);
@@ -27,6 +27,14 @@ describe("character art manifest", () => {
       expect(art.attackFrames).toHaveLength(4);
       expect(art.attackFrames.every((path) => path.endsWith(".png"))).toBe(true);
       expect(art.attackFrameKeys).toHaveLength(4);
+      expect(art.animations?.idle?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
+      expect(art.animations?.run?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
+      expect(art.animations?.attack?.framePaths.length ?? 0).toBeGreaterThanOrEqual(4);
+      if (["diaochan", "xiaoqiao", "zhenji"].includes(art.id)) {
+        expect(art.animations?.idle?.framePaths).toHaveLength(6);
+        expect(art.animations?.run?.framePaths).toHaveLength(6);
+        expect(art.animations?.attack?.framePaths).toHaveLength(8);
+      }
       if (art.playable) {
         expect(art.animations?.ultimate?.framePaths).toHaveLength(8);
         expect(art.animations?.ultimate?.frameKeys).toHaveLength(8);

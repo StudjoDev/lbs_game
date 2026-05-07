@@ -365,16 +365,25 @@ describe("combat simulation", () => {
   });
 
   it("spawns the conquest city gatekeeper in boss rooms", () => {
-    const state = createRun("liubei", 5, undefined, "yellow_turbans", "jingzhou");
-    enterChapterRoom(state, 7);
+    const cases = [
+      { cityId: "jingzhou", gatekeeperHeroId: "guanyu" },
+      { cityId: "luoshui", gatekeeperHeroId: "zhenji" },
+      { cityId: "wan_city", gatekeeperHeroId: "xiaoqiao" },
+      { cityId: "hulao_gate", gatekeeperHeroId: "lubu" }
+    ] as const;
 
-    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.02);
+    for (const { cityId, gatekeeperHeroId } of cases) {
+      const state = createRun("liubei", 5, undefined, "yellow_turbans", cityId);
+      enterChapterRoom(state, 7);
 
-    expect(state.conquestCityId).toBe("jingzhou");
-    expect(state.gatekeeperHeroId).toBe("guanyu");
-    expect(state.bossSpawned).toBe(true);
-    expect(state.enemies.some((enemy) => enemy.gatekeeperHeroId === "guanyu")).toBe(true);
-    expect(state.enemies.some((enemy) => enemy.defId === "lubu")).toBe(false);
+      updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.02);
+
+      expect(state.conquestCityId).toBe(cityId);
+      expect(state.gatekeeperHeroId).toBe(gatekeeperHeroId);
+      expect(state.bossSpawned).toBe(true);
+      expect(state.enemies.some((enemy) => enemy.gatekeeperHeroId === gatekeeperHeroId)).toBe(true);
+      expect(state.enemies.some((enemy) => enemy.defId === "lubu")).toBe(false);
+    }
   });
 
   it("wins when Lu Bu is defeated", () => {

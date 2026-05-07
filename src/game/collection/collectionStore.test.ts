@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { characterArts } from "../content/characterArt";
 import { starterHeroIds } from "../content/conquest";
-import { collectionStorageKey, createDefaultCollectionState, loadCollection, recruitCharacter, revealBossDefeat } from "./collectionStore";
+import { collectionStorageKey, createDefaultCollectionState, loadCollection, recruitCharacter } from "./collectionStore";
 
 function createMemoryStorage(initial?: string): Pick<Storage, "getItem" | "setItem"> {
   const store = new Map<string, string>();
@@ -27,7 +27,7 @@ describe("collection store", () => {
       expect(state[id].owned).toBe((starterHeroIds as readonly string[]).includes(id));
     }
     expect(state.lubu.owned).toBe(false);
-    expect(state.lubu.revealed).toBe(false);
+    expect(state.lubu.revealed).toBe(true);
   });
 
   it("recruits and persists a conquered gatekeeper", () => {
@@ -41,15 +41,15 @@ describe("collection store", () => {
     expect(reloaded.guanyu.revealed).toBe(true);
   });
 
-  it("reveals and persists Lu Bu after a boss defeat", () => {
+  it("recruits and persists Lu Bu from Hu Lao Gate", () => {
     const storage = createMemoryStorage();
 
-    const unlocked = revealBossDefeat("lubu", storage);
+    const unlocked = recruitCharacter("lubu", storage);
     const reloaded = loadCollection(storage);
 
     expect(unlocked.lubu.owned).toBe(true);
     expect(unlocked.lubu.revealed).toBe(true);
-    expect(unlocked.lubu.defeatedAt).toBeTruthy();
+    expect(unlocked.lubu.defeatedAt).toBeUndefined();
     expect(reloaded.lubu.owned).toBe(true);
     expect(reloaded.lubu.revealed).toBe(true);
   });
@@ -61,6 +61,6 @@ describe("collection store", () => {
 
     expect(state.liubei.owned).toBe(true);
     expect(state.guanyu.owned).toBe(false);
-    expect(state.lubu.revealed).toBe(false);
+    expect(state.lubu.revealed).toBe(true);
   });
 });

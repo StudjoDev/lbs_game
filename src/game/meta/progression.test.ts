@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entryCityIds } from "../content/conquest";
+import { conquestCities, entryCityIds } from "../content/conquest";
 import { createRun } from "../simulation/createRun";
 import {
   accrueIdleRewards,
@@ -57,6 +57,7 @@ describe("meta progression", () => {
     expect(normalized.idle.lastClaimedAt).toBe(new Date(0).toISOString());
     expect(normalized.idle.unclaimed).toEqual({ merit: 4, provisions: 0, renown: 1 });
     expect(normalized.stats).toEqual({ runsPlayed: 1, wins: 0, bestKills: 33, bossDefeats: 0 });
+    expect(Object.keys(normalized.conquest.cities)).toHaveLength(conquestCities.length);
     expect(Object.keys(normalized.conquest.cities).filter((id) => normalized.conquest.cities[id as keyof typeof normalized.conquest.cities].unlocked)).toEqual(
       [...entryCityIds]
     );
@@ -152,9 +153,42 @@ describe("meta progression", () => {
     expect(repeat.settlement.resources.merit).toBeLessThan(first.settlement.resources.merit);
   });
 
+  it("recruits the added route gatekeepers from their conquest cities", () => {
+    const recruitments = [
+      { cityId: "luoshui", heroId: "zhenji" },
+      { cityId: "wan_city", heroId: "xiaoqiao" },
+      { cityId: "hulao_gate", heroId: "lubu" }
+    ] as const;
+
+    for (const { cityId, heroId } of recruitments) {
+      const state = createDefaultMetaProgressionState(0);
+      state.conquest.cities[cityId] = {
+        ...state.conquest.cities[cityId],
+        unlocked: true
+      };
+
+      const result = applyRunSettlement(state, {
+        heroId: "diaochan",
+        status: "won",
+        kills: 86,
+        score: 760,
+        playerLevel: 7,
+        chapterId: "red_cliff_line",
+        conquestCityId: cityId,
+        roomIndex: 7,
+        roomCount: 8,
+        chapterCleared: true
+      });
+
+      expect(result.state.conquest.cities[cityId].conquered).toBe(true);
+      expect(result.settlement.conqueredCityId).toBe(cityId);
+      expect(result.settlement.recruitedHeroId).toBe(heroId);
+    }
+  });
+
   it("unlocks Luoyang after four routes and marks unification after conquering it", () => {
     const state = createDefaultMetaProgressionState(0);
-    for (const cityId of ["longzhong", "yecheng", "shenting", "qingnang_valley"] as const) {
+    for (const cityId of ["longzhong", "luoshui", "wan_city", "hulao_gate"] as const) {
       state.conquest.cities[cityId] = {
         ...state.conquest.cities[cityId],
         unlocked: true,

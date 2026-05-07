@@ -15,7 +15,7 @@ import {
   type VfxProfile
 } from "../../game/assets/manifest";
 import type { MusicKey } from "../../game/audio/catalog";
-import { recruitCharacter, revealBossDefeat } from "../../game/collection/collectionStore";
+import { recruitCharacter } from "../../game/collection/collectionStore";
 import { characterArtById } from "../../game/content/characterArt";
 import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import { ultimateByHeroId } from "../../game/content/ultimates";
@@ -138,7 +138,6 @@ export class BattleScene extends Phaser.Scene {
   private playerUltimateAnimationActive = false;
   private playerUltimateAnimUntil = 0;
   private lastAutoCooldown = 0;
-  private bossUnlockSaved = false;
   private resultSettled = false;
   private lastResultSfx?: "won" | "lost";
   private metaSettlement?: MetaRunSettlement;
@@ -160,7 +159,6 @@ export class BattleScene extends Phaser.Scene {
     this.playerAttackActive = false;
     this.playerUltimateAnimationActive = false;
     this.playerUltimateAnimUntil = 0;
-    this.bossUnlockSaved = false;
     this.resultSettled = false;
     this.lastResultSfx = undefined;
     this.metaSettlement = undefined;
@@ -257,10 +255,6 @@ export class BattleScene extends Phaser.Scene {
       setPaused(this.run, this.run.status !== "paused");
     }
     updateRun(this.run, input, deltaMs / 1000);
-    if (this.run.status === "won" && !this.bossUnlockSaved && !this.run.conquestCityId) {
-      revealBossDefeat("lubu");
-      this.bossUnlockSaved = true;
-    }
     this.settleMetaProgression(this.run);
     this.syncAudioState(this.run);
     this.syncRender(this.run);

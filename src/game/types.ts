@@ -11,17 +11,20 @@ export type HeroId =
   | "xuchu"
   | "zhangliao"
   | "simayi"
+  | "zhenji"
   | "sunquan"
   | "zhouyu"
   | "sunshangxiang"
   | "ganning"
   | "taishici"
+  | "xiaoqiao"
   | "diaochan"
   | "zhangjiao"
   | "yuanshao"
   | "dongzhuo"
-  | "huatuo";
-export type CharacterId = HeroId | "lubu";
+  | "huatuo"
+  | "lubu";
+export type CharacterId = HeroId;
 export type EnemyId = "infantry" | "archer" | "shield" | "cavalry" | "captain" | "lubu";
 export type AbilityTrigger = "auto" | "manual" | "ultimate";
 export type DamageTag = "blade" | "pierce" | "fire" | "command" | "shock" | "arrow" | "charm";
@@ -38,13 +41,16 @@ export type ConquestCityId =
   | "qiaojun"
   | "hefei"
   | "yecheng"
+  | "luoshui"
   | "jianye"
   | "wujun"
   | "jinfan_camp"
   | "shenting"
+  | "wan_city"
   | "julu"
   | "guandu"
   | "qingnang_valley"
+  | "hulao_gate"
   | "luoyang";
 export type ChapterRoomType = "normal" | "elite" | "treasure" | "rest" | "boss";
 export type ChapterRoomStatus = "fighting" | "cleared";

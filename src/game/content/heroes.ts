@@ -53,8 +53,8 @@ export const heroes: HeroDef[] = [
     passiveText: "拾取經驗後短暫提高同陣營支援傷害，適合穩定開局。",
     baseStats: { maxHp: 138, moveSpeed: 232, armor: 3, pickupRadius: 112 },
     autoAbility: {
-      name: "仁德劍光",
-      description: "揮出數道劍令，穿透前方敵軍。",
+      name: "仁德雙劍",
+      description: "揮動雙股劍放出數道劍令，穿透前方敵軍。",
       cooldown: 1.02,
       range: 430,
       radius: 30,
@@ -64,15 +64,15 @@ export const heroes: HeroDef[] = [
       effectId: "guard_swords"
     },
     manualAbility: {
-      name: "昭烈號令",
-      description: "在身前擂鼓振軍，造成範圍衝擊。",
+      name: "昭烈劍陣",
+      description: "以雙股劍引出仁德劍陣，掃開前方敵群。",
       cooldown: 8.2,
       range: 300,
       radius: 116,
       damage: 52,
-      damageTags: ["command", "shock"],
-      vfxKey: "siege_drums",
-      effectId: "siege_drums"
+      damageTags: ["command", "blade"],
+      vfxKey: "wei_swords",
+      effectId: "guard_swords"
     }
   }),
   createHero({
@@ -118,7 +118,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 176, moveSpeed: 206, armor: 6, pickupRadius: 88 },
     autoAbility: {
       name: "丈八橫掃",
-      description: "以蛇矛橫掃近身敵人。",
+      description: "以丈八蛇矛橫掃近身敵人。",
       cooldown: 1.16,
       range: 245,
       radius: 96,
@@ -396,6 +396,38 @@ export const heroes: HeroDef[] = [
     }
   }),
   createHero({
+    id: "zhenji",
+    factionId: "wei",
+    name: "甄姬",
+    title: "洛水凌波",
+    role: "冰雷控場",
+    passiveName: "凌波微步",
+    passiveText: "以鐵笛引動冰蓮與雷符，適合控制中遠距守城壓力。",
+    baseStats: { maxHp: 114, moveSpeed: 232, armor: 2, pickupRadius: 124 },
+    autoAbility: {
+      name: "洛水笛音",
+      description: "以鐵笛奏出冰蓮，在最近敵人腳下展開寒霜法陣。",
+      cooldown: 1.02,
+      range: 540,
+      radius: 74,
+      damage: 20,
+      damageTags: ["command", "shock"],
+      vfxKey: "frost_lotus",
+      effectId: "frost_lotus"
+    },
+    manualAbility: {
+      name: "凌波雷曲",
+      description: "奏出雷曲召下連環雷符，打擊高威脅目標。",
+      cooldown: 8.2,
+      range: 620,
+      radius: 76,
+      damage: 49,
+      damageTags: ["command", "shock", "charm"],
+      vfxKey: "thunder_charm",
+      effectId: "thunder_charm"
+    }
+  }),
+  createHero({
     id: "sunquan",
     factionId: "wu",
     name: "孫權",
@@ -498,11 +530,11 @@ export const heroes: HeroDef[] = [
     title: "錦帆夜襲",
     role: "高速奇襲",
     passiveName: "鈴聲夜渡",
-    passiveText: "攻擊節奏快，擅長用分身斬線清出移動空間。",
+    passiveText: "攻擊節奏快，擅長用鎖鐮斬影清出移動空間。",
     baseStats: { maxHp: 128, moveSpeed: 258, armor: 2, pickupRadius: 104 },
     autoAbility: {
-      name: "錦帆快斬",
-      description: "放出多道快速斬影。",
+      name: "錦帆鎖鐮",
+      description: "甩出鎖鐮與短刃，放出多道快速斬影。",
       cooldown: 0.86,
       range: 440,
       radius: 28,
@@ -556,33 +588,65 @@ export const heroes: HeroDef[] = [
     }
   }),
   createHero({
+    id: "xiaoqiao",
+    factionId: "wu",
+    name: "小喬",
+    title: "東風花火",
+    role: "火舞支援",
+    passiveName: "東風流韻",
+    passiveText: "以雙扇火舞鋪場，能在移動中維持大範圍壓制。",
+    baseStats: { maxHp: 112, moveSpeed: 242, armor: 1, pickupRadius: 126 },
+    autoAbility: {
+      name: "雙扇火符",
+      description: "揮動雙扇放出火符並留下短暫灼燒區。",
+      cooldown: 0.94,
+      range: 455,
+      radius: 32,
+      damage: 19,
+      damageTags: ["fire", "charm"],
+      vfxKey: "fire_note",
+      effectId: "fire_note"
+    },
+    manualAbility: {
+      name: "東風焰舞",
+      description: "以雙扇引動東風，沿前方展開連環火舞。",
+      cooldown: 8,
+      range: 360,
+      radius: 154,
+      damage: 40,
+      damageTags: ["fire", "charm", "command"],
+      vfxKey: "red_cliff_fire",
+      effectId: "red_cliff_fire"
+    }
+  }),
+  createHero({
     id: "diaochan",
     factionId: "qun",
     name: "貂蟬",
     title: "閉月舞姬",
     role: "近戰魅惑",
-    passiveName: "連環花舞",
-    passiveText: "魅惑與花刃能短暫牽制敵群。",
+    passiveName: "連環彩帶",
+    passiveText: "魅惑與絲帶弧光能短暫牽制敵群。",
     baseStats: { maxHp: 124, moveSpeed: 252, armor: 2, pickupRadius: 116 },
     autoAbility: {
-      name: "花刃旋舞",
-      description: "旋身揮出花瓣刀光。",
+      name: "彩帶旋舞",
+      description: "旋身甩出絲帶弧光。",
       cooldown: 0.86,
       range: 230,
       radius: 104,
       damage: 23,
-      damageTags: ["blade", "charm"],
+      damageTags: ["charm"],
       vfxKey: "petal_waltz",
       effectId: "petal_waltz"
     },
     manualAbility: {
-      name: "閉月傾城",
-      description: "以大範圍舞步魅惑並震散敵人。",
+      name: "閉月彩帶",
+      description: "以彩帶圓舞魅惑並震散敵人。",
       cooldown: 7.8,
       range: 280,
       radius: 158,
       damage: 48,
-      damageTags: ["blade", "charm", "shock"],
+      damageTags: ["charm", "shock"],
       vfxKey: "allure_dance",
       effectId: "allure_dance"
     }
@@ -598,7 +662,7 @@ export const heroes: HeroDef[] = [
     baseStats: { maxHp: 116, moveSpeed: 226, armor: 1, pickupRadius: 124 },
     autoAbility: {
       name: "太平雷符",
-      description: "召雷打擊最近數名敵人。",
+      description: "舉起太平杖召雷，打擊最近數名敵人。",
       cooldown: 1.04,
       range: 590,
       radius: 58,
@@ -609,7 +673,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       name: "黃天冰蓮",
-      description: "在敵群腳下開出大範圍法陣。",
+      description: "以太平杖在敵群腳下開出大範圍法陣。",
       cooldown: 8.2,
       range: 560,
       radius: 98,
@@ -629,8 +693,8 @@ export const heroes: HeroDef[] = [
     passiveText: "範圍與軍令兼備，適合用大量投射壓線。",
     baseStats: { maxHp: 142, moveSpeed: 214, armor: 4, pickupRadius: 108 },
     autoAbility: {
-      name: "盟主旗令",
-      description: "以旗令打出多道軍勢衝擊。",
+      name: "盟主劍令",
+      description: "以寶劍與旗令打出多道軍勢衝擊。",
       cooldown: 1.08,
       range: 480,
       radius: 34,
@@ -641,7 +705,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       name: "河北萬騎",
-      description: "號令大軍直線衝鋒，貫穿敵群。",
+      description: "舉劍號令大軍直線衝鋒，貫穿敵群。",
       cooldown: 8.4,
       range: 720,
       radius: 58,
@@ -661,8 +725,8 @@ export const heroes: HeroDef[] = [
     passiveText: "高生命值與大範圍震擊，適合粗暴撞開包圍。",
     baseStats: { maxHp: 190, moveSpeed: 190, armor: 7, pickupRadius: 86 },
     autoAbility: {
-      name: "西涼重槌",
-      description: "以巨力重砸近身敵軍。",
+      name: "西涼鎖錘",
+      description: "以鎖錘與重槌砸開近身敵軍。",
       cooldown: 1.28,
       range: 235,
       radius: 108,
@@ -673,7 +737,7 @@ export const heroes: HeroDef[] = [
     },
     manualAbility: {
       name: "暴虐血宴",
-      description: "爆發狂怒，震開周圍敵人。",
+      description: "爆發狂怒甩動鎖錘，震開周圍敵人。",
       cooldown: 9.5,
       range: 220,
       radius: 160,
@@ -713,6 +777,38 @@ export const heroes: HeroDef[] = [
       damageTags: ["charm", "shock"],
       vfxKey: "allure_dance",
       effectId: "allure_dance"
+    }
+  }),
+  createHero({
+    id: "lubu",
+    factionId: "qun",
+    name: "呂布",
+    title: "飛將無雙",
+    role: "近戰爆發",
+    passiveName: "人中飛將",
+    passiveText: "攻擊範圍與爆發力突出，適合主動切入守將戰線。",
+    baseStats: { maxHp: 158, moveSpeed: 238, armor: 4, pickupRadius: 94 },
+    autoAbility: {
+      name: "方天戟影",
+      description: "揮出霸道戟弧，斬開近身敵人。",
+      cooldown: 0.96,
+      range: 285,
+      radius: 86,
+      damage: 29,
+      damageTags: ["blade", "shock"],
+      vfxKey: "lubu_musou_halberd",
+      effectId: "arc_sweep"
+    },
+    manualAbility: {
+      name: "飛將突陣",
+      description: "向前突入敵陣並留下高傷害戟痕。",
+      cooldown: 7.4,
+      range: 390,
+      radius: 72,
+      damage: 70,
+      damageTags: ["blade", "shock"],
+      vfxKey: "lubu_musou_rampage",
+      effectId: "seven_dashes"
     }
   })
 ];

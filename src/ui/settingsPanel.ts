@@ -1,11 +1,14 @@
 import { defaultAudioSettings } from "../game/audio/settings";
 import type { AudioSettings } from "../game/audio/settings";
 import { defaultDisplaySettings, normalizeDisplaySettings, type DisplaySettings } from "../game/display/settings";
+import { defaultGameSettings, normalizeGameSettings, type GameSettings } from "../game/settings/gameSettings";
 import { bindAudioControls, renderAudioControls, type AudioControlCallbacks } from "./audioControls";
 
 export interface SettingsPanelCallbacks extends AudioControlCallbacks {
   getDisplaySettings: () => DisplaySettings;
   onDisplaySettingsChange: (settings: DisplaySettings) => void;
+  getGameSettings?: () => GameSettings;
+  onGameSettingsChange?: (settings: GameSettings) => void;
 }
 
 interface SettingsPanelOptions {
@@ -14,6 +17,7 @@ interface SettingsPanelOptions {
   closeLabel?: string;
   closeData?: string;
   showAudio?: boolean;
+  gameSettings?: GameSettings;
 }
 
 const displayRangeControls = [
@@ -63,6 +67,7 @@ export function renderSettingsPanel(
   options: SettingsPanelOptions = {}
 ): string {
   const display = normalizeDisplaySettings(displaySettings);
+  const gameSettings = options.gameSettings ? normalizeGameSettings(options.gameSettings) : undefined;
   const closeData = options.closeData ?? "settings-close";
   return `
     <section class="settings-panel">
@@ -93,6 +98,7 @@ export function renderSettingsPanel(
             ? ""
             : `<div class="settings-section"><strong>聲音</strong>${renderAudioControls(audioSettings)}</div>`
         }
+        ${gameSettings ? renderGameSettings(gameSettings) : ""}
       </div>
     </section>
   `;
@@ -127,9 +133,26 @@ export function bindSettingsPanel(root: ParentNode, callbacks: SettingsPanelCall
     });
   });
 
+  root.querySelectorAll<HTMLInputElement>("[data-game-toggle]").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!callbacks.getGameSettings || !callbacks.onGameSettingsChange) {
+        return;
+      }
+      const key = input.dataset.gameToggle as "testMode";
+      callbacks.onGameSettingsChange(
+        normalizeGameSettings({
+          ...callbacks.getGameSettings(),
+          [key]: input.checked
+        })
+      );
+      callbacks.onAudioCue("sfx_ui_select");
+    });
+  });
+
   root.querySelector<HTMLButtonElement>("[data-settings-reset]")?.addEventListener("click", () => {
     callbacks.onAudioSettingsChange(defaultAudioSettings);
     callbacks.onDisplaySettingsChange(defaultDisplaySettings);
+    callbacks.onGameSettingsChange?.(defaultGameSettings);
     callbacks.onAudioCue("sfx_ui_confirm");
     onReset?.();
   });
@@ -164,4 +187,19 @@ function updateRangeLabel(input: HTMLInputElement, value: number): void {
   if (label) {
     label.textContent = `${Math.round(value * 100)}%`;
   }
+}
+
+function renderGameSettings(settings: GameSettings): string {
+  return `
+    <div class="settings-section">
+      <strong>遊戲</strong>
+      <label class="settings-toggle">
+        <span>
+          <b>測試模式</b>
+          <small>開啟後，未招降武將也能在武將與圖鑑頁選擇出戰；不會寫入收藏解鎖。</small>
+        </span>
+        <input type="checkbox" ${settings.testMode ? "checked" : ""} data-game-toggle="testMode" />
+      </label>
+    </div>
+  `;
 }

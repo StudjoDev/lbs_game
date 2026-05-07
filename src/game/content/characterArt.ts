@@ -10,25 +10,25 @@ export const bonds: BondDef[] = [
   {
     id: "weiwu",
     name: "魏武霸業",
-    description: "曹操、夏侯惇、許褚、張遼、司馬懿組成軍令、護衛與謀略核心。",
-    characterIds: ["caocao", "xiahoudun", "xuchu", "zhangliao", "simayi"]
+    description: "曹操、夏侯惇、許褚、張遼、司馬懿、甄姬組成軍令、護衛與謀略核心。",
+    characterIds: ["caocao", "xiahoudun", "xuchu", "zhangliao", "simayi", "zhenji"]
   },
   {
     id: "jiangdong",
     name: "江東烈焰",
-    description: "孫權、周瑜、孫尚香、甘寧、太史慈以火攻、箭雨與奇襲建立江東節奏。",
-    characterIds: ["sunquan", "zhouyu", "sunshangxiang", "ganning", "taishici"]
+    description: "孫權、周瑜、孫尚香、甘寧、太史慈、小喬以火攻、箭雨與奇襲建立江東節奏。",
+    characterIds: ["sunquan", "zhouyu", "sunshangxiang", "ganning", "taishici", "xiaoqiao"]
   },
   {
     id: "qunfang",
     name: "群雄異彩",
-    description: "貂蟬、張角、袁紹、董卓、華佗各具奇術、軍勢、重壓與支援風格。",
-    characterIds: ["diaochan", "zhangjiao", "yuanshao", "dongzhuo", "huatuo"]
+    description: "貂蟬、張角、袁紹、董卓、華佗、呂布各具奇術、軍勢、重壓與爆發風格。",
+    characterIds: ["diaochan", "zhangjiao", "yuanshao", "dongzhuo", "huatuo", "lubu"]
   },
   {
     id: "feijiang",
     name: "飛將無雙",
-    description: "呂布作為虎牢關 Boss 收藏角色，代表壓迫感與終局挑戰。",
+    description: "呂布從虎牢關加入群雄 roster，代表極高爆發與方天畫戟壓迫感。",
     characterIds: ["lubu"]
   }
 ];
@@ -63,44 +63,55 @@ const animationFrameRates = {
   ultimate: 20
 } as const satisfies Record<CharacterAnimationId, number>;
 
-function animationFramePaths(id: CharacterId, animation: CharacterAnimationId): string[] {
-  return Array.from({ length: animationFrameCounts[animation] }, (_, index) =>
+function animationFramePaths(id: CharacterId, animation: CharacterAnimationId, count: number = animationFrameCounts[animation]): string[] {
+  return Array.from({ length: count }, (_, index) =>
     artPath(id, `anim/${animation}/${(index + 1).toString().padStart(2, "0")}.png`)
   );
 }
 
-function animationFrameKeys(textureKey: string, animation: CharacterAnimationId): string[] {
+function animationFrameKeys(textureKey: string, animation: CharacterAnimationId, count: number = animationFrameCounts[animation]): string[] {
   return Array.from(
-    { length: animationFrameCounts[animation] },
+    { length: count },
     (_, index) => `${textureKey}_${animation}_${(index + 1).toString().padStart(2, "0")}`
   );
 }
 
-function heroAnimations(id: CharacterId, textureKey: string, includeUltimate = true): CharacterArtDef["animations"] {
+type CharacterAnimationFrameCounts = Partial<Record<CharacterAnimationId, number>>;
+
+function animationFrameCount(animation: CharacterAnimationId, overrides?: CharacterAnimationFrameCounts): number {
+  return overrides?.[animation] ?? animationFrameCounts[animation];
+}
+
+function heroAnimations(
+  id: CharacterId,
+  textureKey: string,
+  includeUltimate = true,
+  frameCountOverrides?: CharacterAnimationFrameCounts
+): CharacterArtDef["animations"] {
   const animations: CharacterArtDef["animations"] = {
     idle: {
-      framePaths: animationFramePaths(id, "idle"),
-      frameKeys: animationFrameKeys(textureKey, "idle"),
+      framePaths: animationFramePaths(id, "idle", animationFrameCount("idle", frameCountOverrides)),
+      frameKeys: animationFrameKeys(textureKey, "idle", animationFrameCount("idle", frameCountOverrides)),
       frameRate: animationFrameRates.idle,
       repeat: -1
     },
     run: {
-      framePaths: animationFramePaths(id, "run"),
-      frameKeys: animationFrameKeys(textureKey, "run"),
+      framePaths: animationFramePaths(id, "run", animationFrameCount("run", frameCountOverrides)),
+      frameKeys: animationFrameKeys(textureKey, "run", animationFrameCount("run", frameCountOverrides)),
       frameRate: animationFrameRates.run,
       repeat: -1
     },
     attack: {
-      framePaths: animationFramePaths(id, "attack"),
-      frameKeys: animationFrameKeys(textureKey, "attack"),
+      framePaths: animationFramePaths(id, "attack", animationFrameCount("attack", frameCountOverrides)),
+      frameKeys: animationFrameKeys(textureKey, "attack", animationFrameCount("attack", frameCountOverrides)),
       frameRate: animationFrameRates.attack,
       repeat: 0
     }
   };
   if (includeUltimate) {
     animations.ultimate = {
-      framePaths: animationFramePaths(id, "ultimate"),
-      frameKeys: animationFrameKeys(textureKey, "ultimate"),
+      framePaths: animationFramePaths(id, "ultimate", animationFrameCount("ultimate", frameCountOverrides)),
+      frameKeys: animationFrameKeys(textureKey, "ultimate", animationFrameCount("ultimate", frameCountOverrides)),
       frameRate: animationFrameRates.ultimate,
       repeat: 0
     };
@@ -122,6 +133,7 @@ interface PlayableArtInput {
   bondIds: string[];
   palette: CharacterArtDef["palette"];
   battleScale?: number;
+  animationFrameCounts?: CharacterAnimationFrameCounts;
 }
 
 function createPlayableArt(input: PlayableArtInput): CharacterArtDef {
@@ -143,7 +155,7 @@ function createPlayableArt(input: PlayableArtInput): CharacterArtDef {
     attackFrames: attackFrames(input.assetId),
     textureKey,
     attackFrameKeys: attackFrameKeys(textureKey),
-    animations: heroAnimations(input.assetId, textureKey),
+    animations: heroAnimations(input.assetId, textureKey, true, input.animationFrameCounts),
     battleScale: input.battleScale ?? 0.72,
     anchor: { x: 0.5, y: 0.88 },
     palette: input.palette,
@@ -190,7 +202,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 4,
     role: "爆發坦克",
     quote: "誰敢近前，先吃我一聲雷！",
-    biography: "高血量與高護甲的蜀陣營猛將。技能偏近身震擊，用來突破包圍。",
+    biography: "高血量與高護甲的蜀陣營猛將。以丈八蛇矛近身震擊，用來突破包圍。",
     bondIds: ["taoyuan"],
     palette: { primary: "#2f9b5b", secondary: "#172f22", accent: "#ff9f5f" }
   }),
@@ -307,6 +319,21 @@ export const characterArts: CharacterArtDef[] = [
     palette: { primary: "#8aa0ff", secondary: "#17152d", accent: "#c9a8ff" }
   }),
   createPlayableArt({
+    id: "zhenji",
+    assetId: "zhenji",
+    factionId: "wei",
+    name: "甄姬",
+    title: "洛水凌波",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "冰雷控場",
+    quote: "洛水起舞，寒雷自落。",
+    biography: "魏陣營的冰雷法術武將。以鐵笛奏出冰蓮與雷符，守住中遠距離戰線。",
+    bondIds: ["weiwu"],
+    palette: { primary: "#8fb8ff", secondary: "#18223c", accent: "#d8f4ff" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8 }
+  }),
+  createPlayableArt({
     id: "sunquan",
     assetId: "sunquan",
     factionId: "wu",
@@ -358,7 +385,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 4,
     role: "高速奇襲",
     quote: "鈴聲一響，敵營已亂。",
-    biography: "吳陣營的奇襲武將。以分身斬影與突進切開敵陣。",
+    biography: "吳陣營的奇襲武將。以鎖鐮、短刃斬影與突進切開敵陣。",
     bondIds: ["jiangdong"],
     palette: { primary: "#ff8a57", secondary: "#3c1711", accent: "#ffe08a" }
   }),
@@ -377,6 +404,21 @@ export const characterArts: CharacterArtDef[] = [
     palette: { primary: "#e86d4f", secondary: "#361717", accent: "#ffd88f" }
   }),
   createPlayableArt({
+    id: "xiaoqiao",
+    assetId: "xiaoqiao",
+    factionId: "wu",
+    name: "小喬",
+    title: "東風花火",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "火舞支援",
+    quote: "東風一轉，花火滿江。",
+    biography: "吳陣營的火舞型支援武將。以雙扇舞步與火攻鋪場，讓江東路線多一名靈巧控場核心。",
+    bondIds: ["jiangdong"],
+    palette: { primary: "#ff8fa5", secondary: "#431726", accent: "#ffe19a" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8 }
+  }),
+  createPlayableArt({
     id: "diaochan",
     assetId: "diaochan",
     factionId: "qun",
@@ -386,9 +428,10 @@ export const characterArts: CharacterArtDef[] = [
     stars: 6,
     role: "近戰魅惑",
     quote: "一舞傾城，萬軍失神。",
-    biography: "群雄陣營的高人氣舞姬。以花刃、魅惑與華麗近戰節奏控場。",
+    biography: "群雄陣營的高人氣舞姬。以彩帶、魅惑與華麗近戰節奏控場。",
     bondIds: ["qunfang"],
-    palette: { primary: "#ff78b7", secondary: "#4c1834", accent: "#ffd98a" }
+    palette: { primary: "#ff78b7", secondary: "#4c1834", accent: "#ffd98a" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8 }
   }),
   createPlayableArt({
     id: "zhangjiao",
@@ -414,7 +457,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 4,
     role: "軍勢壓制",
     quote: "四世三公，萬軍聽令。",
-    biography: "群雄陣營的軍勢型武將。以旗令與騎兵衝鋒壓制前線。",
+    biography: "群雄陣營的軍勢型武將。以寶劍、旗令與騎兵衝鋒壓制前線。",
     bondIds: ["qunfang"],
     palette: { primary: "#d2a1ff", secondary: "#2f1a3d", accent: "#ffd36a" }
   }),
@@ -428,7 +471,7 @@ export const characterArts: CharacterArtDef[] = [
     stars: 4,
     role: "重壓近戰",
     quote: "擋路者，皆成塵土。",
-    biography: "群雄陣營的重壓近戰武將。以重錘與壓迫感呈現西涼暴君的近身威脅。",
+    biography: "群雄陣營的重壓近戰武將。以鎖錘與壓迫感呈現西涼暴君的近身威脅。",
     bondIds: ["qunfang"],
     palette: { primary: "#8d4f7f", secondary: "#221020", accent: "#ff8b55" },
     battleScale: 0.66
@@ -447,28 +490,21 @@ export const characterArts: CharacterArtDef[] = [
     bondIds: ["qunfang"],
     palette: { primary: "#82d7b4", secondary: "#153329", accent: "#fff0a6" }
   }),
-  {
+  createPlayableArt({
     id: "lubu",
+    assetId: "lubu",
     factionId: "qun",
     name: "呂布",
     title: "飛將無雙",
     rarityLabel: "UR",
     stars: 6,
-    role: "虎牢關 Boss",
+    role: "近戰爆發",
     quote: "誰能擋我方天畫戟？",
-    biography: "虎牢關終局 Boss 收藏角色。保留為非可選角色，用於 Boss 圖鑑與戰鬥挑戰。",
-    bondIds: ["feijiang"],
-    cardImage: artPath("lubu", "card.png"),
-    battleImage: artPath("lubu", "battle-idle.png"),
-    attackStrip: artPath("lubu", "attack-strip.png"),
-    attackFrames: attackFrames("lubu"),
-    textureKey: "enemy_lubu",
-    attackFrameKeys: attackFrameKeys("enemy_lubu"),
-    animations: heroAnimations("lubu", "enemy_lubu", false),
-    anchor: { x: 0.5, y: 0.9 },
+    biography: "群雄陣營的飛將。從虎牢關招募後可作為一般武將出戰，保留強烈的方天畫戟與紅紫壓迫感。",
+    bondIds: ["qunfang", "feijiang"],
     palette: { primary: "#7f45b7", secondary: "#1b1022", accent: "#ff4e74" },
-    playable: false
-  }
+    battleScale: 0.68
+  })
 ];
 
 export const characterArtById = Object.fromEntries(characterArts.map((art) => [art.id, art])) as Record<

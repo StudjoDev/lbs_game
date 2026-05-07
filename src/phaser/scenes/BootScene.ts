@@ -423,6 +423,7 @@ export class BootScene extends Phaser.Scene {
     this.createArcTexture("melee_arc", "#fff1cf", "#75f0aa", 300, 220, 0.44);
     this.createThrustTexture("spear_thrust", "#dffcff", "#75f0aa", 300, 86);
     this.createArcTexture("petal_blade", "#ffd4eb", "#ff78b7", 280, 210, 0.34);
+    this.createArcTexture("ribbon_arc", "#ffe4f7", "#ff6fc2", 330, 180, 0.22);
     this.createArcTexture("heavy_cleave_wave", "#ffe2b8", "#ff7a45", 340, 250, 0.48);
   }
 

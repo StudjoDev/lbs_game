@@ -70,16 +70,6 @@ export function recruitCharacter(heroId: HeroId, storage = getCollectionStorage(
   return unlockCharacter(heroId, storage);
 }
 
-export function revealBossDefeat(characterId: CharacterId, storage = getCollectionStorage()): CollectionState {
-  const state = unlockCharacter(characterId, storage);
-  state[characterId] = {
-    ...state[characterId],
-    defeatedAt: state[characterId].defeatedAt ?? new Date().toISOString()
-  };
-  saveCollection(state, storage);
-  return state;
-}
-
 function normalizeCollection(
   entries: Partial<Record<CharacterId, Partial<CollectionEntry>>> | CollectionState,
   defaults: CollectionState
