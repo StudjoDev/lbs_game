@@ -154,6 +154,9 @@
     "No photorealism",
     "No realistic adult body proportions",
     "No SVG-only placeholder style",
+    "No square or rectangular framed attack effects",
+    "No UI-like boxes, card panels, spell-border rectangles, or closed box glyph effects",
+    "Every warrior must have unique weapon motion, body action, and effect grammar rather than a color swap",
     "Do not copy the supplied reference image, characters, logo, typography, or exact composition"
   ]
 }
