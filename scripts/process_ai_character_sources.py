@@ -23,13 +23,16 @@ PALETTES = {
     "xuchu": "#b8c8ff",
     "zhangliao": "#a7c6ff",
     "simayi": "#b8a6ff",
+    "zhenji": "#b8e8ff",
     "sunquan": "#ffb05f",
     "ganning": "#ffbb62",
     "taishici": "#ffca6d",
+    "xiaoqiao": "#ff9eb6",
     "zhangjiao": "#c9a8ff",
     "yuanshao": "#e0bcff",
     "dongzhuo": "#d371ff",
     "huatuo": "#b6ffdd",
+    "lubu": "#ff4e74",
 }
 
 
@@ -65,7 +68,8 @@ def fit_sprite(source: Image.Image, size: tuple[int, int], *, target_height_rati
         return Image.new("RGBA", size, (0, 0, 0, 0))
     crop = source.crop(bbox)
     max_h = size[1] * target_height_ratio
-    scale = max_h / crop.height
+    max_w = size[0] - 24
+    scale = min(max_w / crop.width, max_h / crop.height)
     resized = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.Resampling.LANCZOS)
     canvas = Image.new("RGBA", size, (0, 0, 0, 0))
     x = round((size[0] - resized.width) / 2)
@@ -162,16 +166,20 @@ def create_assets(hero_id: str) -> None:
     card.save(out / "card.png")
 
     battle_size = (FRAME_WIDTH, FRAME_HEIGHT)
-    battle = fit_sprite(Image.open(sprite_source), battle_size)
+    battle = fit_frame_to_safe_bounds(fit_sprite(Image.open(sprite_source), battle_size))
     battle.save(out / "battle-idle.png")
 
     idle_specs = [(0, 0, 1, 0, 1), (0, -1, 1.01, -1, 1), (0, -2, 1.01, 1, 1.02), (0, -1, 1, 0, 1), (0, 0, 1, -1, 1), (0, 1, 0.995, 0, 1)]
     run_specs = [(-3, 0, 1, -3, 1), (-7, -5, 1.02, -6, 1.03), (-3, -2, 1, -2, 1), (3, 0, 1, 3, 1), (7, -5, 1.02, 6, 1.03), (3, -2, 1, 2, 1)]
 
     for index, spec in enumerate(idle_specs, start=1):
-        sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec).save(out / "anim" / "idle" / f"{index:02d}.png")
+        fit_frame_to_safe_bounds(sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec)).save(
+            out / "anim" / "idle" / f"{index:02d}.png"
+        )
     for index, spec in enumerate(run_specs, start=1):
-        sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec).save(out / "anim" / "run" / f"{index:02d}.png")
+        fit_frame_to_safe_bounds(sprite_to_anim_frame(battle, (FRAME_WIDTH, FRAME_HEIGHT), *spec)).save(
+            out / "anim" / "run" / f"{index:02d}.png"
+        )
     write_attack_assets(out, hero_id, battle)
 
 

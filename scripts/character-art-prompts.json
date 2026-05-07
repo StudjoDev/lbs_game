@@ -69,6 +69,12 @@
       "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, dark fan casting lightning talisman sequence, transparent background, no text."
     },
     {
+      "id": "zhenji",
+      "cardPrompt": "Zhenji inspired original chibi noble Wei dancer, icy blue court battle dress, blue-black hair with lotus ornaments, huge glossy sapphire eyes, poised refined smile, long ornate black-silver flute or iron flute held clearly as the weapon, Luoshen frost-lotus vertical promo panel lighting, no fan, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Zhenji inspired noble dancer, big head, compact Q-version body, long flute or iron flute silhouette clearly readable across the body, icy blue white silver and gold palette, no fan, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, flute performance and frost-lotus casting sequence, transparent background, no fan, no text."
+    },
+    {
       "id": "sunquan",
       "cardPrompt": "Sun Quan inspired original chibi young Jiangdong ruler, red-gold armor robe, small royal crown, huge glossy amber eyes, composed youthful smile, straight commander sword and tiger-seal charm, warm river-fire vertical promo panel lighting, no text.",
       "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Sun Quan inspired ruler, big head, compact Q-version body, commander sword silhouette and seal charm readable, red gold palette, no text.",
@@ -99,10 +105,16 @@
       "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, bow draw into piercing arrow release, transparent background, no text."
     },
     {
+      "id": "xiaoqiao",
+      "cardPrompt": "Xiaoqiao inspired original chibi Jiangdong dancer-warrior, peach coral pink and gold outfit, flower hair ornaments, huge glossy warm amber eyes, playful confident smile, paired ornate twin fans held clearly as two separate weapons, east-wind flower-fire vertical promo panel lighting, no single-fan-only pose, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Xiaoqiao inspired dancer-warrior, big head, compact Q-version body, paired twin fan silhouettes clearly readable with one fan in each hand, peach pink coral gold palette, no single fan only, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, twin-fan dance and fire-petal sweep sequence, transparent background, no single fan only, no text."
+    },
+    {
       "id": "diaochan",
-      "cardPrompt": "Diaochan inspired original chibi idol dancer support heroine, high-quality mobile RPG avatar art, big glossy pink eyes, round cute face, sweet smile, pink and gold flower ornaments, delicate dancer ribbons and small dance fan, dreamy pink-gold gem light background, square 1:1 head avatar composition, no text.",
-      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Diaochan inspired dancer, big head, compact Q-version body, pink-gold flower ornaments and ribbon silhouette, readable dance fan, cute but battle-ready, no text.",
-      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, petal dance spin sequence with pink-gold ribbons, transparent background, no text."
+      "cardPrompt": "Diaochan inspired original chibi dancer-warrior support heroine, high-quality mobile RPG card art, big glossy pink eyes, round cute face, sweet confident smile, pink and gold flower ornaments, long luminous silk battle ribbons or colorful streamer sashes held from both hands as her weapon, dreamy pink-gold moonlit petal background, no fan, no blade, no text.",
+      "battlePrompt": "Small 2.5D transparent chibi battle cutout of the same original Diaochan inspired dancer-warrior, big head, compact Q-version body, pink-gold flower ornaments and long flowing silk ribbon weapon silhouettes readable from both hands, cute but battle-ready, no fan, no blade, no text.",
+      "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, long silk ribbon sweep and petal dance sequence, transparent background, no fan, no blade, no text."
     },
     {
       "id": "zhangjiao",
