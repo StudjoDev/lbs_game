@@ -5,7 +5,7 @@ export const bonds: BondDef[] = [
     id: "taoyuan",
     name: "蜀漢同心",
     description: "蜀漢武將同場象徵仁義、突進、軍略、神射與機關術互補。",
-    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "machao", "zhugeliang", "huangzhong", "yueying"]
+    characterIds: ["liubei", "guanyu", "zhangfei", "zhaoyun", "machao", "zhugeliang", "huangzhong", "yueying", "jiangwei"]
   },
   {
     id: "weiwu",
@@ -50,11 +50,18 @@ function attackFrameKeys(textureKey: string): string[] {
 }
 
 const animationFrameCounts = {
-  idle: 4,
-  run: 4,
-  attack: 4,
+  idle: 6,
+  run: 6,
+  attack: 8,
   ultimate: 8
 } as const satisfies Record<CharacterAnimationId, number>;
+
+const animationEffectOverlayDefaults = {
+  idle: true,
+  run: true,
+  attack: true,
+  ultimate: true
+} as const satisfies Record<CharacterAnimationId, boolean>;
 
 const animationFrameRates = {
   idle: 8,
@@ -77,17 +84,33 @@ function animationFrameKeys(textureKey: string, animation: CharacterAnimationId,
 }
 
 type CharacterAnimationFrameCounts = Partial<Record<CharacterAnimationId, number>>;
+type CharacterAnimationEffectOverlayFlags = Partial<Record<CharacterAnimationId, boolean>>;
 
 function animationFrameCount(animation: CharacterAnimationId, overrides?: CharacterAnimationFrameCounts): number {
   return overrides?.[animation] ?? animationFrameCounts[animation];
+}
+
+function animationEffectOverlayPaths(id: CharacterId, animation: CharacterAnimationId, count: number): string[] {
+  return Array.from({ length: count }, (_, index) =>
+    artPath(id, `anim/${animation}/effect/${(index + 1).toString().padStart(2, "0")}.png`)
+  );
+}
+
+function animationEffectOverlayKeys(textureKey: string, animation: CharacterAnimationId, count: number): string[] {
+  return Array.from(
+    { length: count },
+    (_, index) => `${textureKey}_${animation}_effect_${(index + 1).toString().padStart(2, "0")}`
+  );
 }
 
 function heroAnimations(
   id: CharacterId,
   textureKey: string,
   includeUltimate = true,
-  frameCountOverrides?: CharacterAnimationFrameCounts
+  frameCountOverrides?: CharacterAnimationFrameCounts,
+  effectOverlays?: CharacterAnimationEffectOverlayFlags
 ): CharacterArtDef["animations"] {
+  const animationEffectOverlays = { ...animationEffectOverlayDefaults, ...effectOverlays };
   const animations: CharacterArtDef["animations"] = {
     idle: {
       framePaths: animationFramePaths(id, "idle", animationFrameCount("idle", frameCountOverrides)),
@@ -116,6 +139,20 @@ function heroAnimations(
       repeat: 0
     };
   }
+  for (const [animationId, animation] of Object.entries(animations) as [CharacterAnimationId, NonNullable<CharacterArtDef["animations"]>[CharacterAnimationId]][]) {
+    if (!animation || !animationEffectOverlays[animationId]) {
+      continue;
+    }
+    animation.effectOverlay = {
+      framePaths: animationEffectOverlayPaths(id, animationId, animation.framePaths.length),
+      frameKeys: animationEffectOverlayKeys(textureKey, animationId, animation.frameKeys.length),
+      frameRate: animation.frameRate,
+      repeat: animation.repeat,
+      blendMode: "add",
+      alpha: 0.92,
+      depthOffset: 1
+    };
+  }
   return animations;
 }
 
@@ -134,6 +171,7 @@ interface PlayableArtInput {
   palette: CharacterArtDef["palette"];
   battleScale?: number;
   animationFrameCounts?: CharacterAnimationFrameCounts;
+  animationEffectOverlays?: CharacterAnimationEffectOverlayFlags;
 }
 
 function createPlayableArt(input: PlayableArtInput): CharacterArtDef {
@@ -155,9 +193,9 @@ function createPlayableArt(input: PlayableArtInput): CharacterArtDef {
     attackFrames: attackFrames(input.assetId),
     textureKey,
     attackFrameKeys: attackFrameKeys(textureKey),
-    animations: heroAnimations(input.assetId, textureKey, true, input.animationFrameCounts),
+    animations: heroAnimations(input.assetId, textureKey, true, input.animationFrameCounts, input.animationEffectOverlays),
     battleScale: input.battleScale ?? 0.72,
-    anchor: { x: 0.5, y: 0.88 },
+    anchor: { x: 0.5, y: 0.82 },
     palette: input.palette,
     playable: true
   };
@@ -276,7 +314,8 @@ export const characterArts: CharacterArtDef[] = [
     biography: "蜀軍機關術代表。以戰戈、飛輪與木牛連弩建立不同於軍師法術的機械控場風格。",
     bondIds: ["taoyuan"],
     palette: { primary: "#3cecc2", secondary: "#14524a", accent: "#f0b24a" },
-    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 }
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 },
+    animationEffectOverlays: { run: true, attack: true, ultimate: true }
   }),
   createPlayableArt({
     id: "caocao",
@@ -624,6 +663,22 @@ export const characterArts: CharacterArtDef[] = [
     bondIds: ["qunfang", "feijiang"],
     palette: { primary: "#7f45b7", secondary: "#1b1022", accent: "#ff4e74" },
     battleScale: 0.68
+  }),
+  createPlayableArt({
+    id: "jiangwei",
+    assetId: "jiangwei",
+    factionId: "shu",
+    name: "姜維",
+    title: "麒麟繼志",
+    rarityLabel: "SSR",
+    stars: 5,
+    role: "軍略突刺",
+    quote: "承武侯遺志，麒麟破陣。",
+    biography: "蜀漢後期的麒麟將才。以麒麟長槍和兵書軍令切入敵線，普通攻擊偏斜挑刺，無雙以星軌連突和軍略收束區分於趙雲、馬超的直線槍勢。",
+    bondIds: ["taoyuan"],
+    palette: { primary: "#46d8b8", secondary: "#143b34", accent: "#ffd36a" },
+    animationFrameCounts: { idle: 6, run: 6, attack: 8, ultimate: 8 },
+    animationEffectOverlays: { idle: true, run: true, attack: true, ultimate: true }
   })
 ];
 

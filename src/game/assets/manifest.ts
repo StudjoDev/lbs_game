@@ -33,7 +33,8 @@ const heroTextureIds = [
   "huatuo",
   "zuoci",
   "lulingqi",
-  "lubu"
+  "lubu",
+  "jiangwei"
 ] as const;
 
 export const textureKeys = {
@@ -133,7 +134,6 @@ export const hitRadialAnimationKey = "fx_hit_radial";
 export const brackeysBigHitAnimationKey = "fx_brackeys_big_hit";
 export const brackeysElectricRingAnimationKey = "fx_brackeys_electric_ring";
 export const brackeysFireRingAnimationKey = "fx_brackeys_fire_ring";
-export const brackeysLightstreaksAnimationKey = "fx_brackeys_lightstreaks";
 
 export const slashAnimationFrames = [1, 2, 3, 4, 5, 6].map((frame) => ({
   key: `fx_slash_${frame.toString().padStart(2, "0")}`,
@@ -180,22 +180,13 @@ export const brackeysFireRingSpritesheet = {
   endFrame: 29
 } as const satisfies VisualSpritesheetEntry;
 
-export const brackeysLightstreaksSpritesheet = {
-  key: "fx_brackeys_lightstreaks_sheet",
-  path: `${visualBasePath}/fx/brackeys/lightstreaks-6x5.png`,
-  frameWidth: 517,
-  frameHeight: 515,
-  endFrame: 29
-} as const satisfies VisualSpritesheetEntry;
-
 export const visualAssetEntries = [...visualParticleAssets, ...slashAnimationFrames] as const;
 export const visualSpritesheetEntries = [
   hitSparkSpritesheet,
   hitRadialSpritesheet,
   brackeysBigHitSpritesheet,
   brackeysElectricRingSpritesheet,
-  brackeysFireRingSpritesheet,
-  brackeysLightstreaksSpritesheet
+  brackeysFireRingSpritesheet
 ] as const;
 
 export const visualAnimationEntries = [
@@ -233,12 +224,6 @@ export const visualAnimationEntries = [
     key: brackeysFireRingAnimationKey,
     spritesheet: brackeysFireRingSpritesheet,
     frameRate: 32,
-    repeat: 0
-  },
-  {
-    key: brackeysLightstreaksAnimationKey,
-    spritesheet: brackeysLightstreaksSpritesheet,
-    frameRate: 34,
     repeat: 0
   }
 ] as const satisfies readonly VisualAnimationEntry[];
@@ -655,8 +640,6 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     scale: 0.86,
     lifetime: 0.5,
     particleKey: "particle_magic",
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true,
     telegraphShape: "burst",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -779,8 +762,6 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     scale: 1.16,
     lifetime: 0.68,
     particleKey: "particle_magic",
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true,
     telegraphShape: "burst",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -807,8 +788,6 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     scale: 1.22,
     lifetime: 0.66,
     particleKey: "particle_magic",
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true,
     telegraphShape: "burst",
     presentationKind: "areaField",
     originMode: "targetArea",
@@ -1066,10 +1045,7 @@ export const vfxProfiles: Record<string, VfxProfile> = {
   }),
   huatuo_musou_qingnang: musouVfxProfile("frost_lotus", 0x9ff7c6, "areaField", "burst", "cast", 1.2, 0.68, "particle_magic"),
   huangzhong_musou_arrowstorm: musouVfxProfile("phoenix_feathers", 0xffd56a, "rain", "rain", "cast", 1.18, 0.54, "particle_spark"),
-  yueying_musou_bagua_gears: musouVfxProfile("frost_lotus", 0x4deccf, "areaField", "burst", "cast", 1.22, 0.68, "particle_magic", {
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true
-  }),
+  yueying_musou_bagua_gears: musouVfxProfile("frost_lotus", 0x4deccf, "areaField", "burst", "cast", 1.22, 0.68, "particle_magic"),
   dianwei_musou_elai_guard: musouVfxProfile("heavy_cleave_wave", 0xffb45c, "aura", "burst", "spin", 1.3, 0.66, "particle_dirt", {
     arcDegrees: 360,
     animationKeys: [brackeysBigHitAnimationKey],
@@ -1083,14 +1059,8 @@ export const vfxProfiles: Record<string, VfxProfile> = {
     animationKeys: [brackeysFireRingAnimationKey],
     nativeColor: true
   }),
-  daqiao_musou_clear_lan: musouVfxProfile("frost_lotus", 0xaaf7ff, "areaField", "burst", "cast", 1.24, 0.7, "particle_magic", {
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true
-  }),
-  zuoci_musou_dunjia: musouVfxProfile("frost_lotus", 0xd6ffe9, "areaField", "burst", "cast", 1.26, 0.7, "particle_brackeys_magic", {
-    animationKeys: [brackeysLightstreaksAnimationKey],
-    nativeColor: true
-  }),
+  daqiao_musou_clear_lan: musouVfxProfile("frost_lotus", 0xaaf7ff, "areaField", "burst", "cast", 1.24, 0.7, "particle_magic"),
+  zuoci_musou_dunjia: musouVfxProfile("frost_lotus", 0xd6ffe9, "areaField", "burst", "cast", 1.26, 0.7, "particle_brackeys_magic"),
   lulingqi_musou_cross_halberd: musouVfxProfile("heavy_cleave_wave", 0xff5f8f, "meleeArc", "slash", "slashLunge", 1.12, 0.5, "particle_spark", {
     arcDegrees: 232,
     animationKey: slashAnimationKey
@@ -1098,7 +1068,47 @@ export const vfxProfiles: Record<string, VfxProfile> = {
   lubu_musou_flying_general: musouVfxProfile("heavy_cleave_wave", 0xff4e74, "meleeArc", "slash", "slashLunge", 1.18, 0.52, "particle_spark", {
     arcDegrees: 248,
     animationKey: slashAnimationKey
-  })
+  }),
+  jiangwei_qilin_spear: {
+    textureKey: "spear_thrust",
+    color: 0x62f2d7,
+    blendMode: "add",
+    scale: 0.82,
+    lifetime: 0.3,
+    particleKey: "particle_spark",
+    telegraphShape: "slash",
+    presentationKind: "meleeArc",
+    originMode: "playerAnchored",
+    motionStyle: "thrust",
+    arcDegrees: 72,
+    followPlayer: true
+  },
+  jiangwei_scroll_stars: {
+    textureKey: "thunder_charm",
+    color: 0x9bf7ff,
+    blendMode: "add",
+    scale: 0.92,
+    lifetime: 0.44,
+    particleKey: "particle_magic",
+    telegraphShape: "burst",
+    presentationKind: "areaField",
+    originMode: "targetArea",
+    motionStyle: "cast"
+  },
+  jiangwei_musou_qilin_path: {
+    textureKey: "spear_thrust",
+    color: 0x7df7dd,
+    blendMode: "add",
+    scale: 1.08,
+    lifetime: 0.42,
+    particleKey: "particle_magic",
+    telegraphShape: "slash",
+    presentationKind: "dash",
+    originMode: "playerAnchored",
+    motionStyle: "thrust",
+    arcDegrees: 96,
+    followPlayer: true
+  }
 };
 
 export const enemyVisualProfiles: Record<EnemyId, EnemyVisualProfile> = {

@@ -3,6 +3,7 @@ import {
   vfxProfiles,
   visualAnimationEntries,
   visualParticleAssets,
+  visualSpritesheetEntries,
   type VfxProfile
 } from "./manifest";
 import { heroes } from "../content/heroes";
@@ -60,6 +61,21 @@ describe("visual asset manifest", () => {
       for (const animationKey of profileAnimationKeys(profile)) {
         expect(animationKeys.has(animationKey), `${profileKey} animation ${animationKey}`).toBe(true);
       }
+    }
+  });
+
+  it("keeps square lightstreak panel effects out of the runtime manifest", () => {
+    const bannedAnimationKey: string = "fx_brackeys_lightstreaks";
+    const bannedSpritesheetPath: string = "lightstreaks-6x5.png";
+
+    expect(visualAnimationEntries.some((entry) => entry.key === bannedAnimationKey), bannedAnimationKey).toBe(false);
+    expect(
+      visualSpritesheetEntries.some((entry) => entry.path.includes(bannedSpritesheetPath)),
+      bannedSpritesheetPath
+    ).toBe(false);
+
+    for (const [profileKey, profile] of Object.entries(vfxProfiles)) {
+      expect(profileAnimationKeys(profile), `${profileKey} uses square lightstreaks`).not.toContain(bannedAnimationKey);
     }
   });
 });

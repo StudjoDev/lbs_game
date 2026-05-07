@@ -31,6 +31,7 @@ export type HeroId =
   | "huatuo"
   | "zuoci"
   | "lulingqi"
+  | "jiangwei"
   | "lubu";
 export type CharacterId = HeroId;
 export type EnemyId = "infantry" | "archer" | "shield" | "cavalry" | "captain" | "lubu";
@@ -174,6 +175,17 @@ export interface CharacterAnimationDef {
   frameKeys: string[];
   frameRate: number;
   repeat: number;
+  effectOverlay?: CharacterAnimationEffectOverlayDef;
+}
+
+export interface CharacterAnimationEffectOverlayDef {
+  framePaths: string[];
+  frameKeys: string[];
+  frameRate: number;
+  repeat: number;
+  blendMode: "add" | "normal";
+  alpha: number;
+  depthOffset: number;
 }
 
 export interface CollectionEntry {

@@ -1,0 +1,189 @@
+{
+  "id": "pipeline_fixture",
+  "factionId": "shu",
+  "name": "管線測試",
+  "title": "自動驗收將",
+  "rarityLabel": "SSR",
+  "stars": 5,
+  "role": "流程驗收",
+  "quote": "招式先過關，才入正式軍冊。",
+  "biography": "用既有劉備 raster source 驗證新武將生成管線的 dry-run fixture，不會 promote 到正式 roster。",
+  "bondIds": ["taoyuan"],
+  "passive": {
+    "name": "驗收節奏",
+    "text": "自動檢查資產尺寸、置中、分層特效與內容引用。"
+  },
+  "baseStats": {
+    "maxHp": 128,
+    "moveSpeed": 232,
+    "armor": 3,
+    "pickupRadius": 112
+  },
+  "abilities": {
+    "auto": {
+      "name": "驗收劍弧",
+      "description": "以短促劍弧檢查普通攻擊與 VFX key wiring。",
+      "cooldown": 1.02,
+      "range": 360,
+      "radius": 42,
+      "damage": 22,
+      "damageTags": ["command", "blade"],
+      "vfxKey": "qinglong_arc",
+      "effectId": "arc_sweep"
+    },
+    "manual": {
+      "name": "驗收突進",
+      "description": "以斜向突進檢查手動技與無方形殘影規則。",
+      "cooldown": 7.4,
+      "range": 420,
+      "radius": 58,
+      "damage": 56,
+      "damageTags": ["pierce", "shock"],
+      "vfxKey": "dragon_dash",
+      "effectId": "seven_dashes"
+    }
+  },
+  "ultimate": {
+    "name": "全套驗收",
+    "duration": 7.6,
+    "pulseEvery": 1.1,
+    "vfxKey": "liubei_musou_swords",
+    "finisherVfxKey": "liubei_musou_swords",
+    "shortLabel": "雙弧收束",
+    "pulseAbility": {
+      "name": "驗收連弧",
+      "cooldown": 0,
+      "range": 520,
+      "radius": 48,
+      "damage": 30,
+      "damageTags": ["command", "blade"],
+      "vfxKey": "liubei_musou_swords",
+      "effectId": "guard_swords"
+    },
+    "finisherAbility": {
+      "name": "驗收終式",
+      "cooldown": 0,
+      "range": 560,
+      "radius": 64,
+      "damage": 48,
+      "damageTags": ["command", "blade"],
+      "vfxKey": "liubei_musou_swords",
+      "effectId": "guard_swords"
+    }
+  },
+  "visual": {
+    "weaponSilhouette": "paired short swords, asymmetric grip, one forward and one low guard",
+    "costumeKeywords": "green-gold test armor, compact chibi body, readable weapon silhouette",
+    "cardPrompt": "Original chibi Three Kingdoms test warrior, green-gold armor, paired short swords, bright mobile RPG card art, no text.",
+    "battlePrompt": "Transparent chibi battle cutout of the same test warrior, compact body, paired short swords readable, no glow trails.",
+    "palette": {
+      "primary": "#41c878",
+      "secondary": "#153b26",
+      "accent": "#ffd36a"
+    }
+  },
+  "motion": {
+    "idle": {
+      "style": "breath",
+      "grammar": "Small breathing loop with hair and sleeve settling separately from the sword hand.",
+      "layers": ["torso", "hair"]
+    },
+    "run": {
+      "style": "stride",
+      "grammar": "Short alternating stride with weapon hand lagging behind the torso rhythm.",
+      "layers": ["legs", "weapon"]
+    },
+    "attack": {
+      "style": "slash",
+      "grammar": "Two-beat crossing sword slash: shoulder turns first, then weapon arcs outward, then cloth catches up.",
+      "layers": ["arm", "weapon", "sleeve"]
+    },
+    "ultimate": {
+      "style": "spin",
+      "grammar": "Three-beat spinning sword command: body pivots, paired blades sweep on offset timing, cape settles last.",
+      "layers": ["torso", "weapon", "cape"]
+    }
+  },
+  "effects": {
+    "palette": ["#7df7dd", "#ffd36a", "#ffffff"],
+    "idle": {
+      "shape": "sparks",
+      "origin": "weapon tip",
+      "path": "small drifting orbit above the hands",
+      "rhythm": "soft two-pulse loop",
+      "purpose": "separate idle overlay validation"
+    },
+    "run": {
+      "shape": "dust sparks",
+      "origin": "feet",
+      "path": "short trailing dots behind the stride",
+      "rhythm": "alternating footfall",
+      "purpose": "run overlay validation"
+    },
+    "attack": {
+      "shape": "open crescent arc",
+      "origin": "right-hand blade",
+      "path": "diagonal outward sweep with inner echo",
+      "rhythm": "wind-up, release, settle",
+      "purpose": "normal attack overlay validation"
+    },
+    "ultimate": {
+      "shape": "spiral shards",
+      "origin": "paired blades",
+      "path": "expanding open spiral around the body",
+      "rhythm": "charge, burst, finisher",
+      "purpose": "ultimate overlay validation"
+    }
+  },
+  "constraints": {
+    "forbidSquareEffects": true,
+    "forbidBakedEffects": true,
+    "forbidRecolorOnly": true,
+    "requireCenteredRuntimeFrames": true,
+    "requireSeparateEffectOverlays": true,
+    "requireTruePerFrameRasterPoses": true
+  },
+  "avoidSimilarTo": ["liubei", "zhaoyun"],
+  "sourceImages": {
+    "card": "public/assets/characters/caocao/card.png",
+    "battle": "public/assets/characters/caocao/battle-idle.png",
+    "animationFrames": {
+      "idle": [
+        "public/assets/characters/caocao/anim/idle/01.png",
+        "public/assets/characters/caocao/anim/idle/02.png",
+        "public/assets/characters/caocao/anim/idle/03.png",
+        "public/assets/characters/caocao/anim/idle/04.png",
+        "public/assets/characters/caocao/anim/idle/05.png",
+        "public/assets/characters/caocao/anim/idle/06.png"
+      ],
+      "run": [
+        "public/assets/characters/caocao/anim/run/01.png",
+        "public/assets/characters/caocao/anim/run/02.png",
+        "public/assets/characters/caocao/anim/run/03.png",
+        "public/assets/characters/caocao/anim/run/04.png",
+        "public/assets/characters/caocao/anim/run/05.png",
+        "public/assets/characters/caocao/anim/run/06.png"
+      ],
+      "attack": [
+        "public/assets/characters/caocao/anim/attack/01.png",
+        "public/assets/characters/caocao/anim/attack/02.png",
+        "public/assets/characters/caocao/anim/attack/03.png",
+        "public/assets/characters/caocao/anim/attack/04.png",
+        "public/assets/characters/caocao/anim/attack/05.png",
+        "public/assets/characters/caocao/anim/attack/06.png",
+        "public/assets/characters/caocao/anim/attack/07.png",
+        "public/assets/characters/caocao/anim/attack/08.png"
+      ],
+      "ultimate": [
+        "public/assets/characters/caocao/anim/ultimate/01.png",
+        "public/assets/characters/caocao/anim/ultimate/02.png",
+        "public/assets/characters/caocao/anim/ultimate/03.png",
+        "public/assets/characters/caocao/anim/ultimate/04.png",
+        "public/assets/characters/caocao/anim/ultimate/05.png",
+        "public/assets/characters/caocao/anim/ultimate/06.png",
+        "public/assets/characters/caocao/anim/ultimate/07.png",
+        "public/assets/characters/caocao/anim/ultimate/08.png"
+      ]
+    }
+  }
+}

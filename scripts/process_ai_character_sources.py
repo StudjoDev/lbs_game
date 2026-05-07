@@ -12,6 +12,7 @@ from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "output" / "ai-character-sources"
 CHARACTER_ROOT = ROOT / "public" / "assets" / "characters"
+LEGACY_UNSAFE_FLAG = "--legacy-unsafe"
 
 FRAME_WIDTH = 192
 FRAME_HEIGHT = 224
@@ -185,7 +186,14 @@ def create_assets(hero_id: str) -> None:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: process_ai_character_sources.py [--attack-only] <hero_id> [...]")
+        raise SystemExit("Usage: process_ai_character_sources.py [--legacy-unsafe] [--attack-only] <hero_id> [...]")
+    if LEGACY_UNSAFE_FLAG not in sys.argv[1:]:
+        raise SystemExit(
+            "process_ai_character_sources.py is retired for new warriors because it cannot produce the required "
+            "6/6/8/8 frames, centered base art, and full effect overlays. Use "
+            "`npm run warrior:new -- --spec scripts/warrior-generation/specs/<heroId>.json` instead."
+        )
+    sys.argv = [sys.argv[0], *(arg for arg in sys.argv[1:] if arg != LEGACY_UNSAFE_FLAG)]
     attack_only = "--attack-only" in sys.argv[1:]
     hero_ids = [arg for arg in sys.argv[1:] if arg != "--attack-only"]
     for hero_id in hero_ids:

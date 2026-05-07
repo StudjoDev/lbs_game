@@ -38,6 +38,7 @@ import type {
   EnemyState,
   FloatingTextState,
   CharacterAnimationId,
+  CharacterArtDef,
   ChapterId,
   ConquestCityId,
   HeroId,
@@ -100,6 +101,7 @@ export class BattleScene extends Phaser.Scene {
   private xpPickupEffects?: XpPickupEffects;
   private combatJuiceEffects?: CombatJuiceEffects;
   private playerSprite?: Phaser.GameObjects.Sprite;
+  private playerEffectOverlaySprite?: Phaser.GameObjects.Sprite;
   private playerGroundAura?: Phaser.GameObjects.Graphics;
   private manualQueued = false;
   private playerVisualState: PlayerVisualState = {
@@ -191,6 +193,14 @@ export class BattleScene extends Phaser.Scene {
       .setScale(art.battleScale ?? 1)
       .setDepth(1000);
     this.unitLayer?.add(this.playerSprite);
+    this.playerEffectOverlaySprite = this.add
+      .sprite(this.run.player.x, this.run.player.y, this.run.hero.spriteKey)
+      .setOrigin(art.anchor.x, art.anchor.y)
+      .setScale(art.battleScale ?? 1)
+      .setDepth(1001)
+      .setVisible(false)
+      .setAlpha(0);
+    this.unitLayer?.add(this.playerEffectOverlaySprite);
     this.playerGroundAura = this.add.graphics();
     this.areaLayer?.add(this.playerGroundAura);
     this.cameras.main.startFollow(this.playerSprite, true, 0.11, 0.11);
@@ -335,8 +345,24 @@ export class BattleScene extends Phaser.Scene {
     this.playerSprite.setRotation(hasFrameAnimation ? 0 : Math.sin(visual.facingAngle) * 0.025 + visual.attackTimer * 0.04);
     this.playerSprite.setScale(baseScale * powerScale * squashX, baseScale * powerScale * squashY);
     this.playerSprite.setTint(ultimateActive ? areaColor(ultimateByHeroId[state.hero.id].vfxKey) : state.player.berserkTimer > 0 ? 0xff9b80 : 0xffffff);
+    this.syncPlayerEffectOverlayTransform();
     this.syncPlayerAnimation(state);
     this.syncPlayerGroundAura(state, baseScale);
+  }
+
+  private syncPlayerEffectOverlayTransform(): void {
+    if (!this.playerSprite || !this.playerEffectOverlaySprite) {
+      return;
+    }
+    this.playerEffectOverlaySprite
+      .setPosition(this.playerSprite.x, this.playerSprite.y)
+      .setOrigin(this.playerSprite.originX, this.playerSprite.originY)
+      .setScale(this.playerSprite.scaleX, this.playerSprite.scaleY)
+      .setFlipX(this.playerSprite.flipX)
+      .setRotation(this.playerSprite.rotation);
+    if (this.playerEffectOverlaySprite.visible) {
+      this.playerEffectOverlaySprite.setDepth(this.playerSprite.depth + 1);
+    }
   }
 
   private updatePlayerVisualState(state: RunState): void {
@@ -393,12 +419,47 @@ export class BattleScene extends Phaser.Scene {
       if (this.playerSprite.texture.key !== state.hero.spriteKey) {
         this.playerSprite.setTexture(state.hero.spriteKey);
       }
+      this.hidePlayerEffectOverlay();
       return;
     }
     const nextKey = this.playerVisualState.moveBlend > 0.12 ? runKey : idleKey;
     if (this.playerSprite.anims.currentAnim?.key !== nextKey) {
       this.playerSprite.play(nextKey);
     }
+    this.playPlayerEffectOverlay(art, this.playerVisualState.moveBlend > 0.12 ? "run" : "idle", false);
+  }
+
+  private playPlayerEffectOverlay(art: CharacterArtDef, animationId: CharacterAnimationId, restart = true): boolean {
+    const overlaySprite = this.playerEffectOverlaySprite;
+    const overlay = art.animations?.[animationId]?.effectOverlay;
+    const overlayKey = characterAnimationEffectOverlayKey(art.textureKey, animationId);
+    if (!overlaySprite || !overlay || !this.anims.exists(overlayKey)) {
+      this.hidePlayerEffectOverlay();
+      return false;
+    }
+    overlaySprite
+      .setVisible(true)
+      .setAlpha(overlay.alpha)
+      .setBlendMode(overlay.blendMode === "add" ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL)
+      .setDepth((this.playerSprite?.depth ?? overlaySprite.depth) + overlay.depthOffset);
+    this.syncPlayerEffectOverlayTransform();
+    if (overlaySprite.anims.currentAnim?.key !== overlayKey || !overlaySprite.anims.isPlaying || restart) {
+      overlaySprite.off(Phaser.Animations.Events.ANIMATION_COMPLETE);
+      overlaySprite.play(overlayKey, restart);
+      if (overlay.repeat === 0) {
+        overlaySprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.hidePlayerEffectOverlay());
+      }
+    }
+    return true;
+  }
+
+  private hidePlayerEffectOverlay(): void {
+    if (!this.playerEffectOverlaySprite) {
+      return;
+    }
+    this.playerEffectOverlaySprite.off(Phaser.Animations.Events.ANIMATION_COMPLETE);
+    this.playerEffectOverlaySprite.stop();
+    this.playerEffectOverlaySprite.setVisible(false).setAlpha(0);
   }
 
   private syncPlayerGroundAura(state: RunState, baseScale: number): void {
@@ -989,6 +1050,7 @@ export class BattleScene extends Phaser.Scene {
       this.playerUltimateAnimationActive = true;
       this.playerUltimateAnimUntil = this.time.now + (ultimateAnimation.frameKeys.length / ultimateAnimation.frameRate) * 1000;
       this.playerSprite.play(ultimateAnimationKey);
+      this.playPlayerEffectOverlay(art, "ultimate");
       return;
     }
     this.playerUltimateAnimationActive = true;
@@ -1015,6 +1077,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.playerSprite.anims.currentAnim?.key !== ultimateAnimationKey || !this.playerSprite.anims.isPlaying) {
       this.playerSprite.play(ultimateAnimationKey, true);
     }
+    this.playPlayerEffectOverlay(art, "ultimate", false);
     return true;
   }
 
@@ -1047,6 +1110,7 @@ export class BattleScene extends Phaser.Scene {
       this.playerAttackActive = true;
       this.playerAttackAnimUntil = this.time.now + (attackAnimation.frameKeys.length / attackAnimation.frameRate) * 1000;
       this.playerSprite.play(attackAnimationKey);
+      this.playPlayerEffectOverlay(art, "attack");
       return;
     }
 
@@ -1586,6 +1650,8 @@ export class BattleScene extends Phaser.Scene {
     this.xpPickupEffects = undefined;
     this.combatJuiceEffects?.cleanup();
     this.combatJuiceEffects = undefined;
+    this.playerEffectOverlaySprite?.destroy();
+    this.playerEffectOverlaySprite = undefined;
     this.playerGroundAura?.destroy();
     this.playerGroundAura = undefined;
     this.playerAttackTimers.forEach((timer) => timer.remove(false));
@@ -1646,6 +1712,10 @@ function applyProfileTint(sprite: Phaser.GameObjects.Sprite, profile: VfxProfile
 
 function characterAnimationKey(textureKey: string, animationId: CharacterAnimationId): string {
   return `${textureKey}_${animationId}`;
+}
+
+function characterAnimationEffectOverlayKey(textureKey: string, animationId: CharacterAnimationId): string {
+  return `${textureKey}_${animationId}_effect_overlay`;
 }
 
 function hasCharacterAnimation(scene: Phaser.Scene, textureKey: string, animationId: CharacterAnimationId): boolean {

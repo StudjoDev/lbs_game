@@ -10,6 +10,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
+from normalize_character_runtime_frames import normalize_hero
+
 sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1214,6 +1216,7 @@ def main() -> None:
             max_occupancy,
         )
         write_legacy_attack_frames(hero_dir, attack_paths)
+        normalize_hero(hero_dir)
 
 
 if __name__ == "__main__":

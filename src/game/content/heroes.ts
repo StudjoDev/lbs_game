@@ -1066,6 +1066,38 @@ export const heroes: HeroDef[] = [
       vfxKey: "lubu_musou_rampage",
       effectId: "seven_dashes"
     }
+  }),
+  createHero({
+    id: "jiangwei",
+    factionId: "shu",
+    name: "姜維",
+    title: "麒麟繼志",
+    role: "軍略突刺",
+    passiveName: "繼志奇謀",
+    passiveText: "每次施放手動技後短暫提高下一輪自動突刺傷害，適合用軍略節奏穿插清線。",
+    baseStats: { maxHp: 124, moveSpeed: 246, armor: 2, pickupRadius: 112 },
+    autoAbility: {
+      name: "麒麟挑槍",
+      description: "斜向挑出麒麟槍芒，先挑後刺，穿透近中距敵軍。",
+      cooldown: 0.86,
+      range: 430,
+      radius: 30,
+      damage: 22,
+      damageTags: ["pierce", "command"],
+      vfxKey: "jiangwei_qilin_spear",
+      effectId: "spear_flurry"
+    },
+    manualAbility: {
+      name: "兵書星陣",
+      description: "展開兵書星點牽制敵群，再以麒麟槍勢切入核心。",
+      cooldown: 7.2,
+      range: 560,
+      radius: 82,
+      damage: 52,
+      damageTags: ["command", "shock"],
+      vfxKey: "jiangwei_scroll_stars",
+      effectId: "thunder_charm"
+    }
   })
 ];
 

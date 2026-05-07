@@ -3,6 +3,8 @@
 
 Yueying's effect grammar is mechanical motion without closed square or
 rectangular frames: open jade arcs, gold bolt traces, and compact gear sparks.
+Action frame PNGs contain only the character and weapon; light trails and
+energy marks are exported as runtime effect overlay frames.
 """
 
 from __future__ import annotations
@@ -10,12 +12,16 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 
 ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / "scripts"))
+from normalize_character_runtime_frames import normalize_hero
+
 HERO_ID = "yueying"
 HERO_ROOT = ROOT / "public" / "assets" / "characters" / HERO_ID
 SOURCE_ROOT = ROOT / "scripts" / "source" / "character-anims" / HERO_ID
@@ -29,6 +35,8 @@ SCALE = 4
 SAFE_MARGIN = 8
 MAX_OCCUPANCY = 0.66
 ALPHA_THRESHOLD = 8
+MAX_CENTER_OFFSET_X = 18
+MAX_CENTER_OFFSET_Y = 16
 
 TEAL = (69, 242, 198, 190)
 TEAL_CORE = (202, 255, 231, 235)
@@ -81,7 +89,20 @@ def transformed_sprite(
 
 
 def fit_to_safe_box(image: Image.Image, margin: int = SAFE_MARGIN, max_occupancy: float = MAX_OCCUPANCY) -> Image.Image:
-    bbox = alpha_bbox(image)
+    return fit_to_safe_box_layers(image, None, margin, max_occupancy)[0]
+
+
+def fit_to_safe_box_layers(
+    base: Image.Image,
+    overlay: Image.Image | None,
+    margin: int = SAFE_MARGIN,
+    max_occupancy: float = MAX_OCCUPANCY,
+) -> tuple[Image.Image, Image.Image]:
+    reference = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
+    reference.alpha_composite(base)
+    if overlay is not None:
+        reference.alpha_composite(overlay)
+    bbox = alpha_bbox(reference)
     if bbox is None:
         raise ValueError("frame has no visible alpha")
     width = bbox[2] - bbox[0]
@@ -89,17 +110,27 @@ def fit_to_safe_box(image: Image.Image, margin: int = SAFE_MARGIN, max_occupancy
     max_w = min(FRAME_W - margin * 2, math.floor(FRAME_W * max_occupancy))
     max_h = min(FRAME_H - margin * 2, math.floor(FRAME_H * max_occupancy))
     scale = min(1.0, max_w / width, max_h / height)
-    crop = image.crop(bbox)
+    base_crop = base.crop(bbox)
+    overlay_crop = (overlay or Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))).crop(bbox)
     if scale < 1:
-        crop = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.Resampling.LANCZOS)
+        size = (max(1, round(width * scale)), max(1, round(height * scale)))
+        base_crop = base_crop.resize(size, Image.Resampling.LANCZOS)
+        overlay_crop = overlay_crop.resize(size, Image.Resampling.LANCZOS)
     old_cx = (bbox[0] + bbox[2]) / 2
+    old_cy = (bbox[1] + bbox[3]) / 2
     center_delta = (old_cx - FRAME_W / 2) * scale
-    x = round((FRAME_W - crop.width) / 2 + center_delta)
-    x = max(margin, min(FRAME_W - margin - crop.width, x))
-    y = min(FRAME_H - margin - crop.height, max(margin, round(FRAME_H - margin - crop.height)))
-    canvas = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    canvas.alpha_composite(crop, (x, y))
-    return canvas
+    vertical_delta = (old_cy - FRAME_H / 2) * scale
+    center_delta = max(-MAX_CENTER_OFFSET_X, min(MAX_CENTER_OFFSET_X, center_delta))
+    vertical_delta = max(-8, min(8, vertical_delta))
+    x = round((FRAME_W - base_crop.width) / 2 + center_delta)
+    y = round((FRAME_H - base_crop.height) / 2 + vertical_delta)
+    x = max(margin, min(FRAME_W - margin - base_crop.width, x))
+    y = max(margin, min(FRAME_H - margin - base_crop.height, y))
+    base_canvas = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    overlay_canvas = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    base_canvas.alpha_composite(base_crop, (x, y))
+    overlay_canvas.alpha_composite(overlay_crop, (x, y))
+    return base_canvas, overlay_canvas
 
 
 def hi_layer() -> Image.Image:
@@ -204,14 +235,13 @@ def draw_bagua_field(layer: Image.Image, intensity: float, phase: float) -> None
         draw.line((sp(x0), sp(y0), sp(x1), sp(y1)), fill=(TEAL[0], TEAL[1], TEAL[2], round(alpha * 0.84)), width=sp(1.1))
 
 
-def composite(sprite: Image.Image, back: Image.Image | None = None, front: Image.Image | None = None) -> Image.Image:
-    frame = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
+def split_frame(sprite: Image.Image, back: Image.Image | None = None, front: Image.Image | None = None) -> tuple[Image.Image, Image.Image]:
+    effect = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
     if back:
-        frame.alpha_composite(back.resize((FRAME_W, FRAME_H), Image.Resampling.LANCZOS))
-    frame.alpha_composite(sprite)
+        effect.alpha_composite(back.resize((FRAME_W, FRAME_H), Image.Resampling.LANCZOS))
     if front:
-        frame.alpha_composite(front.resize((FRAME_W, FRAME_H), Image.Resampling.LANCZOS))
-    return fit_to_safe_box(frame)
+        effect.alpha_composite(front.resize((FRAME_W, FRAME_H), Image.Resampling.LANCZOS))
+    return fit_to_safe_box_layers(sprite, effect)
 
 
 def idle_frames(base: Image.Image) -> list[Image.Image]:
@@ -223,7 +253,7 @@ def idle_frames(base: Image.Image) -> list[Image.Image]:
         (-1, 0, 1.1, 1.002, 1.0),
         (-1, 1, 0.3, 1.0, 0.99),
     ]
-    return [composite(transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright)) for dx, dy, rot, scale, bright in specs]
+    return [split_frame(transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright)) for dx, dy, rot, scale, bright in specs]
 
 
 def run_frames(base: Image.Image) -> list[Image.Image]:
@@ -241,7 +271,7 @@ def run_frames(base: Image.Image) -> list[Image.Image]:
         if index in (1, 4):
             direction = -1 if index == 1 else 1
             glow_curve(back, [(72, 166), (62 - direction * 8, 153), (84 + direction * 16, 191), (116, 190)], (TEAL[0], TEAL[1], TEAL[2], 110), 3.0)
-        frames.append(composite(transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright), back=back))
+        frames.append(split_frame(transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright), back=back))
     return frames
 
 
@@ -277,7 +307,7 @@ def attack_frames(base: Image.Image) -> list[Image.Image]:
             start, end, angle, alpha = bolt_specs[index]
             draw_bolt(front, start, end, angle, alpha)
         sprite = transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright, bottom=216 + dy * 0.25)
-        frames.append(composite(sprite, back=back, front=front))
+        frames.append(split_frame(sprite, back=back, front=front))
     return frames
 
 
@@ -307,7 +337,7 @@ def ultimate_frames(base: Image.Image) -> list[Image.Image]:
         if index in (3, 4):
             glow_curve(front, [(52, 151), (68, 101), (125, 96), (147, 151)], (TEAL[0], TEAL[1], TEAL[2], 170), 3.5)
         sprite = transformed_sprite(base, dx=dx, dy=dy, rotate=rot, scale=scale, brightness=bright, bottom=216 + dy * 0.2)
-        frames.append(composite(sprite, back=back, front=front))
+        frames.append(split_frame(sprite, back=back, front=front))
     return frames
 
 
@@ -322,14 +352,24 @@ def check_frame(path: Path) -> dict[str, object]:
     width = right - left
     height = bottom - top
     padding = min(left, top, FRAME_W - right, FRAME_H - bottom)
+    center_x = (left + right) / 2
+    center_y = (top + bottom) / 2
+    offset_x = center_x - FRAME_W / 2
+    offset_y = center_y - FRAME_H / 2
     if padding < SAFE_MARGIN:
         raise ValueError(f"{path}: padding {padding}px is below {SAFE_MARGIN}px")
     if width / FRAME_W > MAX_OCCUPANCY + 0.01 or height / FRAME_H > MAX_OCCUPANCY + 0.01:
         raise ValueError(f"{path}: bbox {(width, height)} exceeds safe occupancy")
+    if abs(offset_x) > MAX_CENTER_OFFSET_X or abs(offset_y) > MAX_CENTER_OFFSET_Y:
+        raise ValueError(
+            f"{path}: visible center offset {offset_x:+.1f},{offset_y:+.1f}px exceeds "
+            f"{MAX_CENTER_OFFSET_X},{MAX_CENTER_OFFSET_Y}px"
+        )
     return {
         "path": str(path.relative_to(ROOT)).replace("\\", "/"),
         "bbox": [left, top, right, bottom],
         "padding": padding,
+        "centerOffset": [round(offset_x, 1), round(offset_y, 1)],
         "occupancy": [round(width / FRAME_W, 3), round(height / FRAME_H, 3)],
     }
 
@@ -344,18 +384,26 @@ def checkerboard() -> Image.Image:
     return tile
 
 
-def write_preview(paths: list[Path], out_path: Path, label_prefix: str) -> None:
+def composite_paths(base_path: Path, effect_path: Path | None = None) -> Image.Image:
+    image = Image.open(base_path).convert("RGBA")
+    if effect_path is not None and effect_path.exists():
+        image.alpha_composite(Image.open(effect_path).convert("RGBA"))
+    return image
+
+
+def write_preview(paths: list[Path], out_path: Path, label_prefix: str, effect_paths: list[Path] | None = None) -> None:
     sheet = Image.new("RGBA", (FRAME_W * len(paths), FRAME_H), (20, 14, 18, 255))
     for index, path in enumerate(paths):
         tile = checkerboard()
-        tile.alpha_composite(Image.open(path).convert("RGBA"))
+        effect_path = effect_paths[index] if effect_paths and index < len(effect_paths) else None
+        tile.alpha_composite(composite_paths(path, effect_path))
         ImageDraw.Draw(tile).text((5, 4), f"{label_prefix}{index + 1:02d}", fill=(255, 232, 146, 255))
         sheet.alpha_composite(tile, (index * FRAME_W, 0))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out_path)
 
 
-def write_contact_sheet(output: dict[str, list[Path]], out_path: Path) -> None:
+def write_contact_sheet(output: dict[str, list[Path]], effect_output: dict[str, list[Path]], out_path: Path) -> None:
     states = ["idle", "run", "attack", "ultimate"]
     label_w = 88
     cols = max(len(output[state]) for state in states)
@@ -367,7 +415,9 @@ def write_contact_sheet(output: dict[str, list[Path]], out_path: Path) -> None:
         draw.text((12, y + 18), state, fill=(255, 232, 146, 255))
         for index, path in enumerate(output[state]):
             tile = checkerboard()
-            tile.alpha_composite(Image.open(path).convert("RGBA"))
+            effect_paths = effect_output.get(state, [])
+            effect_path = effect_paths[index] if index < len(effect_paths) else None
+            tile.alpha_composite(composite_paths(path, effect_path))
             ImageDraw.Draw(tile).text((5, 4), f"{index + 1:02d}", fill=(255, 232, 146, 255))
             sheet.alpha_composite(tile, (label_w + index * FRAME_W, y))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -383,9 +433,11 @@ Run identity: forward-leaning halberd engineer dash with short jade afterimage a
 Normal attack: halberd sweep plus non-closed jade mechanism arc and gold bolt traces; no square, rectangular, card, panel, UI, or framed effect.
 Ultimate/Musou: compact bagua field with multi-lane crossbow bolts and open arcs, kept inside safe box.
 Effect grammar: open curves, slim bolts, small line shards; never closed square/rectangular frames.
+Effect layering: action frame PNGs are character/weapon only; jade arcs, gold bolts, bagua rings, and run afterimages are exported under anim/<state>/effect/ and composited by runtime.
 Frame counts: idle 6, run 6, attack 8, ultimate 8.
 Safe-box target: <= 66% frame width/height.
 Padding target: >= 8px transparent padding.
+Frame-center target: visible alpha centered near (96,112), max offset 18px x / 16px y; never shifted downward with empty top space.
 Independent movement: sprite translation/lean plus effect origin/path/bolt position changes each middle frame.
 Validation notes: visual audit must reject framed square/rectangle effects and palette-only reuse.
 """
@@ -414,31 +466,45 @@ def write_assets() -> None:
         "ultimate": ultimate_frames(base),
     }
     output: dict[str, list[Path]] = {}
+    effect_output: dict[str, list[Path]] = {}
     audit_rows: list[dict[str, object]] = []
     for state, frames in states.items():
         final_dir = HERO_ROOT / "anim" / state
         source_dir = SOURCE_ROOT / state
         raw_dir = source_dir / "raw"
+        effect_dir = final_dir / "effect"
+        raw_effect_dir = source_dir / "effect" / "raw"
         if final_dir.exists():
-            for old in final_dir.glob("*.png"):
-                old.unlink()
+            shutil.rmtree(final_dir)
         if source_dir.exists():
             shutil.rmtree(source_dir)
         final_dir.mkdir(parents=True, exist_ok=True)
         raw_dir.mkdir(parents=True, exist_ok=True)
+        has_effect_overlay = any(alpha_bbox(effect) is not None for _, effect in frames)
+        if has_effect_overlay:
+            effect_dir.mkdir(parents=True, exist_ok=True)
+            raw_effect_dir.mkdir(parents=True, exist_ok=True)
         paths = []
-        for index, frame in enumerate(frames, start=1):
+        effect_paths = []
+        for index, (frame, effect) in enumerate(frames, start=1):
             raw_path = raw_dir / f"{index:02d}.png"
             frame.save(raw_path)
             out_path = final_dir / f"{index:02d}.png"
             frame.save(out_path)
             audit_rows.append(check_frame(out_path))
             paths.append(out_path)
+            if has_effect_overlay:
+                effect_raw_path = raw_effect_dir / f"{index:02d}.png"
+                effect_out_path = effect_dir / f"{index:02d}.png"
+                effect.save(effect_raw_path)
+                effect.save(effect_out_path)
+                effect_paths.append(effect_out_path)
         output[state] = paths
-        write_preview(paths, source_dir / "preview.png", state[0])
-        write_preview(paths, source_dir / "reference-action.png", state[0])
+        effect_output[state] = effect_paths
+        write_preview(paths, source_dir / "preview.png", state[0], effect_paths)
+        write_preview(paths, source_dir / "reference-action.png", state[0], effect_paths)
 
-    base.save(HERO_ROOT / "battle-idle.png")
+    Image.open(output["idle"][0]).convert("RGBA").save(HERO_ROOT / "battle-idle.png")
     if card_path.exists():
         Image.open(card_path).convert("RGBA").save(HERO_ROOT / "card.png")
 
@@ -453,8 +519,10 @@ def write_assets() -> None:
         strip.alpha_composite(frame, (index * FRAME_W, 0))
     strip.save(HERO_ROOT / "attack-strip.png")
 
-    write_contact_sheet(output, WEB_ROOT / "yueying-contact-sheet.png")
-    write_preview(output["attack"], WEB_ROOT / "yueying-attack-strip-preview.png", "a")
+    normalize_hero(HERO_ROOT)
+
+    write_contact_sheet(output, effect_output, WEB_ROOT / "yueying-contact-sheet.png")
+    write_preview(output["attack"], WEB_ROOT / "yueying-attack-strip-preview.png", "a", effect_output["attack"])
     write_motion_brief()
     (AGENT_ROOT / "asset-audit.json").write_text(json.dumps(audit_rows, indent=2), encoding="utf-8")
     (AGENT_ROOT / "asset-list.json").write_text(
@@ -470,6 +538,11 @@ def write_assets() -> None:
                     "animations": {
                         state: [f"anim/{state}/{index + 1:02d}.png" for index in range(len(paths))]
                         for state, paths in output.items()
+                    },
+                    "effectOverlays": {
+                        state: [f"anim/{state}/effect/{index + 1:02d}.png" for index in range(len(paths))]
+                        for state, paths in effect_output.items()
+                        if paths
                     },
                 },
                 "contactSheet": "output/web-game/yueying-contact-sheet.png",

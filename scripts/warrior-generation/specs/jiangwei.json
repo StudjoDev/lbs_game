@@ -1,0 +1,234 @@
+{
+  "id": "jiangwei",
+  "factionId": "shu",
+  "name": "姜維",
+  "title": "麒麟繼志",
+  "rarityLabel": "SSR",
+  "stars": 5,
+  "role": "軍略突刺",
+  "quote": "承武侯遺志，麒麟破陣。",
+  "biography": "蜀漢後期的麒麟將才。以麒麟長槍和兵書軍令切入敵線，普通攻擊偏斜挑刺，無雙以星軌連突和軍略收束區分於趙雲、馬超的直線槍勢。",
+  "bondIds": ["taoyuan"],
+  "passive": {
+    "name": "繼志奇謀",
+    "text": "每次施放手動技後短暫提高下一輪自動突刺傷害，適合用軍略節奏穿插清線。"
+  },
+  "baseStats": {
+    "maxHp": 124,
+    "moveSpeed": 246,
+    "armor": 2,
+    "pickupRadius": 112
+  },
+  "vfxProfiles": [
+    {
+      "key": "jiangwei_qilin_spear",
+      "textureKey": "spear_thrust",
+      "color": "#62f2d7",
+      "blendMode": "add",
+      "scale": 0.82,
+      "lifetime": 0.3,
+      "particleKey": "particle_spark",
+      "telegraphShape": "slash",
+      "presentationKind": "meleeArc",
+      "originMode": "playerAnchored",
+      "motionStyle": "thrust",
+      "arcDegrees": 72,
+      "followPlayer": true
+    },
+    {
+      "key": "jiangwei_scroll_stars",
+      "textureKey": "thunder_charm",
+      "color": "#9bf7ff",
+      "blendMode": "add",
+      "scale": 0.92,
+      "lifetime": 0.44,
+      "particleKey": "particle_magic",
+      "telegraphShape": "burst",
+      "presentationKind": "areaField",
+      "originMode": "targetArea",
+      "motionStyle": "cast"
+    },
+    {
+      "key": "jiangwei_musou_qilin_path",
+      "textureKey": "spear_thrust",
+      "color": "#7df7dd",
+      "blendMode": "add",
+      "scale": 1.08,
+      "lifetime": 0.42,
+      "particleKey": "particle_magic",
+      "telegraphShape": "slash",
+      "presentationKind": "dash",
+      "originMode": "playerAnchored",
+      "motionStyle": "thrust",
+      "arcDegrees": 96,
+      "followPlayer": true
+    }
+  ],
+  "abilities": {
+    "auto": {
+      "name": "麒麟挑槍",
+      "description": "斜向挑出麒麟槍芒，先挑後刺，穿透近中距敵軍。",
+      "cooldown": 0.86,
+      "range": 430,
+      "radius": 30,
+      "damage": 22,
+      "damageTags": ["pierce", "command"],
+      "vfxKey": "jiangwei_qilin_spear",
+      "effectId": "spear_flurry"
+    },
+    "manual": {
+      "name": "兵書星陣",
+      "description": "展開兵書星點牽制敵群，再以麒麟槍勢切入核心。",
+      "cooldown": 7.2,
+      "range": 560,
+      "radius": 82,
+      "damage": 52,
+      "damageTags": ["command", "shock"],
+      "vfxKey": "jiangwei_scroll_stars",
+      "effectId": "thunder_charm"
+    }
+  },
+  "ultimate": {
+    "name": "麒麟繼志",
+    "duration": 7.4,
+    "pulseEvery": 1.05,
+    "vfxKey": "jiangwei_musou_qilin_path",
+    "finisherVfxKey": "jiangwei_musou_qilin_path",
+    "shortLabel": "星槍連破",
+    "pulseAbility": {
+      "name": "麒麟星槍",
+      "cooldown": 0,
+      "range": 520,
+      "radius": 36,
+      "damage": 31,
+      "damageTags": ["pierce", "command"],
+      "vfxKey": "jiangwei_qilin_spear",
+      "effectId": "spear_flurry"
+    },
+    "finisherAbility": {
+      "name": "繼志破陣",
+      "cooldown": 0,
+      "range": 620,
+      "radius": 76,
+      "damage": 56,
+      "damageTags": ["pierce", "command", "shock"],
+      "vfxKey": "jiangwei_musou_qilin_path",
+      "effectId": "seven_dashes"
+    }
+  },
+  "visual": {
+    "weaponSilhouette": "qilin-themed forked long spear with crescent side blade and small tassel, held diagonally",
+    "costumeKeywords": "green-teal white and gold Shu armor, dragon shoulder plates, military scroll at waist, youthful strategist-general",
+    "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
+    "battlePrompt": "Transparent chibi battle cutout of the same Jiang Wei inspired warrior, full body centered, forked long spear silhouette readable, military scroll as physical prop, no glow or trails.",
+    "palette": {
+      "primary": "#46d8b8",
+      "secondary": "#143b34",
+      "accent": "#ffd36a"
+    }
+  },
+  "motion": {
+    "idle": {
+      "style": "breath",
+      "grammar": "Calm strategist guard: spear tip floats slightly left while scroll hand settles separately from the torso.",
+      "layers": ["torso", "spear tassel"]
+    },
+    "run": {
+      "style": "stride",
+      "grammar": "Light tactical stride: body leans forward, spear butt trails behind, tassel bounces after each step.",
+      "layers": ["legs", "spear tassel"]
+    },
+    "attack": {
+      "style": "thrust",
+      "grammar": "Eight-frame斜挑突刺: frame 2 spear lowers, frame 3 shoulder pulls back, frame 4 forked blade cuts up-left, frame 5 short forward stab, frame 6 tassel follows through.",
+      "layers": ["arm", "weapon", "tassel"]
+    },
+    "ultimate": {
+      "style": "dash",
+      "grammar": "Eight-frame麒麟星槍: body pivots into a diagonal command stance, spear draws a compressed star path, then finishes with a forward military thrust.",
+      "layers": ["torso", "weapon", "cape"]
+    }
+  },
+  "effects": {
+    "palette": ["#62f2d7", "#ffd36a", "#ffffff"],
+    "idle": {
+      "shape": "tiny spear sparks",
+      "origin": "spear tassel",
+      "path": "short drifting orbit near the spear head",
+      "rhythm": "soft alternating glints",
+      "purpose": "weapon identity without covering the body"
+    },
+    "run": {
+      "shape": "teal step motes",
+      "origin": "feet and spear butt",
+      "path": "short backward dots that rise with each stride",
+      "rhythm": "alternating footfall",
+      "purpose": "light tactical motion cue"
+    },
+    "attack": {
+      "shape": "split crescent spear wake",
+      "origin": "forked blade tip",
+      "path": "up-left hook into short forward thrust with an inner echo line",
+      "rhythm": "wind-up, hook, stab, settle",
+      "purpose": "ordinary attack distinct from straight spear dash"
+    },
+    "ultimate": {
+      "shape": "compressed qilin star shards",
+      "origin": "spear head and military scroll",
+      "path": "open diagonal star path that folds into a final thrust",
+      "rhythm": "charge, star burst, forward finish",
+      "purpose": "Musou signature layer tied to strategy and spear"
+    }
+  },
+  "constraints": {
+    "forbidSquareEffects": true,
+    "forbidBakedEffects": true,
+    "forbidRecolorOnly": true,
+    "requireCenteredRuntimeFrames": true,
+    "requireSeparateEffectOverlays": true,
+    "requireTruePerFrameRasterPoses": true
+  },
+  "avoidSimilarTo": ["zhaoyun", "machao", "zhugeliang"],
+  "sourceImages": {
+    "card": "output/warrior-generation/jiangwei/sources/card.png",
+    "battle": "output/warrior-generation/jiangwei/sources/battle.png",
+    "animationFrames": {
+      "idle": [
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/01.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/02.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/03.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/04.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/05.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/06.png"
+      ],
+      "run": [
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/01.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/02.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/03.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/04.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/05.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/06.png"
+      ],
+      "attack": [
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/01.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/02.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/03.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/04.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/05.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/06.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/07.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/08.png"
+      ],
+      "ultimate": [
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/01.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/02.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/03.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/04.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/05.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/06.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/07.png",
+        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/08.png"
+      ]
+    }
+  }
+}

@@ -14,6 +14,8 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise SystemExit("Pillow is required. Install it with: python -m pip install pillow") from exc
 
+from normalize_character_runtime_frames import normalize_action_frame
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT_ROOT = ROOT / "output" / "ai-character-sources"
@@ -26,13 +28,13 @@ GRID_COLS = 4
 GRID_ROWS = 3
 PADDING = 12
 ALPHA_THRESHOLD = 8
-BASE_STATES = ("idle", "run", "attack")
-OPTIONAL_STATES = ("ultimate",)
+BASE_STATES = ("idle", "run", "attack", "ultimate")
+OPTIONAL_STATES: tuple[str, ...] = ()
 STATES = (*BASE_STATES, *OPTIONAL_STATES)
 FRAME_COUNTS = {
-    "idle": 4,
-    "run": 4,
-    "attack": 4,
+    "idle": 6,
+    "run": 6,
+    "attack": 8,
     "ultimate": 8,
 }
 ULTIMATE_CONTACT_SHEET_PATH = ROOT / "output" / "web-game" / "ultimate-animation-contact-sheet.png"
@@ -170,8 +172,8 @@ def normalize_frame(source: Image.Image, label: str) -> Image.Image:
         raise ValueError(f"{label}: no foreground pixels found after chroma-key removal")
 
     crop = keyed.crop(bbox)
-    max_width = FRAME_WIDTH - PADDING * 2
-    max_height = FRAME_HEIGHT - PADDING * 2
+    max_width = min(FRAME_WIDTH - PADDING * 2, round(FRAME_WIDTH * 0.67))
+    max_height = min(FRAME_HEIGHT - PADDING * 2, round(FRAME_HEIGHT * 0.67))
     scale = min(max_width / crop.width, max_height / crop.height)
     if scale <= 0:
         raise ValueError(f"{label}: invalid source frame size {crop.size}")
@@ -182,7 +184,7 @@ def normalize_frame(source: Image.Image, label: str) -> Image.Image:
     )
     canvas = Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT), (0, 0, 0, 0))
     x = round((FRAME_WIDTH - resized.width) / 2)
-    y = FRAME_HEIGHT - PADDING - resized.height
+    y = round((FRAME_HEIGHT - resized.height) / 2)
     x = max(0, min(FRAME_WIDTH - resized.width, x))
     y = max(0, min(FRAME_HEIGHT - resized.height, y))
     canvas.alpha_composite(resized, (x, y))
@@ -190,6 +192,10 @@ def normalize_frame(source: Image.Image, label: str) -> Image.Image:
 
 
 def split_animation_sheet(path: Path) -> dict[str, list[Image.Image]]:
+    raise ValueError(
+        f"{path}: legacy 4x3 animation-sheet input is retired; provide individual "
+        "idle=6 run=6 attack=8 ultimate=8 PNG files or use `npm run warrior:new -- --spec <path>`"
+    )
     sheet = Image.open(path).convert("RGBA")
     cell_width = sheet.width / GRID_COLS
     cell_height = sheet.height / GRID_ROWS
@@ -275,17 +281,22 @@ def write_animation_assets(output_dir: Path, frames: dict[str, list[Image.Image]
             raise ValueError(f"{hero_id}: expected at least {frame_count} {state} frames, found {len(source_frames)}")
 
         state_dir = output_dir / "anim" / state
+        effect_dir = state_dir / "effect"
         state_dir.mkdir(parents=True, exist_ok=True)
+        effect_dir.mkdir(parents=True, exist_ok=True)
         normalized[state] = []
         for index, source in enumerate(source_frames[:frame_count], start=1):
             frame = normalize_frame(source, f"{hero_id} {state} {index:02d}")
-            frame.save(state_dir / f"{index:02d}.png")
-            normalized[state].append(frame)
+            base, overlay = normalize_action_frame(frame)
+            base.save(state_dir / f"{index:02d}.png")
+            overlay.save(effect_dir / f"{index:02d}.png")
+            normalized[state].append(base)
 
     normalized["idle"][0].save(output_dir / "battle-idle.png")
-    for index, frame in enumerate(normalized["attack"]):
+    legacy_attack_frames = [normalized["attack"][index] for index in (0, 2, 3, 5)]
+    for index, frame in enumerate(legacy_attack_frames):
         frame.save(output_dir / f"attack-{index}.png")
-    make_strip(normalized["attack"]).save(output_dir / "attack-strip.png")
+    make_strip(legacy_attack_frames).save(output_dir / "attack-strip.png")
 
 
 def validate_character_output(output_dir: Path, hero_id: str) -> None:
@@ -302,10 +313,17 @@ def validate_character_output(output_dir: Path, hero_id: str) -> None:
         if state in OPTIONAL_STATES and not state_dir.exists():
             continue
         paths = sorted(state_dir.glob("*.png"))
+        overlay_paths = sorted((state_dir / "effect").glob("*.png"))
         frame_count = FRAME_COUNTS[state]
         if len(paths) < frame_count:
             raise ValueError(f"{hero_id}: validation failed for {state}; expected at least {frame_count} frames, found {len(paths)}")
+        if len(overlay_paths) < frame_count:
+            raise ValueError(f"{hero_id}: validation failed for {state}; expected at least {frame_count} effect overlay frames, found {len(overlay_paths)}")
         for path in paths[:frame_count]:
+            with Image.open(path) as image:
+                if image.size != (FRAME_WIDTH, FRAME_HEIGHT):
+                    raise ValueError(f"{hero_id}: {path} has size {image.size}, expected {(FRAME_WIDTH, FRAME_HEIGHT)}")
+        for path in overlay_paths[:frame_count]:
             with Image.open(path) as image:
                 if image.size != (FRAME_WIDTH, FRAME_HEIGHT):
                     raise ValueError(f"{hero_id}: {path} has size {image.size}, expected {(FRAME_WIDTH, FRAME_HEIGHT)}")
@@ -327,7 +345,7 @@ def validate_character_output(output_dir: Path, hero_id: str) -> None:
                     raise ValueError(f"{hero_id}: {path} has size {image.size}, expected {(FRAME_WIDTH, FRAME_HEIGHT)}")
 
     with Image.open(output_dir / "attack-strip.png") as strip:
-        expected = (FRAME_WIDTH * FRAME_COUNTS["attack"], FRAME_HEIGHT)
+        expected = (FRAME_WIDTH * 4, FRAME_HEIGHT)
         if strip.size != expected:
             raise ValueError(f"{hero_id}: attack-strip.png has size {strip.size}, expected {expected}")
 

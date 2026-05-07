@@ -9,6 +9,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
+from normalize_character_runtime_frames import normalize_hero
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CHARACTER_ROOT = ROOT / "public" / "assets" / "characters"
@@ -661,6 +663,7 @@ def main() -> None:
     for hero_id in hero_ids:
         config = HERO_CONFIGS[hero_id]
         generated[hero_id] = generate_hero(hero_id, config)
+        normalize_hero(CHARACTER_ROOT / hero_id)
         print(f"generated ultimate frames for {hero_id}")
     write_contact_sheet(generated)
     print(f"contact sheet: {CONTACT_SHEET_PATH}")

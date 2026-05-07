@@ -439,6 +439,15 @@ const ultimateBaseProfiles: UltimateBaseProfile[] = [
     moveSpeedScale: 1.12,
     pulseAbility: ultimateAbility("lubu", "lubu_ultimate_halberd", "方天亂戟", 360, 88, 35, ["blade", "shock"], "lubu_musou_halberd", "arc_sweep"),
     empoweredPulseAbility: ultimateAbility("lubu", "lubu_ultimate_rampage", "飛將突陣", 420, 78, 48, ["blade", "shock"], "lubu_musou_rampage", "seven_dashes")
+  },
+  {
+    heroId: "jiangwei",
+    name: "麒麟繼志",
+    duration: 7.4,
+    pulseEvery: 1.05,
+    vfxKey: "jiangwei_musou_qilin_path",
+    empoweredUnlockId: masteryUnlockId("jiangwei"),
+    pulseAbility: ultimateAbility("jiangwei", "jiangwei_ultimate_pulse", "麒麟星槍", 520, 36, 31, ["pierce", "command"], "jiangwei_qilin_spear", "spear_flurry")
   }
 ];
 
@@ -642,6 +651,11 @@ const ultimateEnhancements: Record<HeroId, UltimateEnhancement> = {
     presentation: presentation("lubu_musou_flying_general", "lubu_musou_flying_general", "飛將收戟"),
     finisherVfxKey: "lubu_musou_flying_general",
     finisherAbility: ultimateAbility("lubu", "lubu_ultimate_finisher", "飛將收戟", 520, 92, 54, ["blade", "shock"], "lubu_musou_flying_general", "dragon_slash")
+  },
+  jiangwei: {
+    presentation: presentation("jiangwei_musou_qilin_path", "jiangwei_musou_qilin_path", "星槍連破"),
+    finisherVfxKey: "jiangwei_musou_qilin_path",
+    finisherAbility: ultimateAbility("jiangwei", "jiangwei_ultimate_finisher", "繼志破陣", 620, 76, 56, ["pierce", "command", "shock"], "jiangwei_musou_qilin_path", "seven_dashes")
   }
 };
 

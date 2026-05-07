@@ -145,6 +145,13 @@
       "cardPrompt": "Lu Bu inspired original chibi mythic boss warrior, black-purple horned helmet, crimson plume, cute but intimidating fierce face, huge glossy red eyes, massive halberd with crescent side blade and spear tip, violet-crimson vertical promo panel lightning, no text.",
       "battlePrompt": "Larger 2.5D transparent chibi battle cutout of the same original Lu Bu inspired boss, big head, compact Q-version body, huge halberd silhouette, purple crimson palette, no text.",
       "attackPrompt": "Four conservative chibi attack frames from the same cutout, same scale and facing, halberd sweeping sequence, transparent background, no text."
+    },
+    {
+      "id": "jiangwei",
+      "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
+      "battlePrompt": "Transparent chibi battle cutout of the same Jiang Wei inspired warrior, full body centered, forked long spear silhouette readable, military scroll as physical prop, no glow or trails.",
+      "attackPrompt": "Eight-frame斜挑突刺: frame 2 spear lowers, frame 3 shoulder pulls back, frame 4 forked blade cuts up-left, frame 5 short forward stab, frame 6 tassel follows through.",
+      "ultimatePrompt": "Eight-frame麒麟星槍: body pivots into a diagonal command stance, spear draws a compressed star path, then finishes with a forward military thrust."
     }
   ],
   "avoid": [
@@ -156,6 +163,9 @@
     "No SVG-only placeholder style",
     "No square or rectangular framed attack effects",
     "No UI-like boxes, card panels, spell-border rectangles, or closed box glyph effects",
+    "No runtime square-panel spritesheet effects such as brackeysLightstreaksAnimationKey or lightstreaks-6x5.png",
+    "Do not place the sprite low in the frame or leave excessive empty top padding; center visible alpha in each 192x224 animation frame",
+    "No baked effect light, cast shadow, ground shadow, glow, energy trail, magic circle, impact flash, particle, aura, or afterimage pixels inside base action frames; export those as overlay effect frames or runtime VFX layers",
     "Every warrior must have unique weapon motion, body action, and effect grammar rather than a color swap",
     "Do not copy the supplied reference image, characters, logo, typography, or exact composition"
   ]

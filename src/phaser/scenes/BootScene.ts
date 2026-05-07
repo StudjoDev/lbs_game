@@ -42,6 +42,9 @@ export class BootScene extends Phaser.Scene {
         animation.framePaths.forEach((framePath, index) => {
           this.load.image(animation.frameKeys[index], framePath);
         });
+        animation.effectOverlay?.framePaths.forEach((framePath, index) => {
+          this.load.image(animation.effectOverlay!.frameKeys[index], framePath);
+        });
       }
     }
     for (const asset of visualAssetEntries) {
@@ -559,6 +562,24 @@ export class BootScene extends Phaser.Scene {
           frames,
           frameRate: animation.frameRate,
           repeat: animation.repeat
+        });
+        const overlay = animation.effectOverlay;
+        if (!overlay) {
+          continue;
+        }
+        const overlayKey = `${art.textureKey}_${animationId}_effect_overlay`;
+        if (this.anims.exists(overlayKey)) {
+          continue;
+        }
+        const overlayFrames = overlay.frameKeys.filter((frameKey) => this.textures.exists(frameKey)).map((frameKey) => ({ key: frameKey }));
+        if (overlayFrames.length !== overlay.frameKeys.length) {
+          continue;
+        }
+        this.anims.create({
+          key: overlayKey,
+          frames: overlayFrames,
+          frameRate: overlay.frameRate,
+          repeat: overlay.repeat
         });
       }
     }
