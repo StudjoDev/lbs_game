@@ -2,7 +2,7 @@
   "heroId": "jiangwei",
   "status": "passed",
   "message": null,
-  "generatedAt": "2026-05-07T15:58:27Z",
+  "generatedAt": "2026-05-08T05:30:38Z",
   "specPath": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\warrior-generation\\specs\\jiangwei.json",
   "candidateDir": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\candidate",
   "promoted": true,
@@ -10,10 +10,38 @@
   "retries": 0,
   "maxRetries": 3,
   "sourceImages": {
-    "card": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\sources\\card.png",
-    "battle": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\sources\\battle.png",
+    "card": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\card.png",
+    "battle": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\battle.png",
     "attackReference": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\sources\\attack-reference.png",
-    "ultimateReference": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\sources\\ultimate-reference.png"
+    "ultimateReference": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\sources\\ultimate-reference.png",
+    "animationFrames.idle.01": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\01.png",
+    "animationFrames.idle.02": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\02.png",
+    "animationFrames.idle.03": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\03.png",
+    "animationFrames.idle.04": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\04.png",
+    "animationFrames.idle.05": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\05.png",
+    "animationFrames.idle.06": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\idle\\06.png",
+    "animationFrames.run.01": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\01.png",
+    "animationFrames.run.02": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\02.png",
+    "animationFrames.run.03": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\03.png",
+    "animationFrames.run.04": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\04.png",
+    "animationFrames.run.05": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\05.png",
+    "animationFrames.run.06": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\run\\06.png",
+    "animationFrames.attack.01": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\01.png",
+    "animationFrames.attack.02": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\02.png",
+    "animationFrames.attack.03": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\03.png",
+    "animationFrames.attack.04": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\04.png",
+    "animationFrames.attack.05": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\05.png",
+    "animationFrames.attack.06": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\06.png",
+    "animationFrames.attack.07": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\07.png",
+    "animationFrames.attack.08": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\attack\\08.png",
+    "animationFrames.ultimate.01": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\01.png",
+    "animationFrames.ultimate.02": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\02.png",
+    "animationFrames.ultimate.03": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\03.png",
+    "animationFrames.ultimate.04": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\04.png",
+    "animationFrames.ultimate.05": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\05.png",
+    "animationFrames.ultimate.06": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\06.png",
+    "animationFrames.ultimate.07": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\07.png",
+    "animationFrames.ultimate.08": "C:\\Users\\Boss\\projects\\lbs_game\\scripts\\source\\character-anims\\jiangwei\\anim\\ultimate\\08.png"
   },
   "promptPack": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\candidate\\prompt-pack.json",
   "motionBrief": "C:\\Users\\Boss\\projects\\lbs_game\\output\\warrior-generation\\jiangwei\\candidate\\motion-brief.md",
@@ -38,7 +66,15 @@
       "name": "idle-motion-delta",
       "status": "passed",
       "details": {
-        "minDelta": 232943
+        "minDelta": 863315
+      }
+    },
+    {
+      "name": "idle-articulation",
+      "status": "passed",
+      "details": {
+        "upperOuterDelta": 775243,
+        "lowerSplitDelta": 632502
       }
     },
     {
@@ -55,7 +91,15 @@
       "name": "run-motion-delta",
       "status": "passed",
       "details": {
-        "minDelta": 791378
+        "minDelta": 433048
+      }
+    },
+    {
+      "name": "run-articulation",
+      "status": "passed",
+      "details": {
+        "upperOuterDelta": 832972,
+        "lowerSplitDelta": 648565
       }
     },
     {
@@ -72,7 +116,15 @@
       "name": "attack-motion-delta",
       "status": "passed",
       "details": {
-        "minDelta": 328471
+        "minDelta": 819595
+      }
+    },
+    {
+      "name": "attack-articulation",
+      "status": "passed",
+      "details": {
+        "upperOuterDelta": 1024031,
+        "lowerSplitDelta": 588444
       }
     },
     {
@@ -89,7 +141,15 @@
       "name": "ultimate-motion-delta",
       "status": "passed",
       "details": {
-        "minDelta": 258630
+        "minDelta": 532387
+      }
+    },
+    {
+      "name": "ultimate-articulation",
+      "status": "passed",
+      "details": {
+        "upperOuterDelta": 915357,
+        "lowerSplitDelta": 691724
       }
     },
     {

@@ -148,10 +148,10 @@
     },
     {
       "id": "jiangwei",
-      "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
+      "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, high ponytail, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
       "battlePrompt": "Transparent chibi battle cutout of the same Jiang Wei inspired warrior, full body centered, forked long spear silhouette readable, military scroll as physical prop, no glow or trails.",
-      "attackPrompt": "Eight-frame斜挑突刺: frame 2 spear lowers, frame 3 shoulder pulls back, frame 4 forked blade cuts up-left, frame 5 short forward stab, frame 6 tassel follows through.",
-      "ultimatePrompt": "Eight-frame麒麟星槍: body pivots into a diagonal command stance, spear draws a compressed star path, then finishes with a forward military thrust."
+      "attackPrompt": "Eight-frame ordinary attack: ready guard, spear lowers, shoulder pulls back, forked blade hooks diagonally, forward thrust lands, tassel follows through, weapon recoils, stance resets.",
+      "ultimatePrompt": "Eight-frame Musou: command stance with scroll, spear gathers into a compact angled path, body drives forward, heavy finishing thrust, cape and ponytail settle last."
     }
   ],
   "avoid": [

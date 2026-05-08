@@ -117,9 +117,9 @@
     }
   },
   "visual": {
-    "weaponSilhouette": "qilin-themed forked long spear with crescent side blade and small tassel, held diagonally",
+    "weaponSilhouette": "qilin-themed forked long spear with crescent side blade and tassel, held diagonally",
     "costumeKeywords": "green-teal white and gold Shu armor, dragon shoulder plates, military scroll at waist, youthful strategist-general",
-    "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
+    "cardPrompt": "Original chibi Jiang Wei inspired Shu strategist-general, green-teal white and gold ornate armor, huge teal eyes, high ponytail, qilin-themed forked long spear, military scroll at waist, polished mobile RPG card source, no text.",
     "battlePrompt": "Transparent chibi battle cutout of the same Jiang Wei inspired warrior, full body centered, forked long spear silhouette readable, military scroll as physical prop, no glow or trails.",
     "palette": {
       "primary": "#46d8b8",
@@ -130,29 +130,29 @@
   "motion": {
     "idle": {
       "style": "breath",
-      "grammar": "Calm strategist guard: spear tip floats slightly left while scroll hand settles separately from the torso.",
-      "layers": ["torso", "spear tassel"]
+      "grammar": "Calm strategist guard: spear hand, scroll hand, ponytail, sleeves, and tassel each shift subtly across six frames.",
+      "layers": ["hand", "weapon", "hair", "sleeve"]
     },
     "run": {
       "style": "stride",
-      "grammar": "Light tactical stride: body leans forward, spear butt trails behind, tassel bounces after each step.",
-      "layers": ["legs", "spear tassel"]
+      "grammar": "Light tactical stride: feet alternate clearly, body leans into the run, spear trails behind then catches up, ponytail and sash counter-swing.",
+      "layers": ["feet", "weapon", "hair", "sash"]
     },
     "attack": {
       "style": "thrust",
-      "grammar": "Eight-frame斜挑突刺: frame 2 spear lowers, frame 3 shoulder pulls back, frame 4 forked blade cuts up-left, frame 5 short forward stab, frame 6 tassel follows through.",
-      "layers": ["arm", "weapon", "tassel"]
+      "grammar": "Eight-frame ordinary attack: ready guard, spear lowers, shoulder pulls back, forked blade hooks diagonally, forward thrust lands, tassel follows through, weapon recoils, stance resets.",
+      "layers": ["arm", "feet", "weapon", "tassel"]
     },
     "ultimate": {
       "style": "dash",
-      "grammar": "Eight-frame麒麟星槍: body pivots into a diagonal command stance, spear draws a compressed star path, then finishes with a forward military thrust.",
-      "layers": ["torso", "weapon", "cape"]
+      "grammar": "Eight-frame Musou: command stance with scroll, spear gathers into a compact angled path, body drives forward, heavy finishing thrust, cape and ponytail settle last.",
+      "layers": ["torso", "feet", "weapon", "cape"]
     }
   },
   "effects": {
     "palette": ["#62f2d7", "#ffd36a", "#ffffff"],
     "idle": {
-      "shape": "tiny spear sparks",
+      "shape": "tiny spear-tip glints",
       "origin": "spear tassel",
       "path": "short drifting orbit near the spear head",
       "rhythm": "soft alternating glints",
@@ -173,7 +173,7 @@
       "purpose": "ordinary attack distinct from straight spear dash"
     },
     "ultimate": {
-      "shape": "compressed qilin star shards",
+      "shape": "open angled qilin star shards",
       "origin": "spear head and military scroll",
       "path": "open diagonal star path that folds into a final thrust",
       "rhythm": "charge, star burst, forward finish",
@@ -190,44 +190,44 @@
   },
   "avoidSimilarTo": ["zhaoyun", "machao", "zhugeliang"],
   "sourceImages": {
-    "card": "output/warrior-generation/jiangwei/sources/card.png",
-    "battle": "output/warrior-generation/jiangwei/sources/battle.png",
+    "card": "scripts/source/character-anims/jiangwei/card.png",
+    "battle": "scripts/source/character-anims/jiangwei/battle.png",
     "animationFrames": {
       "idle": [
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/01.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/02.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/03.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/04.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/05.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/idle/06.png"
+        "scripts/source/character-anims/jiangwei/anim/idle/01.png",
+        "scripts/source/character-anims/jiangwei/anim/idle/02.png",
+        "scripts/source/character-anims/jiangwei/anim/idle/03.png",
+        "scripts/source/character-anims/jiangwei/anim/idle/04.png",
+        "scripts/source/character-anims/jiangwei/anim/idle/05.png",
+        "scripts/source/character-anims/jiangwei/anim/idle/06.png"
       ],
       "run": [
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/01.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/02.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/03.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/04.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/05.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/run/06.png"
+        "scripts/source/character-anims/jiangwei/anim/run/01.png",
+        "scripts/source/character-anims/jiangwei/anim/run/02.png",
+        "scripts/source/character-anims/jiangwei/anim/run/03.png",
+        "scripts/source/character-anims/jiangwei/anim/run/04.png",
+        "scripts/source/character-anims/jiangwei/anim/run/05.png",
+        "scripts/source/character-anims/jiangwei/anim/run/06.png"
       ],
       "attack": [
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/01.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/02.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/03.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/04.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/05.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/06.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/07.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/attack/08.png"
+        "scripts/source/character-anims/jiangwei/anim/attack/01.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/02.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/03.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/04.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/05.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/06.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/07.png",
+        "scripts/source/character-anims/jiangwei/anim/attack/08.png"
       ],
       "ultimate": [
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/01.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/02.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/03.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/04.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/05.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/06.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/07.png",
-        "output/warrior-generation/jiangwei/candidate-regenerated/anim/ultimate/08.png"
+        "scripts/source/character-anims/jiangwei/anim/ultimate/01.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/02.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/03.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/04.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/05.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/06.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/07.png",
+        "scripts/source/character-anims/jiangwei/anim/ultimate/08.png"
       ]
     }
   }
