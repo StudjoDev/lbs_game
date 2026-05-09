@@ -31,8 +31,8 @@ export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: numb
   if (def.tags.includes("boss")) {
     amount *= player.bossDamage;
   }
-  if (player.heroId === "xiahoudun") {
-    amount *= 1 + (1 - player.hp / player.maxHp) * 0.45;
+  if (player.missingHpPower > 0) {
+    amount *= 1 + (1 - player.hp / player.maxHp) * player.missingHpPower;
   }
   if (player.lowHpPower > 0 && player.hp / player.maxHp <= 0.35) {
     amount *= 1 + player.lowHpPower;
@@ -189,22 +189,23 @@ export function resolveDeadEnemies(state: RunState): void {
     }
     const def = enemyById[enemy.defId];
     state.kills += 1;
-    state.score += enemy.gatekeeperHeroId ? Math.max(def.score, Math.floor(enemy.maxHp * 0.45)) : def.score;
+    const conquestBoss = state.roomType === "boss" && Boolean(state.conquestCityId);
+    state.score += enemy.gatekeeperHeroId || conquestBoss ? Math.max(def.score, Math.floor(enemy.maxHp * 0.45)) : def.score;
     addCombatEvent(state, "kill", enemy.x, enemy.y, def.tags.includes("elite") ? 1 : 0.5, def.tags.includes("boss") ? "evolution_burst" : "hit_spark");
     if (state.player.killHeal > 0) {
       healPlayer(state, state.player.killHeal);
     }
-    if (enemy.defId === "lubu" || (state.roomType === "boss" && enemy.gatekeeperHeroId)) {
+    if (enemy.defId === "lubu" || conquestBoss) {
       const completed = state.roomType === "boss" ? completeBossRoom(state) : undefined;
       if (completed) {
         claimObjectiveReward(state, completed);
       } else {
         state.status = "won";
       }
-      if (enemy.gatekeeperHeroId) {
+      if (state.conquestCityId) {
         state.gatekeeperDefeated = true;
       }
-      const bossName = enemy.gatekeeperHeroId ? heroById[enemy.gatekeeperHeroId].name : "呂布";
+      const bossName = enemy.gatekeeperHeroId ? heroById[enemy.gatekeeperHeroId].name : (state.gatekeeperName ?? "????");
       addFloatingText(state, enemy.x, enemy.y - 70, `${bossName} 退陣`, "xp");
       addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", `${bossName} 敗退`);
     } else {

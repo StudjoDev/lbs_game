@@ -41,26 +41,63 @@ export type RunStatus = "playing" | "levelUp" | "paused" | "won" | "lost";
 export type UpgradeRarity = "common" | "build" | "technique" | "faction" | "hero" | "evolution" | "relic";
 export type ChapterId = "yellow_turbans" | "hulao_outer" | "red_cliff_line";
 export type ConquestCityId =
-  | "jingzhou"
-  | "changban"
-  | "hanzhong"
+  "wuwei"
+  | "xiping"
+  | "anding"
+  | "tianshui"
+  | "changan"
   | "tongguan"
-  | "longzhong"
-  | "xuchang"
-  | "qiaojun"
-  | "hefei"
+  | "hongnong"
+  | "luoyang"
+  | "hulao_gate"
+  | "xiangping"
+  | "beiping"
+  | "jinyang"
+  | "nanpi"
+  | "pingyuan"
   | "yecheng"
-  | "luoshui"
-  | "jianye"
-  | "wujun"
-  | "jinfan_camp"
-  | "shenting"
-  | "wan_city"
   | "julu"
   | "guandu"
-  | "qingnang_valley"
-  | "hulao_gate"
-  | "luoyang";
+  | "chenliu"
+  | "puyang"
+  | "xuchang"
+  | "qiaojun"
+  | "xiaopei"
+  | "xiapi"
+  | "runan"
+  | "shouchun"
+  | "hefei"
+  | "luoshui"
+  | "jingzhou"
+  | "changban"
+  | "xiangyang"
+  | "fancheng"
+  | "xinye"
+  | "longzhong"
+  | "wan_city"
+  | "hanzhong"
+  | "zitong"
+  | "chengdu"
+  | "jiangzhou"
+  | "yongan"
+  | "jianning"
+  | "yunnan"
+  | "jiangling"
+  | "yiling"
+  | "jiangxia"
+  | "changsha"
+  | "wuling"
+  | "lingling"
+  | "guiyang"
+  | "jianye"
+  | "wujun"
+  | "kuaiji"
+  | "lujiang"
+  | "chaisang"
+  | "poyang"
+  | "jinfan_camp"
+  | "shenting"
+  | "qingnang_valley";
 export type ChapterRoomType = "normal" | "elite" | "treasure" | "rest" | "boss";
 export type ChapterRoomStatus = "fighting" | "cleared";
 export type ObjectiveEvent = "kill" | "eliteKill" | "moraleBurst" | "survive" | "bossKill" | "treasure" | "rest";
@@ -109,6 +146,48 @@ export interface AbilityDef {
   effectId: string;
 }
 
+export type HeroPassiveStat =
+  | "maxHp"
+  | "moveSpeed"
+  | "armor"
+  | "pickupRadius"
+  | "damageScale"
+  | "cooldownScale"
+  | "areaScale"
+  | "burnScale"
+  | "comboScale"
+  | "guardChance"
+  | "critChance"
+  | "critDamage"
+  | "xpScale"
+  | "companionDamage"
+  | "companionCount"
+  | "bossDamage"
+  | "frontShot"
+  | "rearShot"
+  | "extraVolley"
+  | "projectilePierce"
+  | "ricochet"
+  | "orbitGuard"
+  | "killHeal"
+  | "lowHpPower"
+  | "missingHpPower"
+  | "regen"
+  | "maxMorale"
+  | "startingMorale"
+  | "ultimateDuration"
+  | "ultimatePower";
+
+export interface HeroTraitDef {
+  id: string;
+  label: string;
+}
+
+export interface HeroPassiveEffect {
+  stat: HeroPassiveStat;
+  amount: number;
+}
+
 export interface HeroDef {
   id: HeroId;
   artId: CharacterId;
@@ -118,6 +197,8 @@ export interface HeroDef {
   role: string;
   passiveName: string;
   passiveText: string;
+  trait: HeroTraitDef;
+  passiveEffects: HeroPassiveEffect[];
   baseStats: {
     maxHp: number;
     moveSpeed: number;
@@ -295,6 +376,7 @@ export interface PlayerState {
   orbitCooldown: number;
   killHeal: number;
   lowHpPower: number;
+  missingHpPower: number;
   regen: number;
   morale: number;
   maxMorale: number;
@@ -305,6 +387,7 @@ export interface PlayerState {
   manualCooldown: number;
   companionCooldown: number;
   berserkTimer: number;
+  ultimateCharge: number;
   ultimateTimer: number;
   ultimatePulseCooldown: number;
   ultimatePulseCount: number;

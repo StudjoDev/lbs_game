@@ -9,6 +9,26 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Open six agents to optimize current game mechanisms and UI, then validate all six.
+Notes:
+- Split work across six parallel agents and integrated their changes: character select first-screen/mobile CTA, battle guidance, manual skill vs musou clarity, upgrade recommendation tags, conquest map guidance, and data-driven hero passive traits.
+- Character select now keeps the selected hero, sortie CTA, and scrollable roster readable on desktop and mobile without overlap.
+- BattleScene now renders low-interference edge guidance for enemy groups, bosses/gatekeepers, and next-room direction, and exposes guidance state through `render_game_to_text`.
+- Manual skill / musou now has an `ultimateCharge` loop. Skill UI clearly distinguishes ready skill, musou-ready, burst active, and cooldown states.
+- Upgrade choices now score current hero/faction/build affinity and show concise tags such as recommended, current core, same faction, and hero synergy.
+- Conquest now shows next recommended city, route progress, focus controls, and focused map nodes while preserving mobile usability.
+- Hero passives are now data-driven through `trait` and `passiveEffects` rather than scattered one-off hero checks.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 11 files, 81 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Direct Playwright QA passed on desktop 1280x720 and mobile 390x844 for select, battle, ultimate state, upgrade modal, conquest map, and mobile battle. Screenshots/results are in `output/web-game/final-six-agent-qa/`.
+- develop-web-game client smoke passed against localhost:5173 with state output confirming Diaochan ultimate animation and `guidance:["enemy"]`; the client screenshot path still captured the known black canvas images.
+
+TODO:
+- None for this request.
+
 Current request: Make Diaochan's actions visibly different and fully upgrade her motion.
 Notes:
 - Upgraded Diaochan from subtle 4-frame runtime motion to richer state-specific motion: idle now uses 6 frames, run uses 6 frames, attack uses 8 frames, and ultimate remains 8 frames with stronger ribbon dance poses.

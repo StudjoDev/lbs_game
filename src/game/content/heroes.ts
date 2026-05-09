@@ -24,7 +24,233 @@ function createAbility(ownerHeroId: HeroId, trigger: "auto" | "manual", input: H
   };
 }
 
+const heroPassiveProfiles = {
+  liubei: {
+    trait: { id: "benevolent_deputies", label: "副將 +1，副將傷害 +6%" },
+    passiveEffects: [
+      { stat: "companionCount", amount: 1 },
+      { stat: "companionDamage", amount: 0.06 }
+    ]
+  },
+  guanyu: {
+    trait: { id: "oath_cleaver", label: "範圍 +10%" },
+    passiveEffects: [{ stat: "areaScale", amount: 0.1 }]
+  },
+  zhangfei: {
+    trait: { id: "last_stand_roar", label: "失血增傷最高 +28%，護甲 +1" },
+    passiveEffects: [
+      { stat: "missingHpPower", amount: 0.28 },
+      { stat: "armor", amount: 1 }
+    ]
+  },
+  zhaoyun: {
+    trait: { id: "dragon_stride", label: "冷卻 -8%，移速 +6" },
+    passiveEffects: [
+      { stat: "cooldownScale", amount: -0.08 },
+      { stat: "moveSpeed", amount: 6 }
+    ]
+  },
+  machao: {
+    trait: { id: "cavalry_breaker", label: "冷卻 -8%，破將 +6%" },
+    passiveEffects: [
+      { stat: "cooldownScale", amount: -0.08 },
+      { stat: "bossDamage", amount: 0.06 }
+    ]
+  },
+  zhugeliang: {
+    trait: { id: "bagua_field", label: "範圍 +8%，冷卻 -3%" },
+    passiveEffects: [
+      { stat: "areaScale", amount: 0.08 },
+      { stat: "cooldownScale", amount: -0.03 }
+    ]
+  },
+  huangzhong: {
+    trait: { id: "veteran_arrow", label: "穿透 +1，暴擊率 +3%" },
+    passiveEffects: [
+      { stat: "projectilePierce", amount: 1 },
+      { stat: "critChance", amount: 0.03 }
+    ]
+  },
+  yueying: {
+    trait: { id: "wooden_guard", label: "護衛劍陣 +1" },
+    passiveEffects: [{ stat: "orbitGuard", amount: 1 }]
+  },
+  caocao: {
+    trait: { id: "wei_command", label: "士氣上限 +15，開局士氣 +15" },
+    passiveEffects: [
+      { stat: "maxMorale", amount: 15 },
+      { stat: "startingMorale", amount: 15 }
+    ]
+  },
+  xiahoudun: {
+    trait: { id: "one_eye_counter", label: "失血增傷最高 +45%，格擋 +4%" },
+    passiveEffects: [
+      { stat: "missingHpPower", amount: 0.45 },
+      { stat: "guardChance", amount: 0.04 }
+    ]
+  },
+  xuchu: {
+    trait: { id: "tiger_guard_body", label: "生命 +18，護甲 +1" },
+    passiveEffects: [
+      { stat: "maxHp", amount: 18 },
+      { stat: "armor", amount: 1 }
+    ]
+  },
+  zhangliao: {
+    trait: { id: "xiaoyao_charge", label: "移速 +10，破將 +8%" },
+    passiveEffects: [
+      { stat: "moveSpeed", amount: 10 },
+      { stat: "bossDamage", amount: 0.08 }
+    ]
+  },
+  simayi: {
+    trait: { id: "counter_scheme", label: "暴擊率 +4%，冷卻 -4%" },
+    passiveEffects: [
+      { stat: "critChance", amount: 0.04 },
+      { stat: "cooldownScale", amount: -0.04 }
+    ]
+  },
+  zhenji: {
+    trait: { id: "ice_rhythm", label: "範圍 +5%，冷卻 -5%" },
+    passiveEffects: [
+      { stat: "areaScale", amount: 0.05 },
+      { stat: "cooldownScale", amount: -0.05 }
+    ]
+  },
+  dianwei: {
+    trait: { id: "iron_bulwark", label: "護衛劍陣 +1，護甲 +1" },
+    passiveEffects: [
+      { stat: "orbitGuard", amount: 1 },
+      { stat: "armor", amount: 1 }
+    ]
+  },
+  guojia: {
+    trait: { id: "cold_read", label: "無雙 +0.5 秒，經驗 +4%" },
+    passiveEffects: [
+      { stat: "ultimateDuration", amount: 0.5 },
+      { stat: "xpScale", amount: 0.04 }
+    ]
+  },
+  sunquan: {
+    trait: { id: "river_command", label: "開局士氣 +25，副將傷害 +8%" },
+    passiveEffects: [
+      { stat: "startingMorale", amount: 25 },
+      { stat: "companionDamage", amount: 0.08 }
+    ]
+  },
+  zhouyu: {
+    trait: { id: "red_cliff_flame", label: "燃燒 +12%" },
+    passiveEffects: [{ stat: "burnScale", amount: 0.12 }]
+  },
+  sunshangxiang: {
+    trait: { id: "twin_bolt_line", label: "拾取 +18，前射 +1" },
+    passiveEffects: [
+      { stat: "pickupRadius", amount: 18 },
+      { stat: "frontShot", amount: 1 }
+    ]
+  },
+  ganning: {
+    trait: { id: "night_raid_bells", label: "移速 +12，暴擊率 +3%" },
+    passiveEffects: [
+      { stat: "moveSpeed", amount: 12 },
+      { stat: "critChance", amount: 0.03 }
+    ]
+  },
+  taishici: {
+    trait: { id: "faithful_volley", label: "穿透 +1，暴傷 +10%" },
+    passiveEffects: [
+      { stat: "projectilePierce", amount: 1 },
+      { stat: "critDamage", amount: 0.1 }
+    ]
+  },
+  xiaoqiao: {
+    trait: { id: "eastern_wind", label: "燃燒 +8%，範圍 +5%" },
+    passiveEffects: [
+      { stat: "burnScale", amount: 0.08 },
+      { stat: "areaScale", amount: 0.05 }
+    ]
+  },
+  luxun: {
+    trait: { id: "campfire_line", label: "冷卻 -5%，燃燒 +6%" },
+    passiveEffects: [
+      { stat: "cooldownScale", amount: -0.05 },
+      { stat: "burnScale", amount: 0.06 }
+    ]
+  },
+  daqiao: {
+    trait: { id: "clear_tide_guard", label: "範圍 +6%，格擋 +4%" },
+    passiveEffects: [
+      { stat: "areaScale", amount: 0.06 },
+      { stat: "guardChance", amount: 0.04 }
+    ]
+  },
+  diaochan: {
+    trait: { id: "ribbon_dance", label: "範圍 +12%，冷卻 -6%" },
+    passiveEffects: [
+      { stat: "areaScale", amount: 0.12 },
+      { stat: "cooldownScale", amount: -0.06 }
+    ]
+  },
+  zhangjiao: {
+    trait: { id: "yellow_thunder", label: "範圍 +8%，冷卻 -4%" },
+    passiveEffects: [
+      { stat: "areaScale", amount: 0.08 },
+      { stat: "cooldownScale", amount: -0.04 }
+    ]
+  },
+  yuanshao: {
+    trait: { id: "noble_host", label: "副將 +1，士氣上限 +10" },
+    passiveEffects: [
+      { stat: "companionCount", amount: 1 },
+      { stat: "maxMorale", amount: 10 }
+    ]
+  },
+  dongzhuo: {
+    trait: { id: "tyrant_feast", label: "生命 +24，擊殺回血 +2" },
+    passiveEffects: [
+      { stat: "maxHp", amount: 24 },
+      { stat: "killHeal", amount: 2 }
+    ]
+  },
+  huatuo: {
+    trait: { id: "qingnang_breath", label: "拾取 +24，回血 +0.7/秒" },
+    passiveEffects: [
+      { stat: "pickupRadius", amount: 24 },
+      { stat: "regen", amount: 0.7 }
+    ]
+  },
+  zuoci: {
+    trait: { id: "daoist_echo", label: "彈射 +1，冷卻 -3%" },
+    passiveEffects: [
+      { stat: "ricochet", amount: 1 },
+      { stat: "cooldownScale", amount: -0.03 }
+    ]
+  },
+  lulingqi: {
+    trait: { id: "flying_bloodline", label: "暴擊率 +4%，移速 +6" },
+    passiveEffects: [
+      { stat: "critChance", amount: 0.04 },
+      { stat: "moveSpeed", amount: 6 }
+    ]
+  },
+  lubu: {
+    trait: { id: "peerless_force", label: "傷害 +8%，破將 +10%" },
+    passiveEffects: [
+      { stat: "damageScale", amount: 0.08 },
+      { stat: "bossDamage", amount: 0.1 }
+    ]
+  },
+  jiangwei: {
+    trait: { id: "successor_tactics", label: "冷卻 -6%，連段 +6%" },
+    passiveEffects: [
+      { stat: "cooldownScale", amount: -0.06 },
+      { stat: "comboScale", amount: 0.06 }
+    ]
+  }
+} satisfies Record<HeroId, Pick<HeroDef, "trait" | "passiveEffects">>;
+
 function createHero(input: HeroInput): HeroDef {
+  const passiveProfile = heroPassiveProfiles[input.id];
   return {
     id: input.id,
     artId: input.id,
@@ -34,6 +260,8 @@ function createHero(input: HeroInput): HeroDef {
     role: input.role,
     passiveName: input.passiveName,
     passiveText: input.passiveText,
+    trait: passiveProfile.trait,
+    passiveEffects: passiveProfile.passiveEffects,
     baseStats: input.baseStats,
     autoAbility: createAbility(input.id, "auto", input.autoAbility),
     manualAbility: createAbility(input.id, "manual", input.manualAbility),

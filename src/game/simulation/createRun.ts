@@ -3,7 +3,7 @@ import { heroById } from "../content/heroes";
 import { defaultChapterId, getChapterDef } from "../content/chapters";
 import { getConquestCityDef } from "../content/conquest";
 import type { MetaRunBonuses } from "../meta/progression";
-import type { ChapterId, ConquestCityId, FactionId, HeroId, PlayerState, RunState } from "../types";
+import type { ChapterId, ConquestCityId, FactionId, HeroId, HeroPassiveEffect, PlayerState, RunState } from "../types";
 import { initializeChapterRun } from "./chapterRun";
 import { createObjective } from "./objectives";
 
@@ -22,6 +22,7 @@ export function createRun(
   const conquestCity = getConquestCityDef(conquestCityId);
   const chapter = getChapterDef(conquestCity?.chapterId ?? chapterId);
   const objective = createObjective();
+  const gatekeeperHero = conquestCity?.gatekeeperHeroId ? heroById[conquestCity.gatekeeperHeroId] : undefined;
 
   const state: RunState = {
     status: "playing",
@@ -41,7 +42,7 @@ export function createRun(
     conquestCityId: conquestCity?.id,
     conquestCityName: conquestCity?.name,
     gatekeeperHeroId: conquestCity?.gatekeeperHeroId,
-    gatekeeperName: conquestCity ? heroById[conquestCity.gatekeeperHeroId].name : undefined,
+    gatekeeperName: conquestCity ? (gatekeeperHero?.name ?? "城防隊長") : undefined,
     gatekeeperDefeated: false,
     roomIndex: 0,
     roomCount: chapter.rooms.length,
@@ -112,6 +113,7 @@ function createPlayer(heroId: HeroId, bonuses?: MetaRunBonuses): PlayerState {
     orbitCooldown: 0,
     killHeal: 0,
     lowHpPower: 0,
+    missingHpPower: 0,
     regen: 0,
     morale: 0,
     maxMorale: 100,
@@ -122,6 +124,7 @@ function createPlayer(heroId: HeroId, bonuses?: MetaRunBonuses): PlayerState {
     manualCooldown: 0,
     companionCooldown: 3.5,
     berserkTimer: 0,
+    ultimateCharge: 1,
     ultimateTimer: 0,
     ultimatePulseCooldown: 0,
     ultimatePulseCount: 0,
@@ -149,19 +152,7 @@ function createPlayer(heroId: HeroId, bonuses?: MetaRunBonuses): PlayerState {
     player.areaScale += 0.06;
   }
 
-  if (hero.id === "guanyu") {
-    player.areaScale += 0.1;
-  }
-  if (hero.id === "zhaoyun" || hero.id === "machao") {
-    player.cooldownScale -= 0.08;
-  }
-  if (hero.id === "sunshangxiang") {
-    player.pickupRadius += 18;
-  }
-  if (hero.id === "diaochan") {
-    player.areaScale += 0.12;
-    player.cooldownScale -= 0.06;
-  }
+  applyHeroPassiveEffects(player, hero.passiveEffects);
 
   if (bonuses) {
     const hpScale = Math.max(0.1, bonuses.maxHpScale);
@@ -177,4 +168,76 @@ function createPlayer(heroId: HeroId, bonuses?: MetaRunBonuses): PlayerState {
   }
 
   return player;
+}
+
+function applyHeroPassiveEffects(player: PlayerState, effects: readonly HeroPassiveEffect[]): void {
+  for (const effect of effects) {
+    applyHeroPassiveEffect(player, effect);
+  }
+}
+
+function applyHeroPassiveEffect(player: PlayerState, effect: HeroPassiveEffect): void {
+  if (effect.stat === "maxHp") {
+    player.maxHp += effect.amount;
+    player.hp += effect.amount;
+  } else if (effect.stat === "moveSpeed") {
+    player.moveSpeed += effect.amount;
+  } else if (effect.stat === "armor") {
+    player.armor += effect.amount;
+  } else if (effect.stat === "pickupRadius") {
+    player.pickupRadius += effect.amount;
+  } else if (effect.stat === "damageScale") {
+    player.damageScale += effect.amount;
+  } else if (effect.stat === "cooldownScale") {
+    player.cooldownScale = Math.max(0.42, player.cooldownScale + effect.amount);
+  } else if (effect.stat === "areaScale") {
+    player.areaScale += effect.amount;
+  } else if (effect.stat === "burnScale") {
+    player.burnScale += effect.amount;
+  } else if (effect.stat === "comboScale") {
+    player.comboScale += effect.amount;
+  } else if (effect.stat === "guardChance") {
+    player.guardChance = Math.min(0.4, player.guardChance + effect.amount);
+  } else if (effect.stat === "critChance") {
+    player.critChance = Math.min(0.55, player.critChance + effect.amount);
+  } else if (effect.stat === "critDamage") {
+    player.critDamage += effect.amount;
+  } else if (effect.stat === "xpScale") {
+    player.xpScale += effect.amount;
+  } else if (effect.stat === "companionDamage") {
+    player.companionDamage += effect.amount;
+  } else if (effect.stat === "companionCount") {
+    player.companionCount += effect.amount;
+  } else if (effect.stat === "bossDamage") {
+    player.bossDamage += effect.amount;
+  } else if (effect.stat === "frontShot") {
+    player.frontShot += effect.amount;
+  } else if (effect.stat === "rearShot") {
+    player.rearShot += effect.amount;
+  } else if (effect.stat === "extraVolley") {
+    player.extraVolley += effect.amount;
+  } else if (effect.stat === "projectilePierce") {
+    player.projectilePierce += effect.amount;
+  } else if (effect.stat === "ricochet") {
+    player.ricochet += effect.amount;
+  } else if (effect.stat === "orbitGuard") {
+    player.orbitGuard += effect.amount;
+  } else if (effect.stat === "killHeal") {
+    player.killHeal += effect.amount;
+  } else if (effect.stat === "lowHpPower") {
+    player.lowHpPower += effect.amount;
+  } else if (effect.stat === "missingHpPower") {
+    player.missingHpPower += effect.amount;
+  } else if (effect.stat === "regen") {
+    player.regen += effect.amount;
+  } else if (effect.stat === "maxMorale") {
+    player.maxMorale = Math.max(1, player.maxMorale + effect.amount);
+    player.morale = Math.min(player.morale, player.maxMorale);
+  } else if (effect.stat === "startingMorale") {
+    player.morale = Math.min(player.maxMorale, Math.max(0, player.morale + effect.amount));
+  } else if (effect.stat === "ultimateDuration") {
+    player.ultimateDurationBonus += effect.amount;
+  } else if (effect.stat === "ultimatePower") {
+    player.ultimatePower += effect.amount;
+  }
 }

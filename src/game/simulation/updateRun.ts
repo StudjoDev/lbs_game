@@ -18,6 +18,8 @@ import { updateChapterRoom } from "./chapterRun";
 import { clamp, distance, normalize } from "./math";
 import { updateSpawner } from "./spawn";
 
+const ULTIMATE_CHARGE_SECONDS = 18;
+
 export function updateRun(state: RunState, input: InputState, dt: number): void {
   if (state.status !== "playing") {
     return;
@@ -32,6 +34,7 @@ export function updateRun(state: RunState, input: InputState, dt: number): void 
   const wasUltimateActive = state.player.ultimateTimer > 0;
   state.player.ultimateTimer = Math.max(0, state.player.ultimateTimer - safeDt);
   state.player.ultimatePulseCooldown = Math.max(0, state.player.ultimatePulseCooldown - safeDt);
+  updateUltimateCharge(state, safeDt);
   updateTechniqueCooldowns(state, safeDt);
   state.player.berserkTimer = Math.max(0, state.player.berserkTimer - safeDt);
   if (wasUltimateActive && state.player.ultimateTimer <= 0.25 && !state.player.ultimateFinisherTriggered) {
@@ -109,9 +112,16 @@ function updateAbilities(state: RunState, input: InputState): void {
   if (input.manualPressed && state.player.manualCooldown <= 0) {
     executeAbility(state, hero.manualAbility);
     addCombatEvent(state, "manual", state.player.x, state.player.y, 1, hero.manualAbility.vfxKey, hero.manualAbility.name);
-    const ultimateDuration = activateUltimate(state);
+    const ultimateDuration = state.player.ultimateCharge >= 1 ? activateUltimate(state) : 0;
     state.player.manualCooldown = Math.max(0.4, hero.manualAbility.cooldown * state.player.cooldownScale + ultimateDuration);
   }
+}
+
+function updateUltimateCharge(state: RunState, dt: number): void {
+  if (state.player.ultimateTimer > 0 || state.player.ultimateCharge >= 1) {
+    return;
+  }
+  state.player.ultimateCharge = Math.min(1, state.player.ultimateCharge + dt / ULTIMATE_CHARGE_SECONDS);
 }
 
 function updateBuildSupport(state: RunState): void {
@@ -139,6 +149,7 @@ function updateBuildSupport(state: RunState): void {
 function activateUltimate(state: RunState): number {
   const profile = ultimateByHeroId[state.hero.id];
   const duration = profile.duration + state.player.ultimateDurationBonus;
+  state.player.ultimateCharge = 0;
   state.player.ultimateTimer = duration;
   state.player.ultimatePulseCooldown = Math.min(profile.pulseEvery, 0.35);
   state.player.ultimatePulseCount = 0;

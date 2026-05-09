@@ -69,7 +69,7 @@ export function spawnEnemy(state: RunState, defId: EnemyId, distanceFromPlayer =
 
 function spawnGatekeeper(state: RunState): EnemyState {
   const city = getConquestCityDef(state.conquestCityId);
-  const hero = city ? heroById[city.gatekeeperHeroId] : undefined;
+  const hero = city?.gatekeeperHeroId ? heroById[city.gatekeeperHeroId] : undefined;
   const enemy = spawnEnemy(state, "captain", 420);
   const tier = city?.tier ?? 1;
   enemy.gatekeeperHeroId = hero?.id;
@@ -80,7 +80,7 @@ function spawnGatekeeper(state: RunState): EnemyState {
   enemy.radius = 38;
   enemy.attackCooldown = randomRange(state, 0.45, 0.95);
   state.gatekeeperHeroId = hero?.id;
-  state.gatekeeperName = hero?.name;
+  state.gatekeeperName = hero?.name ?? "城防隊長";
   return enemy;
 }
 

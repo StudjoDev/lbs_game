@@ -58,8 +58,8 @@ describe("meta progression", () => {
     expect(normalized.idle.unclaimed).toEqual({ merit: 4, provisions: 0, renown: 1 });
     expect(normalized.stats).toEqual({ runsPlayed: 1, wins: 0, bestKills: 33, bossDefeats: 0 });
     expect(Object.keys(normalized.conquest.cities)).toHaveLength(conquestCities.length);
-    expect(Object.keys(normalized.conquest.cities).filter((id) => normalized.conquest.cities[id as keyof typeof normalized.conquest.cities].unlocked)).toEqual(
-      [...entryCityIds]
+    expect(new Set(Object.keys(normalized.conquest.cities).filter((id) => normalized.conquest.cities[id as keyof typeof normalized.conquest.cities].unlocked))).toEqual(
+      new Set(entryCityIds)
     );
   });
 
@@ -186,7 +186,7 @@ describe("meta progression", () => {
     }
   });
 
-  it("unlocks Luoyang after four routes and marks unification after conquering it", () => {
+  it("unlocks Luoyang after four routes but does not unify until every city is conquered", () => {
     const state = createDefaultMetaProgressionState(0);
     for (const cityId of ["longzhong", "luoshui", "wan_city", "hulao_gate"] as const) {
       state.conquest.cities[cityId] = {
@@ -214,9 +214,41 @@ describe("meta progression", () => {
     });
 
     expect(result.state.conquest.cities.luoyang.conquered).toBe(true);
+    expect(result.state.conquest.unifiedAt).toBeUndefined();
+    expect(result.settlement.unified).toBe(false);
+    expect(result.settlement.recruitedHeroId).toBe("dongzhuo");
+  });
+
+  it("marks unification when the last unconquered city is captured", () => {
+    const state = createDefaultMetaProgressionState(0);
+    for (const city of conquestCities) {
+      state.conquest.cities[city.id] = {
+        ...state.conquest.cities[city.id],
+        unlocked: true,
+        conquered: city.id !== "wan_city",
+        conqueredAt: city.id !== "wan_city" ? new Date(0).toISOString() : undefined
+      };
+    }
+
+    const result = applyRunSettlement(state, {
+      heroId: "diaochan",
+      factionId: "qun",
+      status: "won",
+      kills: 90,
+      score: 900,
+      playerLevel: 7,
+      chapterId: "red_cliff_line",
+      conquestCityId: "wan_city",
+      roomIndex: 7,
+      roomCount: 8,
+      chapterCleared: true
+    });
+
+    expect(result.state.conquest.cities.wan_city.conquered).toBe(true);
     expect(result.state.conquest.unifiedAt).toBeTruthy();
     expect(result.settlement.unified).toBe(true);
-    expect(result.settlement.recruitedHeroId).toBe("dongzhuo");
+    expect(result.settlement.conqueredCityCount).toBe(conquestCities.length);
+    expect(result.settlement.totalCityCount).toBe(conquestCities.length);
   });
 
   it("upgrades facilities only when resources are available", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chapters } from "../content/chapters";
+import { heroes } from "../content/heroes";
 import { techniqueById } from "../content/techniques";
 import { ultimateByHeroId, ultimateProfiles } from "../content/ultimates";
 import { upgradeById } from "../content/upgrades";
@@ -33,6 +34,51 @@ describe("combat simulation", () => {
       expect(roomTypes).toContain("rest");
       expect(roomTypes[7]).toBe("boss");
     }
+  });
+
+  it("defines data-driven passive traits for every hero", () => {
+    const traitIds = new Set<string>();
+    const effectStats = new Set<string>();
+    for (const hero of heroes) {
+      expect(hero.trait.id.length).toBeGreaterThan(0);
+      expect(hero.trait.label.length).toBeGreaterThan(0);
+      expect(hero.passiveEffects.length).toBeGreaterThan(0);
+      traitIds.add(hero.trait.id);
+      for (const effect of hero.passiveEffects) {
+        expect(effect.amount).not.toBe(0);
+        effectStats.add(effect.stat);
+      }
+    }
+
+    expect(traitIds.size).toBe(heroes.length);
+    expect(effectStats.size).toBeGreaterThanOrEqual(12);
+  });
+
+  it("applies hero passive effects when creating a run", () => {
+    const liubei = createRun("liubei", 1);
+    expect(liubei.player.companionCount).toBe(1);
+    expect(liubei.player.companionDamage).toBeCloseTo(1.06);
+
+    const guanyu = createRun("guanyu", 1);
+    expect(guanyu.player.areaScale).toBeCloseTo(1.1);
+
+    const zhaoyun = createRun("zhaoyun", 1);
+    expect(zhaoyun.player.cooldownScale).toBeCloseTo(0.92);
+
+    const xiahoudun = createRun("xiahoudun", 1);
+    expect(xiahoudun.player.missingHpPower).toBeCloseTo(0.45);
+
+    const sunshangxiang = createRun("sunshangxiang", 1);
+    const sunshangxiangDef = heroes.find((hero) => hero.id === "sunshangxiang");
+    expect(sunshangxiangDef).toBeDefined();
+    expect(sunshangxiang.player.pickupRadius).toBe(sunshangxiangDef!.baseStats.pickupRadius + 18);
+    expect(sunshangxiang.player.frontShot).toBe(1);
+
+    const sunquan = createRun("sunquan", 1);
+    expect(sunquan.player.morale).toBe(25);
+
+    const huatuo = createRun("huatuo", 1);
+    expect(huatuo.player.regen).toBeCloseTo(0.7);
   });
 
   it("applies faction and fire damage modifiers", () => {
@@ -219,6 +265,40 @@ describe("combat simulation", () => {
     advanceRun(state, profile.duration + 0.2);
 
     expect(state.player.ultimateTimer).toBe(0);
+  });
+
+  it("fires only the manual ability while ultimate is still charging", () => {
+    const state = createRun("guanyu", 3);
+    spawnEnemy(state, "shield", 120);
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+    state.player.ultimateTimer = 0;
+    state.player.manualCooldown = 0;
+    state.player.ultimateCharge = 0.45;
+    state.combatEvents = [];
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+
+    expect(state.player.ultimateTimer).toBe(0);
+    expect(state.player.ultimateCharge).toBeLessThan(1);
+    expect(state.player.manualCooldown).toBeCloseTo(state.hero.manualAbility.cooldown * state.player.cooldownScale, 1);
+    expect(state.combatEvents.some((event) => event.type === "manual")).toBe(true);
+    expect(state.combatEvents.some((event) => event.type === "ultimate")).toBe(false);
+  });
+
+  it("recharges ultimate readiness after the sustained window ends", () => {
+    const state = createRun("guanyu", 3);
+    const profile = ultimateByHeroId.guanyu;
+    state.spawnTimer = 999;
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
+
+    expect(state.player.ultimateCharge).toBe(0);
+
+    advanceRun(state, profile.duration + 18.1);
+
+    expect(state.player.ultimateTimer).toBe(0);
+    expect(state.player.ultimateCharge).toBe(1);
   });
 
   it("gives every hero a visible ultimate pulse", () => {

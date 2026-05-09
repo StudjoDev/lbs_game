@@ -1,11 +1,6 @@
 import { chapters, defaultChapterId } from "../content/chapters";
-import {
-  conquestCities,
-  conquestCityById,
-  entryCityIds,
-  finalCityId,
-  type ConquestCityDef
-} from "../content/conquest";
+import { conquestCities, conquestCityById, entryCityIds, type ConquestCityDef } from "../content/conquest";
+import { factionById } from "../content/factions";
 import { heroes } from "../content/heroes";
 import type { ChapterId, ConquestCityId, FactionId, HeroId, RunStatus } from "../types";
 
@@ -88,6 +83,7 @@ export interface ConquestCityProgressEntry {
   attempts: number;
   bestRoom: number;
   conqueredAt?: string;
+  occupyingFactionId?: FactionId;
 }
 
 export interface ConquestProgressState {
@@ -184,6 +180,9 @@ export interface MetaRunSettlement {
   recruitedHeroName?: string;
   unlockedCityIds: ConquestCityId[];
   unlockedCityNames: string[];
+  conqueredCityCount: number;
+  totalCityCount: number;
+  factionName?: string;
   unified: boolean;
 }
 
@@ -688,6 +687,7 @@ export function applyRunSettlement(
   const conquestOutcome = settleConquestProgress(
     normalized.conquest,
     input.conquestCityId ? conquestCityById[input.conquestCityId] : undefined,
+    input.factionId ?? heroes.find((hero) => hero.id === input.heroId)?.factionId,
     chapterCleared,
     roomReached
   );
@@ -766,6 +766,9 @@ export function applyRunSettlement(
       recruitedHeroName: conquestOutcome.recruitedHeroName,
       unlockedCityIds: conquestOutcome.unlockedCityIds,
       unlockedCityNames: conquestOutcome.unlockedCityNames,
+      conqueredCityCount: conquestOutcome.conqueredCityCount,
+      totalCityCount: conquestOutcome.totalCityCount,
+      factionName: input.factionId ? factionById[input.factionId]?.name : undefined,
       unified: conquestOutcome.unified
     }
   };
@@ -781,12 +784,15 @@ interface ConquestSettlementOutcome {
   recruitedHeroName?: string;
   unlockedCityIds: ConquestCityId[];
   unlockedCityNames: string[];
+  conqueredCityCount: number;
+  totalCityCount: number;
   unified: boolean;
 }
 
 function settleConquestProgress(
   current: ConquestProgressState,
   cityDef: ConquestCityDef | undefined,
+  conquerorFactionId: FactionId | undefined,
   chapterCleared: boolean,
   roomReached: number
 ): ConquestSettlementOutcome {
@@ -797,6 +803,8 @@ function settleConquestProgress(
       chestKeys: 0,
       unlockedCityIds: [],
       unlockedCityNames: [],
+      conqueredCityCount: countConqueredCities(current.cities),
+      totalCityCount: conquestCities.length,
       unified: false
     };
   }
@@ -814,15 +822,16 @@ function settleConquestProgress(
       attempts: entry.attempts + 1,
       bestRoom: Math.max(entry.bestRoom, roomReached),
       conquered: entry.conquered || firstConquest,
-      conqueredAt: firstConquest ? new Date().toISOString() : entry.conqueredAt
+      conqueredAt: firstConquest ? new Date().toISOString() : entry.conqueredAt,
+      occupyingFactionId: firstConquest ? conquerorFactionId : entry.occupyingFactionId
     }
   };
+  const conqueredCityCount = countConqueredCities(nextCities);
+  const totalCityCount = conquestCities.length;
+  const unifiedNow = firstConquest && conqueredCityCount === totalCityCount;
   const after = recalculateConquestUnlocks({
     cities: nextCities,
-    unifiedAt:
-      firstConquest && cityDef.id === finalCityId
-        ? (before.unifiedAt ?? new Date().toISOString())
-        : before.unifiedAt
+    unifiedAt: unifiedNow ? (before.unifiedAt ?? new Date().toISOString()) : before.unifiedAt
   });
   const unlockedCityIds = conquestCities
     .filter((city) => after.cities[city.id].unlocked && !beforeUnlocked.has(city.id))
@@ -846,7 +855,9 @@ function settleConquestProgress(
     recruitedHeroName: recruitedHero?.name,
     unlockedCityIds,
     unlockedCityNames: unlockedCityIds.map((cityId) => conquestCityById[cityId].name),
-    unified: Boolean(firstConquest && cityDef.id === finalCityId)
+    conqueredCityCount,
+    totalCityCount,
+    unified: unifiedNow
   };
 }
 
@@ -1058,6 +1069,10 @@ function normalizeConquestProgress(value: MetaProgressionInput["conquest"] | und
     conquestCities.map((cityDef) => {
       const incoming = value?.cities?.[cityDef.id];
       const conquered = Boolean(incoming?.conquered);
+      const occupyingFactionId =
+        incoming?.occupyingFactionId && factionById[incoming.occupyingFactionId]
+          ? incoming.occupyingFactionId
+          : undefined;
       return [
         cityDef.id,
         {
@@ -1065,7 +1080,8 @@ function normalizeConquestProgress(value: MetaProgressionInput["conquest"] | und
           conquered,
           attempts: normalizeCount(incoming?.attempts),
           bestRoom: normalizeLevel(incoming?.bestRoom, 8),
-          conqueredAt: conquered ? normalizeOptionalIsoDate(incoming?.conqueredAt) : undefined
+          conqueredAt: conquered ? normalizeOptionalIsoDate(incoming?.conqueredAt) : undefined,
+          occupyingFactionId: conquered ? occupyingFactionId : undefined
         }
       ];
     })
@@ -1076,10 +1092,18 @@ function normalizeConquestProgress(value: MetaProgressionInput["conquest"] | und
     unifiedAt: normalizeOptionalIsoDate(value?.unifiedAt)
   };
   normalized = recalculateConquestUnlocks(normalized);
-  if (!normalized.cities[finalCityId].conquered) {
+  if (!areAllConquestCitiesConquered(normalized.cities)) {
     delete normalized.unifiedAt;
   }
   return normalized;
+}
+
+function countConqueredCities(cities: Record<ConquestCityId, ConquestCityProgressEntry>): number {
+  return conquestCities.filter((cityDef) => cities[cityDef.id]?.conquered).length;
+}
+
+function areAllConquestCitiesConquered(cities: Record<ConquestCityId, ConquestCityProgressEntry>): boolean {
+  return countConqueredCities(cities) === conquestCities.length;
 }
 
 function normalizeDailyMissions(
