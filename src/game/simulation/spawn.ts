@@ -30,7 +30,8 @@ export function updateSpawner(state: RunState, dt: number): void {
   }
 
   state.spawnTimer -= dt;
-  const interval = Math.max(0.2, (0.86 - state.elapsed / 900) * room.spawn.intervalScale);
+  const chainPressureScale = state.combatDirector.chainTier > 0 ? Math.max(0.62, 1 - state.combatDirector.chainTier * 0.12) : 1;
+  const interval = Math.max(0.18, (0.86 - state.elapsed / 900) * room.spawn.intervalScale * chainPressureScale);
   while (state.spawnTimer <= 0 && state.enemies.length < maxEnemies) {
     spawnWave(state);
     state.spawnTimer += interval;
@@ -61,6 +62,7 @@ export function spawnEnemy(state: RunState, defId: EnemyId, distanceFromPlayer =
     phase: 1,
     ultimateCooldown: defId === "lubu" ? randomRange(state, 2.4, 4.2) : 0,
     ultimateWindup: 0,
+    threat: undefined,
     gatekeeperHeroId: undefined
   };
   state.enemies.push(enemy);
@@ -87,7 +89,10 @@ function spawnGatekeeper(state: RunState): EnemyState {
 function spawnWave(state: RunState): void {
   const room = currentRoomDef(state);
   const roomLimit = room.type === "boss" ? 28 : maxEnemies;
-  const count = Math.min(room.type === "elite" ? 8 : 10, 2 + Math.floor(state.roomElapsed / 18) + room.spawn.countBonus);
+  const count = Math.min(
+    room.type === "elite" ? 8 : 12,
+    2 + Math.floor(state.roomElapsed / 18) + room.spawn.countBonus + state.combatDirector.chainTier
+  );
   for (let index = 0; index < count && state.enemies.length < maxEnemies; index += 1) {
     if (state.enemies.length >= roomLimit) {
       return;

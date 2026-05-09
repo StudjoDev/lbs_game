@@ -34,6 +34,13 @@ export function createRun(
     areas: [],
     floatingTexts: [],
     combatEvents: [],
+    combatDirector: {
+      chainKills: 0,
+      chainTimer: 0,
+      chainTier: 0,
+      pressureTimer: 0,
+      freezeTimer: 0
+    },
     xpOrbs: [],
     objective,
     objectiveIndex: 0,

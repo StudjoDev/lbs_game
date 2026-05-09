@@ -320,7 +320,7 @@ export const heroes: HeroDef[] = [
       radius: 76,
       damage: 28,
       damageTags: ["blade"],
-      vfxKey: "qinglong_arc",
+      vfxKey: "guanyu_heavy_qinglong",
       effectId: "arc_sweep"
     },
     manualAbility: {
@@ -331,7 +331,7 @@ export const heroes: HeroDef[] = [
       radius: 44,
       damage: 88,
       damageTags: ["blade", "shock"],
-      vfxKey: "dragon_slash",
+      vfxKey: "guanyu_dragon_cleave",
       effectId: "dragon_slash"
     }
   }),
@@ -384,7 +384,7 @@ export const heroes: HeroDef[] = [
       radius: 24,
       damage: 20,
       damageTags: ["pierce"],
-      vfxKey: "spear_flash",
+      vfxKey: "zhaoyun_silver_thrust",
       effectId: "spear_flurry"
     },
     manualAbility: {
@@ -395,7 +395,7 @@ export const heroes: HeroDef[] = [
       radius: 58,
       damage: 62,
       damageTags: ["pierce", "shock"],
-      vfxKey: "dragon_dash",
+      vfxKey: "zhaoyun_silver_dash",
       effectId: "seven_dashes"
     }
   }),
@@ -800,7 +800,7 @@ export const heroes: HeroDef[] = [
       radius: 30,
       damage: 22,
       damageTags: ["fire", "command"],
-      vfxKey: "fire_note",
+      vfxKey: "zhouyu_flame_order",
       effectId: "fire_note"
     },
     manualAbility: {
@@ -843,7 +843,7 @@ export const heroes: HeroDef[] = [
       radius: 168,
       damage: 36,
       damageTags: ["fire", "command"],
-      vfxKey: "red_cliff_fire",
+      vfxKey: "zhouyu_red_cliff_field",
       effectId: "red_cliff_fire"
     }
   }),
@@ -1056,7 +1056,7 @@ export const heroes: HeroDef[] = [
       radius: 104,
       damage: 23,
       damageTags: ["charm"],
-      vfxKey: "petal_waltz",
+      vfxKey: "diaochan_ribbon_bind",
       effectId: "petal_waltz"
     },
     manualAbility: {
@@ -1067,7 +1067,7 @@ export const heroes: HeroDef[] = [
       radius: 158,
       damage: 48,
       damageTags: ["charm", "shock"],
-      vfxKey: "allure_dance",
+      vfxKey: "diaochan_ribbon_cage",
       effectId: "allure_dance"
     }
   }),

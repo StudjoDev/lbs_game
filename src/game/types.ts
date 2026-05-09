@@ -105,13 +105,18 @@ export type CombatEventType =
   | "hit"
   | "crit"
   | "kill"
+  | "chain"
   | "levelUp"
   | "manual"
   | "ultimate"
   | "evolution"
   | "morale"
+  | "threat"
   | "boss"
   | "playerHit";
+
+export type EnemyBehavior = "melee" | "ranged" | "shield" | "charger" | "elite" | "boss";
+export type EnemyThreatKind = "arrowLine" | "chargeLine" | "slamCircle" | "bossMusou";
 
 export interface Vector2 {
   x: number;
@@ -283,6 +288,7 @@ export type CollectionState = Record<CharacterId, CollectionEntry>;
 export interface EnemyDef {
   id: EnemyId;
   name: string;
+  behavior: EnemyBehavior;
   maxHp: number;
   speed: number;
   radius: number;
@@ -293,6 +299,18 @@ export interface EnemyDef {
   attackCooldown: number;
   spriteKey: string;
   tags: string[];
+}
+
+export interface EnemyThreatState {
+  kind: EnemyThreatKind;
+  timer: number;
+  duration: number;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  radius: number;
+  vfxKey: string;
 }
 
 export interface UpgradeDef {
@@ -414,6 +432,7 @@ export interface EnemyState {
   phase: number;
   ultimateCooldown: number;
   ultimateWindup: number;
+  threat?: EnemyThreatState;
   gatekeeperHeroId?: HeroId;
 }
 
@@ -477,6 +496,14 @@ export interface CombatEventState {
   text?: string;
 }
 
+export interface CombatDirectorState {
+  chainKills: number;
+  chainTimer: number;
+  chainTier: number;
+  pressureTimer: number;
+  freezeTimer: number;
+}
+
 export interface BattlefieldObjectiveState {
   id: string;
   event: ObjectiveEvent;
@@ -504,6 +531,7 @@ export interface RunState {
   areas: AreaState[];
   floatingTexts: FloatingTextState[];
   combatEvents: CombatEventState[];
+  combatDirector: CombatDirectorState;
   xpOrbs: XpOrbState[];
   objective: BattlefieldObjectiveState;
   objectiveIndex: number;

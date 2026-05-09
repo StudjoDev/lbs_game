@@ -18,6 +18,12 @@ function advanceRun(state: RunState, seconds: number): void {
   }
 }
 
+function killChainEnemy(state: RunState): void {
+  const enemy = spawnEnemy(state, "infantry", 100);
+  enemy.hp = 0;
+  resolveDeadEnemies(state);
+}
+
 function heroMasteryId(heroId: HeroId): string {
   return `hero_${heroId}_musou`;
 }
@@ -394,7 +400,7 @@ describe("combat simulation", () => {
 
     executeAbility(state, state.hero.autoAbility);
 
-    const heroProjectile = state.projectiles.find((projectile) => projectile.vfxKey === "qinglong_arc");
+    const heroProjectile = state.projectiles.find((projectile) => projectile.vfxKey === "guanyu_heavy_qinglong");
     expect(heroProjectile?.damage).toBeGreaterThan(28 * 2);
   });
 
@@ -418,7 +424,125 @@ describe("combat simulation", () => {
     updateRun(state, { move: { x: 0, y: 0 }, manualPressed: true, pausePressed: false }, 0.016);
 
     expect(state.player.manualCooldown).toBeGreaterThan(0);
-    expect(state.areas.some((area) => area.vfxKey === "allure_dance" && area.tags.includes("charm"))).toBe(true);
+    expect(state.areas.some((area) => area.vfxKey === "diaochan_ribbon_cage" && area.tags.includes("charm"))).toBe(true);
+  });
+
+  it("builds chain kill tiers and emits a pressure burst", () => {
+    const state = createRun("guanyu", 47);
+    for (let index = 0; index < 8; index += 1) {
+      killChainEnemy(state);
+    }
+
+    expect(state.combatDirector.chainKills).toBe(8);
+    expect(state.combatDirector.chainTier).toBe(1);
+    expect(state.combatDirector.freezeTimer).toBeCloseTo(0.036, 3);
+    expect(state.combatEvents.some((event) => event.type === "chain" && event.vfxKey === "chain_burst")).toBe(true);
+    expect(state.areas.some((area) => area.vfxKey === "chain_burst" && area.target === "enemy")).toBe(true);
+
+    for (let index = 8; index < 20; index += 1) {
+      killChainEnemy(state);
+    }
+    expect(state.combatDirector.chainKills).toBe(20);
+    expect(state.combatDirector.chainTier).toBe(2);
+    expect(state.combatDirector.pressureTimer).toBeGreaterThan(0);
+
+    for (let index = 20; index < 45; index += 1) {
+      killChainEnemy(state);
+    }
+    expect(state.combatDirector.chainKills).toBe(45);
+    expect(state.combatDirector.chainTier).toBe(3);
+    expect(state.combatDirector.freezeTimer).toBeCloseTo(0.072, 3);
+
+    state.status = "playing";
+    state.pendingUpgradeIds = [];
+    state.roomStatus = "fighting";
+    advanceRun(state, 2.85);
+
+    expect(state.combatDirector.chainKills).toBe(0);
+    expect(state.combatDirector.chainTier).toBe(0);
+  });
+
+  it("raises spawn pressure while a chain tier is active", () => {
+    const baseline = createRun("guanyu", 470);
+    baseline.player.autoCooldown = 999;
+    baseline.player.manualCooldown = 999;
+    baseline.player.companionCooldown = 999;
+    baseline.spawnTimer = 0;
+    updateRun(baseline, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+    const pressured = createRun("guanyu", 470);
+    pressured.player.autoCooldown = 999;
+    pressured.player.manualCooldown = 999;
+    pressured.player.companionCooldown = 999;
+    pressured.spawnTimer = 0;
+    pressured.combatDirector.chainTier = 3;
+    pressured.combatDirector.chainTimer = 2.8;
+    updateRun(pressured, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+    expect(pressured.enemies.length).toBeGreaterThan(baseline.enemies.length);
+  });
+
+  it("telegraphs archer, cavalry, and captain threats before firing", () => {
+    const state = createRun("zhaoyun", 48);
+    const archer = spawnEnemy(state, "archer", 260);
+    archer.x = state.player.x + 260;
+    archer.y = state.player.y;
+    archer.attackCooldown = 0;
+    const cavalry = spawnEnemy(state, "cavalry", 260);
+    cavalry.x = state.player.x - 260;
+    cavalry.y = state.player.y;
+    cavalry.attackCooldown = 0;
+    const captain = spawnEnemy(state, "captain", 120);
+    captain.x = state.player.x;
+    captain.y = state.player.y + 120;
+    captain.attackCooldown = 0;
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+    expect(archer.threat?.kind).toBe("arrowLine");
+    expect(archer.threat?.vfxKey).toBe("enemy_arrow_warning");
+    expect(cavalry.threat?.kind).toBe("chargeLine");
+    expect(cavalry.threat?.vfxKey).toBe("cavalry_charge_warning");
+    expect(captain.threat?.kind).toBe("slamCircle");
+    expect(captain.threat?.vfxKey).toBe("captain_slam_warning");
+    expect(state.combatEvents.filter((event) => event.type === "threat")).toHaveLength(3);
+    const cavalryTargetX = cavalry.threat?.targetX ?? cavalry.x;
+    const expectedChargeAreaX = (cavalry.x + cavalryTargetX) / 2;
+    state.player.y += 180;
+
+    advanceRun(state, 0.6);
+
+    const arrow = state.projectiles.find((projectile) => projectile.vfxKey === "enemy_arrow");
+    expect(arrow).toBeDefined();
+    expect(arrow?.vy).toBeCloseTo(0, 1);
+    const chargeArea = state.areas.find((area) => area.vfxKey === "cavalry_charge");
+    expect(chargeArea).toBeDefined();
+    expect(chargeArea?.x).toBeCloseTo(expectedChargeAreaX, 1);
+    expect(chargeArea?.radius).toBe(42);
+    expect(state.areas.some((area) => area.vfxKey === "captain_slam")).toBe(true);
+  });
+
+  it("keeps Lu Bu boss musou telegraphed through windup before firing", () => {
+    const state = createRun("guanyu", 49);
+    const lubu = spawnEnemy(state, "lubu", 260);
+    lubu.x = state.player.x + 220;
+    lubu.y = state.player.y;
+    lubu.attackCooldown = 1;
+    lubu.ultimateCooldown = 0;
+
+    updateRun(state, { move: { x: 0, y: 0 }, manualPressed: false, pausePressed: false }, 0.016);
+
+    expect(lubu.threat?.kind).toBe("bossMusou");
+    expect(lubu.threat?.vfxKey).toBe("lubu_musou_warning");
+    expect(lubu.threat?.radius).toBeCloseTo(168, 1);
+    expect(lubu.ultimateWindup).toBeGreaterThan(0);
+
+    advanceRun(state, 0.9);
+
+    expect(lubu.threat).toBeUndefined();
+    expect(lubu.ultimateCooldown).toBeGreaterThan(4);
+    expect(state.areas.some((area) => area.vfxKey === "lubu_musou_rampage")).toBe(true);
+    expect(state.combatEvents.some((event) => event.type === "boss" && event.vfxKey === "lubu_musou_rampage")).toBe(true);
   });
 
   it("applies Qun upgrades and Diaochan evolution", () => {

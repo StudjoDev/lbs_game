@@ -54,8 +54,9 @@ export function damageEnemy(state: RunState, enemy: EnemyState, baseDamage: numb
   enemy.flashTimer = 0.12;
   if (tags.includes("shock")) {
     const push = normalize({ x: enemy.x - state.player.x, y: enemy.y - state.player.y });
-    enemy.x += push.x * 18;
-    enemy.y += push.y * 18;
+    const resistance = def.behavior === "shield" ? 0.45 : 1;
+    enemy.x += push.x * 18 * resistance;
+    enemy.y += push.y * 18 * resistance;
   }
 
   addFloatingText(state, enemy.x, enemy.y - enemy.radius, critical ? `${Math.round(amount)}!` : Math.round(amount).toString(), critical ? "xp" : "damage");
@@ -189,6 +190,7 @@ export function resolveDeadEnemies(state: RunState): void {
     }
     const def = enemyById[enemy.defId];
     state.kills += 1;
+    registerChainKill(state, enemy);
     const conquestBoss = state.roomType === "boss" && Boolean(state.conquestCityId);
     state.score += enemy.gatekeeperHeroId || conquestBoss ? Math.max(def.score, Math.floor(enemy.maxHp * 0.45)) : def.score;
     addCombatEvent(state, "kill", enemy.x, enemy.y, def.tags.includes("elite") ? 1 : 0.5, def.tags.includes("boss") ? "evolution_burst" : "hit_spark");
@@ -205,7 +207,7 @@ export function resolveDeadEnemies(state: RunState): void {
       if (state.conquestCityId) {
         state.gatekeeperDefeated = true;
       }
-      const bossName = enemy.gatekeeperHeroId ? heroById[enemy.gatekeeperHeroId].name : (state.gatekeeperName ?? "????");
+      const bossName = enemy.gatekeeperHeroId ? heroById[enemy.gatekeeperHeroId].name : (state.gatekeeperName ?? "守城大將");
       addFloatingText(state, enemy.x, enemy.y - 70, `${bossName} 退陣`, "xp");
       addCombatEvent(state, "boss", enemy.x, enemy.y, 2.2, "evolution_burst", `${bossName} 敗退`);
     } else {
@@ -218,6 +220,53 @@ export function resolveDeadEnemies(state: RunState): void {
     }
   }
   state.enemies = state.roomStatus === "cleared" ? [] : survivors;
+}
+
+function registerChainKill(state: RunState, enemy: EnemyState): void {
+  const director = state.combatDirector;
+  const previousTier = director.chainTier;
+  director.chainKills = director.chainTimer > 0 ? director.chainKills + 1 : 1;
+  director.chainTimer = 2.8;
+  director.chainTier = chainTierForKills(director.chainKills);
+  director.pressureTimer = Math.max(director.pressureTimer, director.chainTier > 0 ? 1.2 : 0.4);
+
+  if (director.chainTier <= previousTier) {
+    return;
+  }
+
+  const label = director.chainTier >= 3 ? "萬軍潰散" : director.chainTier >= 2 ? "破陣連斬" : "連斬爆發";
+  const radius = director.chainTier >= 3 ? 184 : director.chainTier >= 2 ? 140 : 104;
+  const damagePerSecond = (director.chainTier >= 3 ? 190 : director.chainTier >= 2 ? 132 : 84) * state.player.damageScale;
+  director.freezeTimer = Math.max(director.freezeTimer, director.chainTier >= 3 ? 0.072 : 0.036);
+  addFloatingText(state, enemy.x, enemy.y - enemy.radius - 18, `${director.chainKills} 連斬`, "xp");
+  addCombatEvent(state, "chain", enemy.x, enemy.y, 0.95 + director.chainTier * 0.35, "chain_burst", label);
+  state.areas.push({
+    uid: state.nextUid++,
+    source: "player",
+    target: "enemy",
+    x: state.player.x,
+    y: state.player.y,
+    radius,
+    damagePerSecond,
+    ttl: 0.28,
+    tickTimer: 0,
+    tickEvery: 0.1,
+    tags: ["shock"],
+    vfxKey: "chain_burst"
+  });
+}
+
+function chainTierForKills(kills: number): number {
+  if (kills >= 45) {
+    return 3;
+  }
+  if (kills >= 20) {
+    return 2;
+  }
+  if (kills >= 8) {
+    return 1;
+  }
+  return 0;
 }
 
 export function findNearestEnemy(state: RunState, range: number): EnemyState | undefined {
@@ -267,11 +316,27 @@ export function addCombatEvent(
     type,
     x,
     y,
-    ttl: type === "hit" ? 0.18 : type === "ultimate" ? 0.75 : 0.45,
+    ttl: combatEventLifetime(type),
     intensity,
     vfxKey,
     text
   });
+}
+
+function combatEventLifetime(type: CombatEventType): number {
+  if (type === "hit") {
+    return 0.18;
+  }
+  if (type === "chain") {
+    return 0.62;
+  }
+  if (type === "threat") {
+    return 0.5;
+  }
+  if (type === "ultimate") {
+    return 0.75;
+  }
+  return 0.45;
 }
 
 export function updateCombatEvents(state: RunState, dt: number): void {

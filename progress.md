@@ -9,6 +9,27 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Full combat upgrade v1 with five prototype heroes and crowd-combat feel.
+Notes:
+- Added a shared combat director with 2.8s chain tracking, 8/20/45 chain tiers, pressure waves, short visual freeze, and chain/threat combat events.
+- Upgraded enemy behavior with readable threat windups: archer line shots, cavalry charge lanes, shield resistance, captain slam circles, and Lu Bu musou warnings.
+- Reworked the five prototype combat vocabularies: Guan Yu heavy Qinglong cleaves, Zhao Yun silver thrust chains, Diaochan ribbon bind/cage, Huang Zhong golden arrow/arrowstorm, and Zhou Yu Red Cliff fire fields.
+- Added battlefield themes for Hulao, Red Cliff, and conquest fallback, then wired BattleScene to choose themes by chapter/city.
+- Connected hit-stop, camera impulse, impact VFX, threat telegraphs, debug render hooks, and Playwright QA probes for desktop/mobile combat validation.
+- Cleaned base/effect separation for the five prototype attack/ultimate runtime assets and regenerated the audit/contact sheets under `output/web-game/`.
+
+Verification:
+- `python C:\Users\Boss\.codex\skills\lbs-warrior-asset-pipeline\scripts\audit_lbs_character_motion.py --repo . --heroes guanyu zhaoyun diaochan huangzhong zhouyu --states idle=6 run=6 attack=8 ultimate=8 --min-padding 8 --max-occupancy 0.67` passed.
+- `npm run typecheck` passed.
+- `npm test` passed: 11 files, 85 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- Playwright QA passed for Guan Yu, Zhao Yun, Diaochan, Huang Zhong, and Zhou Yu on desktop 1280x720 and mobile 390x844, including manual skill, ultimate, chain tier 3, theme selection, and no modal overlap.
+- Playwright enemy-threat QA passed for archer, cavalry, captain, and Lu Bu warnings and fired VFX; screenshots and `summary.json` are under `output/web-game/combat-upgrade-v1-qa/`.
+- Visual screenshot review confirmed battlefield is not black, HUD remains readable, five prototype skills are shape-distinct, and enemy warnings are readable.
+
+TODO:
+- None for this request.
+
 Current request: Open six agents to optimize current game mechanisms and UI, then validate all six.
 Notes:
 - Split work across six parallel agents and integrated their changes: character select first-screen/mobile CTA, battle guidance, manual skill vs musou clarity, upgrade recommendation tags, conquest map guidance, and data-driven hero passive traits.

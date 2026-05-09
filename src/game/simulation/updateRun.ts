@@ -1,7 +1,7 @@
 import { enemyById } from "../content/enemies";
 import { techniques } from "../content/techniques";
 import { ultimateByHeroId, type UltimateProfile } from "../content/ultimates";
-import type { AreaState, EnemyState, InputState, ProjectileState, RunState, XpOrbState } from "../types";
+import type { AreaState, EnemyDef, EnemyState, EnemyThreatState, InputState, ProjectileState, RunState, XpOrbState } from "../types";
 import { addBossMusou, addBossShockwave, addEnemyArrow, executeAbility } from "./abilities";
 import {
   addCombatEvent,
@@ -31,6 +31,7 @@ export function updateRun(state: RunState, input: InputState, dt: number): void 
   state.player.manualCooldown = Math.max(0, state.player.manualCooldown - safeDt);
   state.player.companionCooldown = Math.max(0, state.player.companionCooldown - safeDt);
   state.player.orbitCooldown = Math.max(0, state.player.orbitCooldown - safeDt);
+  updateCombatDirector(state, safeDt);
   const wasUltimateActive = state.player.ultimateTimer > 0;
   state.player.ultimateTimer = Math.max(0, state.player.ultimateTimer - safeDt);
   state.player.ultimatePulseCooldown = Math.max(0, state.player.ultimatePulseCooldown - safeDt);
@@ -114,6 +115,17 @@ function updateAbilities(state: RunState, input: InputState): void {
     addCombatEvent(state, "manual", state.player.x, state.player.y, 1, hero.manualAbility.vfxKey, hero.manualAbility.name);
     const ultimateDuration = state.player.ultimateCharge >= 1 ? activateUltimate(state) : 0;
     state.player.manualCooldown = Math.max(0.4, hero.manualAbility.cooldown * state.player.cooldownScale + ultimateDuration);
+  }
+}
+
+function updateCombatDirector(state: RunState, dt: number): void {
+  const director = state.combatDirector;
+  director.chainTimer = Math.max(0, director.chainTimer - dt);
+  director.pressureTimer = Math.max(0, director.pressureTimer - dt);
+  director.freezeTimer = Math.max(0, director.freezeTimer - dt);
+  if (director.chainTimer <= 0) {
+    director.chainKills = 0;
+    director.chainTier = 0;
   }
 }
 
@@ -289,20 +301,30 @@ function updateEnemies(state: RunState, dt: number): void {
     updateBossPhase(state, enemy);
     const toPlayer = normalize({ x: state.player.x - enemy.x, y: state.player.y - enemy.y });
     const playerDistance = distance(enemy, state.player);
+    if (updateEnemyThreat(state, enemy, def, playerDistance, dt)) {
+      continue;
+    }
     if (updateLubuUltimate(state, enemy, playerDistance, dt)) {
       continue;
     }
 
-    if (def.tags.includes("ranged")) {
+    if (def.behavior === "ranged") {
       const moveSign = playerDistance < 230 ? -1 : playerDistance > 315 ? 1 : 0;
       enemy.x += toPlayer.x * enemy.speed * moveSign * dt;
       enemy.y += toPlayer.y * enemy.speed * moveSign * dt;
       if (enemy.attackCooldown <= 0 && playerDistance <= def.attackRange) {
-        addEnemyArrow(state, enemy.x, enemy.y);
-        enemy.attackCooldown = def.attackCooldown;
+        startEnemyThreat(state, enemy, "arrowLine", 0.35, def.attackRange, "enemy_arrow_warning");
       }
     } else {
-      const burst = def.tags.includes("fast") && playerDistance > 180 ? 1.45 : 1;
+      if (def.behavior === "charger" && enemy.attackCooldown <= 0 && playerDistance > 130 && playerDistance < 440) {
+        startEnemyThreat(state, enemy, "chargeLine", 0.45, Math.min(320, playerDistance + 80), "cavalry_charge_warning");
+        continue;
+      }
+      if (def.behavior === "elite" && enemy.attackCooldown <= 0 && playerDistance < 152) {
+        startEnemyThreat(state, enemy, "slamCircle", 0.5, 112, "captain_slam_warning");
+        continue;
+      }
+      const burst = def.behavior === "charger" && playerDistance > 180 ? 1.32 : 1;
       enemy.x += toPlayer.x * enemy.speed * burst * dt;
       enemy.y += toPlayer.y * enemy.speed * burst * dt;
       if (enemy.attackCooldown <= 0 && playerDistance <= enemy.radius + state.player.radius + 10) {
@@ -315,6 +337,110 @@ function updateEnemies(state: RunState, dt: number): void {
       addBossShockwave(state, enemy.x, enemy.y);
       enemy.attackCooldown = def.attackCooldown / bossPhaseSpeed(enemy);
     }
+  }
+}
+
+function updateEnemyThreat(state: RunState, enemy: EnemyState, def: EnemyDef, playerDistance: number, dt: number): boolean {
+  if (!enemy.threat) {
+    return false;
+  }
+  enemy.threat.timer = Math.max(0, enemy.threat.timer - dt);
+  if (enemy.threat.kind === "bossMusou") {
+    if (enemy.threat.timer <= 0) {
+      enemy.threat = undefined;
+    }
+    return false;
+  }
+  if (enemy.threat.kind !== "arrowLine") {
+    enemy.attackCooldown = Math.max(enemy.attackCooldown, enemy.threat.timer + 0.12);
+  }
+  if (enemy.threat.timer > 0) {
+    return true;
+  }
+  fireEnemyThreat(state, enemy, def, playerDistance);
+  enemy.threat = undefined;
+  return true;
+}
+
+function startEnemyThreat(
+  state: RunState,
+  enemy: EnemyState,
+  kind: EnemyThreatState["kind"],
+  duration: number,
+  reach: number,
+  vfxKey: string
+): void {
+  const direction = normalize({ x: state.player.x - enemy.x, y: state.player.y - enemy.y });
+  const target = {
+    x: clamp(enemy.x + direction.x * reach, 48, state.world.width - 48),
+    y: clamp(enemy.y + direction.y * reach, 48, state.world.height - 48)
+  };
+  enemy.threat = {
+    kind,
+    timer: duration,
+    duration,
+    x: enemy.x,
+    y: enemy.y,
+    targetX: target.x,
+    targetY: target.y,
+    radius: kind === "slamCircle" ? reach : kind === "chargeLine" ? 42 : 18,
+    vfxKey
+  };
+  enemy.attackCooldown = Math.max(enemy.attackCooldown, duration + 0.18);
+  const label = kind === "arrowLine" ? "弓兵瞄準" : kind === "chargeLine" ? "騎兵衝鋒" : "校尉震地";
+  addCombatEvent(state, "threat", enemy.x, enemy.y, kind === "slamCircle" ? 1.15 : 0.85, vfxKey, label);
+}
+
+function fireEnemyThreat(state: RunState, enemy: EnemyState, def: EnemyDef, playerDistance: number): void {
+  const threat = enemy.threat;
+  if (!threat) {
+    return;
+  }
+  if (threat.kind === "arrowLine") {
+    addEnemyArrow(state, enemy.x, enemy.y, normalize({ x: threat.targetX - threat.x, y: threat.targetY - threat.y }));
+    enemy.attackCooldown = def.attackCooldown;
+    return;
+  }
+  if (threat.kind === "chargeLine") {
+    const end = {
+      x: clamp(threat.targetX, 72, state.world.width - 72),
+      y: clamp(threat.targetY, 72, state.world.height - 72)
+    };
+    state.areas.push({
+      uid: state.nextUid++,
+      source: "enemy",
+      target: "player",
+      x: (enemy.x + end.x) / 2,
+      y: (enemy.y + end.y) / 2,
+      radius: threat.radius,
+      damagePerSecond: enemy.damage * 3.2,
+      ttl: 0.42,
+      tickTimer: 0,
+      tickEvery: 0.12,
+      tags: ["shock"],
+      vfxKey: "cavalry_charge"
+    });
+    enemy.x = end.x;
+    enemy.y = end.y;
+    enemy.attackCooldown = def.attackCooldown * 1.2;
+    return;
+  }
+  if (threat.kind === "slamCircle") {
+    state.areas.push({
+      uid: state.nextUid++,
+      source: "enemy",
+      target: "player",
+      x: enemy.x,
+      y: enemy.y,
+      radius: 118,
+      damagePerSecond: enemy.damage * 3.8,
+      ttl: 0.36,
+      tickTimer: 0.04,
+      tickEvery: 0.14,
+      tags: ["shock"],
+      vfxKey: "captain_slam"
+    });
+    enemy.attackCooldown = def.attackCooldown * (playerDistance < 130 ? 1.25 : 1);
   }
 }
 
@@ -375,15 +501,29 @@ function updateLubuUltimate(state: RunState, enemy: EnemyState, playerDistance: 
 }
 
 function startLubuUltimate(state: RunState, enemy: EnemyState): void {
+  const phaseScale = enemy.phase >= 3 ? 1.18 : enemy.phase >= 2 ? 1.08 : 1;
   enemy.ultimateWindup = enemy.phase >= 3 ? 0.62 : enemy.phase >= 2 ? 0.72 : 0.84;
   enemy.ultimateCooldown = 99;
   enemy.attackCooldown = Math.max(enemy.attackCooldown, enemy.ultimateWindup + 0.35);
+  enemy.threat = {
+    kind: "bossMusou",
+    timer: enemy.ultimateWindup,
+    duration: enemy.ultimateWindup,
+    x: enemy.x,
+    y: enemy.y,
+    targetX: state.player.x,
+    targetY: state.player.y,
+    radius: 168 * phaseScale,
+    vfxKey: "lubu_musou_warning"
+  };
   addFloatingText(state, enemy.x, enemy.y - 118, "方天無雙", "alert");
   addCombatEvent(state, "boss", enemy.x, enemy.y, 1.65, "lubu_musou_warning", "方天無雙");
 }
 
 function fireLubuUltimate(state: RunState, enemy: EnemyState): void {
-  addBossMusou(state, enemy.x, enemy.y, enemy.phase);
+  const target = enemy.threat ? { x: enemy.threat.targetX, y: enemy.threat.targetY } : undefined;
+  addBossMusou(state, enemy.x, enemy.y, enemy.phase, target);
+  enemy.threat = undefined;
   enemy.attackCooldown = Math.max(enemy.attackCooldown, 1.1);
   enemy.ultimateCooldown = enemy.phase >= 3 ? 4.9 : enemy.phase >= 2 ? 5.8 : 7.2;
   addFloatingText(state, enemy.x, enemy.y - 118, "鬼神亂舞", "alert");
@@ -406,10 +546,13 @@ function updateProjectiles(state: RunState, dt: number): void {
           damageEnemy(state, enemy, projectile.damage, projectile.tags);
           projectile.hitIds.push(enemy.uid);
           if (projectile.tags.includes("shock")) {
-            enemy.stunTimer = Math.max(enemy.stunTimer, 0.18);
+            enemy.stunTimer = Math.max(enemy.stunTimer, shockStunDuration(enemy, 0.18));
           }
           if (projectile.tags.includes("charm")) {
-            enemy.stunTimer = Math.max(enemy.stunTimer, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.36 : 0.22));
+            enemy.stunTimer = Math.max(
+              enemy.stunTimer,
+              shieldAdjustedStunDuration(enemy, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.36 : 0.22))
+            );
           }
           if (projectile.hitIds.length > projectile.pierce) {
             if (!redirectRicochet(state, projectile)) {
@@ -480,10 +623,13 @@ function updateAreas(state: RunState, dt: number): void {
           if (distance(area, enemy) <= area.radius + enemy.radius) {
             damageEnemy(state, enemy, tickDamage, area.tags);
             if (area.tags.includes("shock")) {
-              enemy.stunTimer = Math.max(enemy.stunTimer, 0.14);
+              enemy.stunTimer = Math.max(enemy.stunTimer, shockStunDuration(enemy, 0.14));
             }
             if (area.tags.includes("charm")) {
-              enemy.stunTimer = Math.max(enemy.stunTimer, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.42 : 0.24));
+              enemy.stunTimer = Math.max(
+                enemy.stunTimer,
+                shieldAdjustedStunDuration(enemy, charmStunDuration(state, state.unlocks.evolution_diaochan ? 0.42 : 0.24))
+              );
             }
           }
         }
@@ -522,6 +668,14 @@ function charmStunDuration(state: RunState, baseDuration: number): number {
     return baseDuration;
   }
   return baseDuration * (1.45 + state.player.ultimatePower);
+}
+
+function shockStunDuration(enemy: EnemyState, baseDuration: number): number {
+  return shieldAdjustedStunDuration(enemy, baseDuration);
+}
+
+function shieldAdjustedStunDuration(enemy: EnemyState, baseDuration: number): number {
+  return enemyById[enemy.defId].behavior === "shield" ? baseDuration * 0.45 : baseDuration;
 }
 
 function updateFloatingTexts(state: RunState, dt: number): void {

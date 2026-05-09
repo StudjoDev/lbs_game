@@ -16,6 +16,7 @@ import {
 } from "../../game/assets/manifest";
 import type { MusicKey } from "../../game/audio/catalog";
 import { recruitCharacter } from "../../game/collection/collectionStore";
+import { battlefieldThemeForRun } from "../../game/content/battlefields";
 import { characterArtById } from "../../game/content/characterArt";
 import { loadDisplaySettings, saveDisplaySettings, type DisplaySettings } from "../../game/display/settings";
 import { ultimateByHeroId } from "../../game/content/ultimates";
@@ -27,7 +28,7 @@ import {
   saveMetaProgression,
   type MetaRunSettlement
 } from "../../game/meta/progression";
-import { applyUpgrade } from "../../game/simulation/combat";
+import { applyUpgrade, resolveDeadEnemies } from "../../game/simulation/combat";
 import { createRun } from "../../game/simulation/createRun";
 import { spawnEnemy } from "../../game/simulation/spawn";
 import { collectDebugXp, setPaused, updateRun } from "../../game/simulation/updateRun";
@@ -57,6 +58,8 @@ interface BattleData {
   chapterId?: ChapterId;
   conquestCityId?: ConquestCityId;
 }
+
+const debugEnemyIds: readonly EnemyId[] = ["infantry", "archer", "shield", "cavalry", "captain", "lubu"];
 
 interface PlayerVisualState {
   visualX: number;
@@ -132,6 +135,7 @@ export class BattleScene extends Phaser.Scene {
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
   private enemyShadows = new Map<number, Phaser.GameObjects.Ellipse>();
   private enemyFrames = new Map<number, Phaser.GameObjects.Graphics>();
+  private enemyThreatGraphics = new Map<number, Phaser.GameObjects.Graphics>();
   private enemyPool: Phaser.GameObjects.Sprite[] = [];
   private enemyHitEffectTimestamps = new Map<number, number>();
   private enemyDeathSprites = new Set<Phaser.GameObjects.Sprite>();
@@ -158,6 +162,7 @@ export class BattleScene extends Phaser.Scene {
   private cameraBaseZoom = 1;
   private displaySettings: DisplaySettings = loadDisplaySettings();
   private recentKillTimestamps: number[] = [];
+  private visualFreezeUntil = 0;
 
   constructor() {
     super("BattleScene");
@@ -276,7 +281,16 @@ export class BattleScene extends Phaser.Scene {
     if (input.pausePressed) {
       setPaused(this.run, this.run.status !== "paused");
     }
+    if (this.run.status === "playing" && this.time.now < this.visualFreezeUntil) {
+      this.syncRender(this.run);
+      this.hud.update(this.run, this.metaSettlement);
+      return;
+    }
     updateRun(this.run, input, deltaMs / 1000);
+    if (this.run.combatDirector.freezeTimer > 0) {
+      this.requestVisualFreeze(this.run.combatDirector.freezeTimer * 1000);
+      this.run.combatDirector.freezeTimer = 0;
+    }
     this.settleMetaProgression(this.run);
     this.syncAudioState(this.run);
     this.syncRender(this.run);
@@ -607,6 +621,7 @@ export class BattleScene extends Phaser.Scene {
       if (frame) {
         drawEnemyFrame(frame, enemy, visual, this.time.now);
       }
+      this.syncEnemyThreat(enemy);
     }
     for (const [id, sprite] of this.enemySprites) {
       if (!liveIds.has(id)) {
@@ -638,9 +653,29 @@ export class BattleScene extends Phaser.Scene {
         this.enemyShadows.delete(id);
         this.enemyFrames.get(id)?.destroy();
         this.enemyFrames.delete(id);
+        this.enemyThreatGraphics.get(id)?.destroy();
+        this.enemyThreatGraphics.delete(id);
         this.enemyHitEffectTimestamps.delete(id);
       }
     }
+  }
+
+  private syncEnemyThreat(enemy: EnemyState): void {
+    let graphics = this.enemyThreatGraphics.get(enemy.uid);
+    if (!enemy.threat) {
+      graphics?.clear();
+      graphics?.setVisible(false);
+      return;
+    }
+    if (!graphics) {
+      graphics = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+      this.areaLayer?.add(graphics);
+      this.enemyThreatGraphics.set(enemy.uid, graphics);
+    }
+    graphics.setVisible(true);
+    graphics.clear();
+    drawEnemyThreat(graphics, enemy, this.time.now);
+    graphics.setDepth(enemy.y - 26);
   }
 
   private syncProjectiles(projectiles: ProjectileState[]): void {
@@ -1045,6 +1080,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.type === "hit") {
       return;
     }
+    this.requestVisualFreeze(freezeMsForEvent(event));
     const bossUltimateEvent = event.type === "boss" && event.vfxKey.startsWith("lubu_musou");
     const duration = event.type === "evolution" || event.type === "boss" || event.type === "ultimate" ? 260 : 90;
     const intensity =
@@ -1065,6 +1101,14 @@ export class BattleScene extends Phaser.Scene {
     if (event.type === "manual") {
       this.playHeroAttackAnimation();
     }
+  }
+
+  private requestVisualFreeze(durationMs: number): void {
+    const duration = Phaser.Math.Clamp(durationMs, 0, 80);
+    if (duration <= 0) {
+      return;
+    }
+    this.visualFreezeUntil = Math.max(this.visualFreezeUntil, this.time.now + duration);
   }
 
   private createPresentationEffects(): void {
@@ -1678,6 +1722,7 @@ export class BattleScene extends Phaser.Scene {
     if (!this.run) {
       return;
     }
+    const theme = battlefieldThemeForRun(this.run.chapterId, this.run.conquestCityId);
     const ground = this.add.tileSprite(0, 0, this.run.world.width, this.run.world.height, "ground_tile").setOrigin(0).setDepth(-80);
     const detail = this.add
       .tileSprite(0, 0, this.run.world.width, this.run.world.height, "ground_detail_tile")
@@ -1687,13 +1732,15 @@ export class BattleScene extends Phaser.Scene {
     const haze = this.add.graphics().setDepth(-55);
     this.backgroundLayer?.add([ground, detail, haze]);
 
-    haze.fillStyle(0x080407, 0.22);
+    ground.setTint(theme.hazeColor);
+    detail.setTint(theme.lineColor);
+    haze.fillStyle(theme.hazeColor, theme.hazeAlpha);
     haze.fillRect(0, 0, this.run.world.width, this.run.world.height);
-    haze.lineStyle(2, 0xffd98a, 0.08);
+    haze.lineStyle(2, theme.lineColor, theme.lineAlpha);
     for (let x = 360; x < this.run.world.width; x += 520) {
       haze.lineBetween(x, 0, x - 180, this.run.world.height);
     }
-    haze.fillStyle(0xffd98a, 0.06);
+    haze.fillStyle(theme.emberColor, 0.07);
     for (let index = 0; index < 28; index += 1) {
       const x = 220 + ((index * 719) % (this.run.world.width - 440));
       const y = 240 + ((index * 587) % (this.run.world.height - 480));
@@ -1703,20 +1750,13 @@ export class BattleScene extends Phaser.Scene {
     for (let index = 0; index < 42; index += 1) {
       const x = 180 + ((index * 577) % (this.run.world.width - 360));
       const y = 180 + ((index * 821) % (this.run.world.height - 360));
-      const texture =
-        index % 9 === 0
-          ? "battle_cloth_red"
-          : index % 9 === 4
-            ? "battle_cloth_jade"
-            : index % 3 === 0
-              ? "battle_spear_prop"
-              : "battle_stone_prop";
+      const texture = theme.propSet[index % theme.propSet.length] ?? "battle_stone_prop";
       const isCloth = texture.includes("cloth");
       const isSpear = texture.includes("spear");
       const sprite = this.add
         .sprite(x, y, texture)
         .setDepth(y - 180)
-        .setAlpha(isCloth ? 0.2 : isSpear ? 0.28 : 0.18)
+        .setAlpha(isCloth ? theme.propAlpha * 0.86 : isSpear ? theme.propAlpha : theme.propAlpha * 0.7)
         .setScale(isCloth ? 0.72 + (index % 3) * 0.05 : isSpear ? 0.5 + (index % 4) * 0.04 : 0.46 + (index % 5) * 0.04)
         .setRotation(isCloth ? -0.28 + (index % 5) * 0.14 : isSpear ? -0.88 + (index % 7) * 0.22 : -0.18 + (index % 4) * 0.12);
       this.backgroundLayer?.add(sprite);
@@ -1730,8 +1770,11 @@ export class BattleScene extends Phaser.Scene {
 
     const debugWindow = window as Window & {
       advanceTime?: (ms: number) => void;
+      chargeDebugUltimate?: () => void;
       collectDebugXp?: (amount?: number) => void;
+      spawnDebugEnemy?: (defId?: EnemyId) => void;
       spawnDebugLubu?: () => void;
+      triggerDebugChain?: (kills?: number) => void;
       render_game_to_text?: () => string;
     };
     const render = () => {
@@ -1774,6 +1817,17 @@ export class BattleScene extends Phaser.Scene {
             ultimateWindup: Number(enemy.ultimateWindup.toFixed(2))
           })),
         enemyThreats: {
+          telegraphs: state.enemies
+            .filter((enemy) => Boolean(enemy.threat))
+            .map((enemy) => ({
+              enemyId: enemy.defId,
+              kind: enemy.threat?.kind,
+              vfxKey: enemy.threat?.vfxKey,
+              timer: Number((enemy.threat?.timer ?? 0).toFixed(2)),
+              radius: Math.round(enemy.threat?.radius ?? 0),
+              targetX: Math.round(enemy.threat?.targetX ?? enemy.x),
+              targetY: Math.round(enemy.threat?.targetY ?? enemy.y)
+            })),
           areas: state.areas
             .filter((area) => area.source === "enemy")
             .map((area) => ({
@@ -1788,6 +1842,35 @@ export class BattleScene extends Phaser.Scene {
               ttl: Number(projectile.ttl.toFixed(2)),
               radius: Math.round(projectile.radius)
             }))
+        },
+        playerVfx: {
+          combatEvents: state.combatEvents.map((event) => ({
+            type: event.type,
+            vfxKey: event.vfxKey,
+            text: event.text ?? null,
+            ttl: Number(event.ttl.toFixed(2))
+          })),
+          areas: state.areas
+            .filter((area) => area.source === "player")
+            .map((area) => ({
+              vfxKey: area.vfxKey,
+              ttl: Number(area.ttl.toFixed(2)),
+              radius: Math.round(area.radius)
+            })),
+          projectiles: state.projectiles
+            .filter((projectile) => projectile.source === "player")
+            .map((projectile) => ({
+              vfxKey: projectile.vfxKey,
+              ttl: Number(projectile.ttl.toFixed(2)),
+              radius: Math.round(projectile.radius)
+            }))
+        },
+        combatDirector: {
+          chainKills: state.combatDirector.chainKills,
+          chainTimer: Number(state.combatDirector.chainTimer.toFixed(2)),
+          chainTier: state.combatDirector.chainTier,
+          pressureTimer: Number(state.combatDirector.pressureTimer.toFixed(2)),
+          freezeTimer: Number(state.combatDirector.freezeTimer.toFixed(3))
         },
         xpOrbs: state.xpOrbs.length,
         objective: {
@@ -1807,6 +1890,7 @@ export class BattleScene extends Phaser.Scene {
         chapter: {
           id: state.chapterId,
           name: state.chapterName,
+          battlefieldTheme: battlefieldThemeForRun(state.chapterId, state.conquestCityId).id,
           room: state.roomIndex + 1,
           roomCount: state.roomCount,
           roomType: state.roomType,
@@ -1832,6 +1916,69 @@ export class BattleScene extends Phaser.Scene {
       collectDebugXp(this.run, amount);
       this.hud?.update(this.run);
     };
+    const chargeUltimate = () => {
+      if (!this.run) {
+        return;
+      }
+      this.run.player.ultimateCharge = 1;
+      this.run.player.manualCooldown = 0;
+      this.hud?.update(this.run, this.metaSettlement);
+    };
+    const triggerChain = (kills = 8) => {
+      if (!this.run) {
+        return;
+      }
+      const safeKills = Phaser.Math.Clamp(Math.floor(kills), 1, 60);
+      for (let index = 0; index < safeKills; index += 1) {
+        const enemy = spawnEnemy(this.run, "infantry", 120);
+        enemy.hp = 0;
+        resolveDeadEnemies(this.run);
+      }
+      this.run.status = "playing";
+      this.run.pendingUpgradeIds = [];
+      this.run.roomStatus = "fighting";
+      this.syncRender(this.run);
+      this.hud?.update(this.run, this.metaSettlement);
+    };
+    const spawnDebugEnemy = (defId: EnemyId = "archer") => {
+      if (!this.run) {
+        return;
+      }
+      this.run.player.autoCooldown = Math.max(this.run.player.autoCooldown, 999);
+      this.run.player.manualCooldown = Math.max(this.run.player.manualCooldown, 999);
+      this.run.player.companionCooldown = Math.max(this.run.player.companionCooldown, 999);
+      this.run.player.orbitCooldown = Math.max(this.run.player.orbitCooldown, 999);
+      this.run.player.maxHp = Math.max(this.run.player.maxHp, 99999);
+      this.run.player.hp = this.run.player.maxHp;
+      const enemyId = debugEnemyIds.includes(defId) ? defId : "archer";
+      const distanceFromPlayer = enemyId === "captain" || enemyId === "shield" ? 120 : enemyId === "lubu" ? 320 : 260;
+      const enemy = spawnEnemy(this.run, enemyId, distanceFromPlayer);
+      if (enemyId === "archer") {
+        enemy.x = this.run.player.x + 260;
+        enemy.y = this.run.player.y;
+      } else if (enemyId === "cavalry") {
+        enemy.x = this.run.player.x - 260;
+        enemy.y = this.run.player.y;
+      } else if (enemyId === "captain") {
+        enemy.x = this.run.player.x;
+        enemy.y = this.run.player.y + 120;
+      } else if (enemyId === "lubu") {
+        enemy.x = this.run.player.x + 320;
+        enemy.y = this.run.player.y;
+        enemy.phase = Math.max(enemy.phase, 2);
+      } else {
+        enemy.x = this.run.player.x + 120;
+        enemy.y = this.run.player.y;
+      }
+      enemy.maxHp = Math.max(enemy.maxHp, 9999);
+      enemy.hp = enemy.maxHp;
+      enemy.attackCooldown = 0;
+      enemy.ultimateCooldown = enemyId === "lubu" ? 0 : enemy.ultimateCooldown;
+      enemy.ultimateWindup = 0;
+      enemy.threat = undefined;
+      this.syncRender(this.run);
+      this.hud?.update(this.run, this.metaSettlement);
+    };
     const spawnDebugLubu = () => {
       if (!this.run) {
         return;
@@ -1851,8 +1998,11 @@ export class BattleScene extends Phaser.Scene {
 
     debugWindow.render_game_to_text = render;
     debugWindow.advanceTime = advanceTime;
+    debugWindow.chargeDebugUltimate = chargeUltimate;
     debugWindow.collectDebugXp = collectXp;
+    debugWindow.spawnDebugEnemy = spawnDebugEnemy;
     debugWindow.spawnDebugLubu = spawnDebugLubu;
+    debugWindow.triggerDebugChain = triggerChain;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (debugWindow.render_game_to_text === render) {
         delete debugWindow.render_game_to_text;
@@ -1860,11 +2010,20 @@ export class BattleScene extends Phaser.Scene {
       if (debugWindow.advanceTime === advanceTime) {
         delete debugWindow.advanceTime;
       }
+      if (debugWindow.chargeDebugUltimate === chargeUltimate) {
+        delete debugWindow.chargeDebugUltimate;
+      }
       if (debugWindow.collectDebugXp === collectXp) {
         delete debugWindow.collectDebugXp;
       }
+      if (debugWindow.spawnDebugEnemy === spawnDebugEnemy) {
+        delete debugWindow.spawnDebugEnemy;
+      }
       if (debugWindow.spawnDebugLubu === spawnDebugLubu) {
         delete debugWindow.spawnDebugLubu;
+      }
+      if (debugWindow.triggerDebugChain === triggerChain) {
+        delete debugWindow.triggerDebugChain;
       }
     });
   }
@@ -1875,6 +2034,8 @@ export class BattleScene extends Phaser.Scene {
     this.enemySprites.clear();
     this.enemyShadows.clear();
     this.enemyFrames.clear();
+    this.enemyThreatGraphics.forEach((graphics) => graphics.destroy());
+    this.enemyThreatGraphics.clear();
     this.enemyHitEffectTimestamps.clear();
     this.enemyDeathSprites.forEach((sprite) => sprite.destroy());
     this.enemyDeathSprites.clear();
@@ -2115,6 +2276,56 @@ function drawEnemyFrame(
   graphics.setDepth(enemy.y - 22);
 }
 
+function drawEnemyThreat(graphics: Phaser.GameObjects.Graphics, enemy: EnemyState, now: number): void {
+  const threat = enemy.threat;
+  if (!threat) {
+    return;
+  }
+  const profile = vfxProfile(threat.vfxKey);
+  const color = profile.color;
+  const progress = Phaser.Math.Clamp(1 - threat.timer / Math.max(0.01, threat.duration), 0, 1);
+  const pulse = 0.55 + Math.sin(now / 70 + enemy.uid) * 0.22;
+  if (threat.kind === "arrowLine" || threat.kind === "chargeLine") {
+    const width = threat.kind === "chargeLine" ? 34 : 10;
+    const dx = threat.targetX - threat.x;
+    const dy = threat.targetY - threat.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / length;
+    const ny = dx / length;
+    const start = { x: threat.x, y: threat.y };
+    const end = { x: threat.targetX, y: threat.targetY };
+    graphics.fillStyle(color, threat.kind === "chargeLine" ? 0.12 + progress * 0.08 : 0.08 + progress * 0.08);
+    graphics.beginPath();
+    graphics.moveTo(start.x + nx * width, start.y + ny * width);
+    graphics.lineTo(end.x + nx * width, end.y + ny * width);
+    graphics.lineTo(end.x - nx * width, end.y - ny * width);
+    graphics.lineTo(start.x - nx * width, start.y - ny * width);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.lineStyle(threat.kind === "chargeLine" ? 4 : 2, color, 0.42 + progress * 0.34);
+    graphics.lineBetween(start.x, start.y, end.x, end.y);
+    graphics.lineStyle(1, 0xfff1cf, 0.16 + pulse * 0.18);
+    graphics.lineBetween(start.x + nx * width * 0.5, start.y + ny * width * 0.5, end.x + nx * width * 0.5, end.y + ny * width * 0.5);
+    return;
+  }
+  const radius = threat.radius * (0.74 + progress * 0.26);
+  graphics.fillStyle(color, 0.1 + progress * 0.06);
+  graphics.fillCircle(threat.x, threat.y, radius);
+  graphics.lineStyle(4, color, 0.45 + progress * 0.34);
+  graphics.strokeCircle(threat.x, threat.y, radius);
+  graphics.lineStyle(2, 0xfff1cf, 0.2 + pulse * 0.2);
+  graphics.strokeCircle(threat.x, threat.y, radius * 0.62);
+  for (let index = 0; index < 10; index += 1) {
+    const angle = now / 240 + (Math.PI * 2 * index) / 10;
+    graphics.lineBetween(
+      threat.x + Math.cos(angle) * radius * 0.36,
+      threat.y + Math.sin(angle) * radius * 0.36,
+      threat.x + Math.cos(angle) * radius * 0.9,
+      threat.y + Math.sin(angle) * radius * 0.9
+    );
+  }
+}
+
 function drawAreaTelegraph(
   graphics: Phaser.GameObjects.Graphics,
   area: AreaState,
@@ -2264,6 +2475,25 @@ function drawCombatEvent(
     }
     return;
   }
+  if (event.type === "chain") {
+    const radius = 46 * event.intensity * (1 + progress * 1.35);
+    graphics.fillStyle(color, 0.18 * fade);
+    graphics.fillCircle(event.x, event.y, radius * 0.72);
+    graphics.lineStyle(5, color, 0.76 * fade);
+    graphics.strokeCircle(event.x, event.y, radius);
+    graphics.lineStyle(2, 0xfff1cf, 0.32 * fade);
+    graphics.strokeCircle(event.x, event.y, radius * 0.58);
+    for (let index = 0; index < 14; index += 1) {
+      const angle = now / 180 + (Math.PI * 2 * index) / 14;
+      graphics.lineBetween(
+        event.x + Math.cos(angle) * radius * 0.35,
+        event.y + Math.sin(angle) * radius * 0.35,
+        event.x + Math.cos(angle) * radius * 1.18,
+        event.y + Math.sin(angle) * radius * 1.18
+      );
+    }
+    return;
+  }
 
   const radius = 78 * event.intensity + progress * 190 * event.intensity;
   graphics.lineStyle(event.type === "ultimate" || event.type === "evolution" ? 6 : 4, color, 0.68 * fade);
@@ -2281,6 +2511,12 @@ function particleCountForEvent(event: CombatEventState): number {
   if (event.type === "ultimate" || event.type === "evolution" || event.type === "boss") {
     return 18;
   }
+  if (event.type === "chain") {
+    return 14;
+  }
+  if (event.type === "threat") {
+    return 6;
+  }
   if (event.type === "crit" || event.type === "kill" || event.type === "morale") {
     return 10;
   }
@@ -2289,6 +2525,22 @@ function particleCountForEvent(event: CombatEventState): number {
 
 function usesGraphicsOnlyHitEvent(event: CombatEventState): boolean {
   return event.type === "hit" || event.type === "crit" || event.type === "playerHit";
+}
+
+function freezeMsForEvent(event: CombatEventState): number {
+  if (event.type === "crit") {
+    return 24;
+  }
+  if (event.type === "manual") {
+    return 44;
+  }
+  if (event.type === "chain") {
+    return 36;
+  }
+  if (event.type === "ultimate" || event.type === "boss") {
+    return 72;
+  }
+  return 0;
 }
 
 function areaColor(vfxKey: string): number {
@@ -2356,6 +2608,12 @@ function areaColor(vfxKey: string): number {
 function eventLifetime(event: CombatEventState): number {
   if (event.type === "hit") {
     return 0.18;
+  }
+  if (event.type === "chain") {
+    return 0.62;
+  }
+  if (event.type === "threat") {
+    return 0.5;
   }
   if (event.type === "ultimate") {
     return 0.75;

@@ -44,6 +44,14 @@ describe("visual asset manifest", () => {
     authoredKeys.add("lubu_musou_warning");
     authoredKeys.add("lubu_musou_rampage");
     authoredKeys.add("lubu_musou_halberd");
+    [
+      "chain_burst",
+      "enemy_arrow_warning",
+      "cavalry_charge_warning",
+      "cavalry_charge",
+      "captain_slam_warning",
+      "captain_slam"
+    ].forEach((key) => authoredKeys.add(key));
 
     for (const key of authoredKeys) {
       expect(vfxProfiles[key], key).toBeDefined();

@@ -153,8 +153,8 @@ export function executeAbility(state: RunState, ability: AbilityDef): void {
   }
 }
 
-export function addEnemyArrow(state: RunState, x: number, y: number): void {
-  const direction = normalize({ x: state.player.x - x, y: state.player.y - y });
+export function addEnemyArrow(state: RunState, x: number, y: number, directionOverride?: Vector2): void {
+  const direction = normalize(directionOverride ?? { x: state.player.x - x, y: state.player.y - y });
   state.projectiles.push({
     uid: state.nextUid++,
     source: "enemy",
@@ -191,8 +191,9 @@ export function addBossShockwave(state: RunState, x: number, y: number): void {
   state.areas.push(area);
 }
 
-export function addBossMusou(state: RunState, x: number, y: number, phase: number): void {
+export function addBossMusou(state: RunState, x: number, y: number, phase: number, target?: Vector2): void {
   const phaseScale = phase >= 3 ? 1.18 : phase >= 2 ? 1.08 : 1;
+  const lockedTarget = target ?? state.player;
   state.areas.push({
     uid: state.nextUid++,
     source: "enemy",
@@ -211,8 +212,8 @@ export function addBossMusou(state: RunState, x: number, y: number, phase: numbe
     uid: state.nextUid++,
     source: "enemy",
     target: "player",
-    x: state.player.x,
-    y: state.player.y,
+    x: lockedTarget.x,
+    y: lockedTarget.y,
     radius: 126 * phaseScale,
     damagePerSecond: 42 + phase * 7,
     ttl: 0.62,
@@ -222,7 +223,7 @@ export function addBossMusou(state: RunState, x: number, y: number, phase: numbe
     vfxKey: "lubu_musou_rampage"
   });
 
-  const facing = Math.atan2(state.player.y - y, state.player.x - x);
+  const facing = Math.atan2(lockedTarget.y - y, lockedTarget.x - x);
   const offsets = phase >= 3 ? [-0.7, -0.35, 0, 0.35, 0.7] : [-0.45, 0, 0.45];
   for (const offset of offsets) {
     const direction = fromAngle(facing + offset);

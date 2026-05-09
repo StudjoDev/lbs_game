@@ -3,7 +3,8 @@ import type { EnemyDef } from "../types";
 export const enemies: EnemyDef[] = [
   {
     id: "infantry",
-    name: "虎牢步兵",
+    name: "步兵",
+    behavior: "melee",
     maxHp: 34,
     speed: 102,
     radius: 18,
@@ -17,7 +18,8 @@ export const enemies: EnemyDef[] = [
   },
   {
     id: "archer",
-    name: "關東弓兵",
+    name: "弓兵",
+    behavior: "ranged",
     maxHp: 26,
     speed: 76,
     radius: 16,
@@ -31,7 +33,8 @@ export const enemies: EnemyDef[] = [
   },
   {
     id: "shield",
-    name: "重盾兵",
+    name: "盾兵",
+    behavior: "shield",
     maxHp: 78,
     speed: 70,
     radius: 22,
@@ -45,7 +48,8 @@ export const enemies: EnemyDef[] = [
   },
   {
     id: "cavalry",
-    name: "突騎兵",
+    name: "騎兵",
+    behavior: "charger",
     maxHp: 52,
     speed: 156,
     radius: 20,
@@ -59,7 +63,8 @@ export const enemies: EnemyDef[] = [
   },
   {
     id: "captain",
-    name: "精英將校",
+    name: "校尉",
+    behavior: "elite",
     maxHp: 210,
     speed: 92,
     radius: 28,
@@ -74,6 +79,7 @@ export const enemies: EnemyDef[] = [
   {
     id: "lubu",
     name: "呂布",
+    behavior: "boss",
     maxHp: 2400,
     speed: 128,
     radius: 46,
