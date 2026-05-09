@@ -44,6 +44,7 @@ import type {
   HeroId,
   ProjectileState,
   RunState,
+  Vector2,
   XpOrbState
 } from "../../game/types";
 import { getAudioController } from "../audio/AudioController";
@@ -81,6 +82,14 @@ interface ActiveMeleeFx {
   baseScale: number;
 }
 
+interface BattleGuidanceCue {
+  kind: "enemy" | "boss" | "door";
+  target: Vector2;
+  label: string;
+  color: number;
+  priority: number;
+}
+
 const baseBattleViewport = {
   width: 860,
   height: 680,
@@ -98,6 +107,9 @@ export class BattleScene extends Phaser.Scene {
   private unitLayer?: Phaser.GameObjects.Layer;
   private projectileLayer?: Phaser.GameObjects.Layer;
   private impactLayer?: Phaser.GameObjects.Layer;
+  private guidanceLayer?: Phaser.GameObjects.Layer;
+  private guidanceGraphics?: Phaser.GameObjects.Graphics;
+  private guidanceLabels: Phaser.GameObjects.Text[] = [];
   private xpPickupEffects?: XpPickupEffects;
   private combatJuiceEffects?: CombatJuiceEffects;
   private playerSprite?: Phaser.GameObjects.Sprite;
@@ -306,6 +318,7 @@ export class BattleScene extends Phaser.Scene {
     this.syncCombatEvents(state.combatEvents);
     this.syncActiveMeleeFx();
     this.syncFloatingTexts(state.floatingTexts);
+    this.syncCombatGuidance(state);
   }
 
   private syncAudioState(state: RunState): void {
@@ -728,6 +741,240 @@ export class BattleScene extends Phaser.Scene {
         this.xpOrbTrailTimestamps.delete(id);
       }
     }
+  }
+
+  private syncCombatGuidance(state: RunState): void {
+    const graphics = this.guidanceGraphics;
+    if (!graphics) {
+      return;
+    }
+
+    graphics.clear();
+    this.guidanceLabels.forEach((label) => label.setVisible(false));
+    if (state.status !== "playing") {
+      return;
+    }
+
+    const cues = this.buildGuidanceCues(state);
+    const maxCueCount = this.scale.gameSize.width < 520 ? 2 : 3;
+    cues.slice(0, maxCueCount).forEach((cue, index) => {
+      this.drawGuidanceCue(graphics, cue, index);
+    });
+  }
+
+  private buildGuidanceCues(state: RunState): BattleGuidanceCue[] {
+    const cues: BattleGuidanceCue[] = [];
+    if (state.doorOpen) {
+      cues.push({
+        kind: "door",
+        target: this.nextRoomTarget(state),
+        label: "下一房",
+        color: 0x75f0b2,
+        priority: 100
+      });
+    }
+
+    const bossTarget = this.findBossGuidanceTarget(state);
+    if (bossTarget && !state.doorOpen) {
+      cues.push({
+        kind: "boss",
+        target: bossTarget,
+        label: state.conquestCityId ? "守將" : "Boss",
+        color: 0xffc15f,
+        priority: 80
+      });
+    }
+
+    const enemyTarget = this.findEnemyGuidanceTarget(state, bossTarget);
+    if (enemyTarget && !state.doorOpen) {
+      cues.push({
+        kind: "enemy",
+        target: enemyTarget.target,
+        label: enemyTarget.count > 1 ? `敵群 ${enemyTarget.count}` : "敵",
+        color: 0xff6f7f,
+        priority: 40 + Math.min(18, enemyTarget.count)
+      });
+    }
+
+    return cues.sort((left, right) => right.priority - left.priority);
+  }
+
+  private findBossGuidanceTarget(state: RunState): Vector2 | undefined {
+    const boss = state.enemies.find((enemy) => enemy.gatekeeperHeroId || enemy.defId === "lubu");
+    if (!boss) {
+      return undefined;
+    }
+    return { x: boss.x, y: boss.y };
+  }
+
+  private findEnemyGuidanceTarget(state: RunState, bossTarget?: Vector2): { target: Vector2; count: number } | undefined {
+    const enemies = state.enemies.filter((enemy) => !(enemy.gatekeeperHeroId || enemy.defId === "lubu"));
+    if (enemies.length === 0) {
+      return undefined;
+    }
+
+    const player = state.player;
+    const sorted = [...enemies].sort((left, right) => distanceSquared(left, player) - distanceSquared(right, player));
+    const sample = sorted.slice(0, Math.min(8, sorted.length));
+    const target = sample.reduce(
+      (sum, enemy) => ({
+        x: sum.x + enemy.x / sample.length,
+        y: sum.y + enemy.y / sample.length
+      }),
+      { x: 0, y: 0 }
+    );
+
+    if (bossTarget && distanceSquared(target, bossTarget) < 140 * 140 && sorted.length > sample.length) {
+      const fallback = sorted[sample.length];
+      return { target: { x: fallback.x, y: fallback.y }, count: enemies.length };
+    }
+
+    return { target, count: enemies.length };
+  }
+
+  private nextRoomTarget(state: RunState): Vector2 {
+    return {
+      x: state.world.width - 96,
+      y: state.world.height / 2
+    };
+  }
+
+  private drawGuidanceCue(graphics: Phaser.GameObjects.Graphics, cue: BattleGuidanceCue, index: number): void {
+    const { width, height } = this.scale.gameSize;
+    const player = this.run?.player;
+    if (!player || width <= 0 || height <= 0) {
+      return;
+    }
+
+    const camera = this.cameras.main;
+    const targetScreen = this.worldToScreen(cue.target, camera);
+    const playerScreen = this.worldToScreen(player, camera);
+    const direction = new Phaser.Math.Vector2(targetScreen.x - playerScreen.x, targetScreen.y - playerScreen.y);
+    if (direction.lengthSq() < 1) {
+      direction.set(1, 0);
+    }
+    direction.normalize();
+
+    const bounds = guidanceSafeBounds(width, height);
+    const anchor = edgePointForDirection(playerScreen, direction, bounds);
+    const stagger = cue.kind === "door" ? 0 : (index % 2 === 0 ? -1 : 1) * Math.min(14, width * 0.018);
+    const perpendicular = new Phaser.Math.Vector2(-direction.y, direction.x);
+    anchor.x = Phaser.Math.Clamp(anchor.x + perpendicular.x * stagger, bounds.minX, bounds.maxX);
+    anchor.y = Phaser.Math.Clamp(anchor.y + perpendicular.y * stagger, bounds.minY, bounds.maxY);
+
+    const pulse = 0.5 + Math.sin(this.time.now / (cue.kind === "door" ? 150 : 220) + index * 0.7) * 0.5;
+    const alpha = cue.kind === "door" ? 0.78 + pulse * 0.18 : 0.56 + pulse * 0.16;
+    const size = cue.kind === "door" ? (width < 520 ? 18 : 22) : width < 520 ? 15 : 18;
+    const tip = {
+      x: anchor.x + direction.x * size * 0.66,
+      y: anchor.y + direction.y * size * 0.66
+    };
+    const tail = {
+      x: anchor.x - direction.x * size * 0.72,
+      y: anchor.y - direction.y * size * 0.72
+    };
+    const left = {
+      x: tail.x + perpendicular.x * size * 0.52,
+      y: tail.y + perpendicular.y * size * 0.52
+    };
+    const right = {
+      x: tail.x - perpendicular.x * size * 0.52,
+      y: tail.y - perpendicular.y * size * 0.52
+    };
+
+    graphics.fillStyle(cue.color, cue.kind === "door" ? 0.24 : 0.18);
+    graphics.fillCircle(anchor.x, anchor.y, size * (0.96 + pulse * 0.22));
+    graphics.lineStyle(cue.kind === "door" ? 3 : 2, cue.color, alpha);
+    graphics.strokeCircle(anchor.x, anchor.y, size * (1.12 + pulse * 0.16));
+    graphics.fillStyle(cue.color, alpha);
+    graphics.beginPath();
+    graphics.moveTo(tip.x, tip.y);
+    graphics.lineTo(left.x, left.y);
+    graphics.lineTo(right.x, right.y);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.lineStyle(2, 0x12090b, 0.45);
+    graphics.strokePath();
+    graphics.lineStyle(cue.kind === "door" ? 3 : 2, cue.color, alpha * 0.72);
+    graphics.lineBetween(anchor.x - direction.x * size * 1.55, anchor.y - direction.y * size * 1.55, tail.x, tail.y);
+
+    if (cue.kind === "door") {
+      const secondAnchor = {
+        x: anchor.x - direction.x * size * (1.5 + pulse * 0.22),
+        y: anchor.y - direction.y * size * (1.5 + pulse * 0.22)
+      };
+      graphics.lineStyle(2, cue.color, 0.45 + pulse * 0.22);
+      graphics.lineBetween(
+        secondAnchor.x - perpendicular.x * size * 0.38,
+        secondAnchor.y - perpendicular.y * size * 0.38,
+        secondAnchor.x + direction.x * size * 0.54,
+        secondAnchor.y + direction.y * size * 0.54
+      );
+      graphics.lineBetween(
+        secondAnchor.x + perpendicular.x * size * 0.38,
+        secondAnchor.y + perpendicular.y * size * 0.38,
+        secondAnchor.x + direction.x * size * 0.54,
+        secondAnchor.y + direction.y * size * 0.54
+      );
+    }
+
+    this.positionGuidanceLabel(index, cue, anchor, direction, size, bounds);
+  }
+
+  private positionGuidanceLabel(
+    index: number,
+    cue: BattleGuidanceCue,
+    anchor: Vector2,
+    direction: Phaser.Math.Vector2,
+    size: number,
+    bounds: ReturnType<typeof guidanceSafeBounds>
+  ): void {
+    const label = this.guidanceLabels[index] ?? this.createGuidanceLabel(index);
+    const labelOffset = size * (cue.kind === "door" ? 2.55 : 2.25);
+    const x = Phaser.Math.Clamp(anchor.x - direction.x * labelOffset, bounds.minX + 4, bounds.maxX - 4);
+    const y = Phaser.Math.Clamp(anchor.y - direction.y * labelOffset, bounds.minY + 4, bounds.maxY - 4);
+    const horizontal = Math.abs(direction.x) > Math.abs(direction.y);
+
+    label
+      .setText(cue.label)
+      .setStyle({
+        color: hexColor(cue.kind === "enemy" ? 0xffd6dc : cue.color),
+        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontSize: `${this.scale.gameSize.width < 520 ? 12 : 13}px`,
+        fontStyle: "700",
+        stroke: "#14080a",
+        strokeThickness: 4
+      })
+      .setAlpha(cue.kind === "door" ? 0.96 : 0.86)
+      .setVisible(true)
+      .setPosition(x, y)
+      .setOrigin(horizontal ? (direction.x > 0 ? 1 : 0) : 0.5, horizontal ? 0.5 : direction.y > 0 ? 1 : 0);
+  }
+
+  private createGuidanceLabel(index: number): Phaser.GameObjects.Text {
+    const label = this.add
+      .text(0, 0, "", {
+        color: "#ffffff",
+        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontSize: "13px",
+        fontStyle: "700",
+        stroke: "#14080a",
+        strokeThickness: 4
+      })
+      .setDepth(1)
+      .setScrollFactor(0)
+      .setVisible(false);
+    this.guidanceLayer?.add(label);
+    this.guidanceLabels[index] = label;
+    return label;
+  }
+
+  private worldToScreen(point: Vector2, camera: Phaser.Cameras.Scene2D.Camera): Vector2 {
+    const zoom = camera.zoom || this.cameraBaseZoom || 1;
+    return {
+      x: (point.x - camera.scrollX) * zoom,
+      y: (point.y - camera.scrollY) * zoom
+    };
   }
 
   private syncAreas(areas: AreaState[]): void {
@@ -1420,6 +1667,11 @@ export class BattleScene extends Phaser.Scene {
     this.unitLayer = this.add.layer().setDepth(0);
     this.projectileLayer = this.add.layer().setDepth(1800);
     this.impactLayer = this.add.layer().setDepth(3600);
+    const guidanceLayer = this.add.layer().setDepth(6200);
+    const guidanceGraphics = this.add.graphics().setScrollFactor(0);
+    this.guidanceLayer = guidanceLayer;
+    this.guidanceGraphics = guidanceGraphics;
+    guidanceLayer.add(guidanceGraphics);
   }
 
   private createBattlefield(): void {
@@ -1561,6 +1813,7 @@ export class BattleScene extends Phaser.Scene {
           doorOpen: state.doorOpen,
           cleared: state.chapterCleared
         },
+        guidance: this.buildGuidanceCues(state).map((cue) => cue.kind),
         pendingUpgradeIds: state.pendingUpgradeIds,
         modalOpen: Boolean(document.querySelector(".hud-modal.is-open"))
       });
@@ -1646,6 +1899,10 @@ export class BattleScene extends Phaser.Scene {
     this.unitLayer = undefined;
     this.projectileLayer = undefined;
     this.impactLayer = undefined;
+    this.guidanceLayer?.destroy();
+    this.guidanceLabels = [];
+    this.guidanceGraphics = undefined;
+    this.guidanceLayer = undefined;
     this.xpPickupEffects?.destroy();
     this.xpPickupEffects = undefined;
     this.combatJuiceEffects?.cleanup();
@@ -1724,6 +1981,59 @@ function hasCharacterAnimation(scene: Phaser.Scene, textureKey: string, animatio
 
 function hasEnemyAnimation(scene: Phaser.Scene, enemyId: EnemyId, animationId: EnemyAnimationId): boolean {
   return scene.anims.exists(enemyAnimationKey(enemyId, animationId));
+}
+
+function distanceSquared(left: Vector2, right: Vector2): number {
+  const dx = left.x - right.x;
+  const dy = left.y - right.y;
+  return dx * dx + dy * dy;
+}
+
+function guidanceSafeBounds(width: number, height: number) {
+  const mobile = width < 520;
+  const sideInset = mobile ? 28 : 42;
+  const topInset = mobile ? 72 : 64;
+  const bottomInset = mobile ? 226 : 154;
+  return {
+    minX: sideInset,
+    maxX: Math.max(sideInset, width - sideInset),
+    minY: topInset,
+    maxY: Math.max(topInset, height - bottomInset)
+  };
+}
+
+function edgePointForDirection(origin: Vector2, direction: Phaser.Math.Vector2, bounds: ReturnType<typeof guidanceSafeBounds>): Vector2 {
+  const candidates: Vector2[] = [];
+  if (direction.x > 0.001) {
+    const t = (bounds.maxX - origin.x) / direction.x;
+    candidates.push({ x: bounds.maxX, y: origin.y + direction.y * t });
+  } else if (direction.x < -0.001) {
+    const t = (bounds.minX - origin.x) / direction.x;
+    candidates.push({ x: bounds.minX, y: origin.y + direction.y * t });
+  }
+  if (direction.y > 0.001) {
+    const t = (bounds.maxY - origin.y) / direction.y;
+    candidates.push({ x: origin.x + direction.x * t, y: bounds.maxY });
+  } else if (direction.y < -0.001) {
+    const t = (bounds.minY - origin.y) / direction.y;
+    candidates.push({ x: origin.x + direction.x * t, y: bounds.minY });
+  }
+
+  const valid = candidates
+    .filter((point) => point.x >= bounds.minX - 1 && point.x <= bounds.maxX + 1 && point.y >= bounds.minY - 1 && point.y <= bounds.maxY + 1)
+    .sort((left, right) => distanceSquared(left, origin) - distanceSquared(right, origin));
+  const point = valid[0] ?? {
+    x: Phaser.Math.Clamp(origin.x + direction.x * 160, bounds.minX, bounds.maxX),
+    y: Phaser.Math.Clamp(origin.y + direction.y * 160, bounds.minY, bounds.maxY)
+  };
+  return {
+    x: Phaser.Math.Clamp(point.x, bounds.minX, bounds.maxX),
+    y: Phaser.Math.Clamp(point.y, bounds.minY, bounds.maxY)
+  };
+}
+
+function hexColor(color: number): string {
+  return `#${color.toString(16).padStart(6, "0")}`;
 }
 
 function enemyInitialTextureKey(scene: Phaser.Scene, enemyId: EnemyId, fallbackKey: string): string {

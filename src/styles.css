@@ -1412,14 +1412,22 @@ button {
   bottom: max(24px, env(safe-area-inset-bottom));
   width: 132px;
   height: 132px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding: 18px 14px 22px;
   border-radius: 50%;
   pointer-events: auto;
   transform: scale(var(--ui-scale));
   transform-origin: bottom right;
+  --skill-progress: 0%;
   background:
     radial-gradient(circle at 50% 38%, rgba(255, 240, 194, 0.22), transparent 36%),
     linear-gradient(145deg, rgba(255, 120, 183, 0.9), rgba(76, 24, 52, 0.96));
   box-shadow: 0 20px 46px rgba(0, 0, 0, 0.38);
+  text-align: center;
 }
 
 .skill-button:hover {
@@ -1439,6 +1447,23 @@ button:disabled {
     0 20px 46px rgba(0, 0, 0, 0.38);
 }
 
+.skill-button.is-manual-ready {
+  border-color: rgba(104, 212, 154, 0.82);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 240, 194, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(104, 212, 154, 0.62), rgba(36, 92, 74, 0.94));
+}
+
+.skill-button.is-ultimate-ready {
+  border-color: rgba(255, 232, 150, 0.96);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 250, 205, 0.36), transparent 34%),
+    linear-gradient(145deg, rgba(255, 190, 86, 0.96), rgba(150, 54, 74, 0.96));
+  box-shadow:
+    0 0 34px rgba(255, 220, 115, 0.48),
+    0 20px 46px rgba(0, 0, 0, 0.42);
+}
+
 .skill-button.is-ultimate {
   border-color: rgba(255, 232, 150, 0.96);
   background:
@@ -1450,20 +1475,62 @@ button:disabled {
 }
 
 .skill-button strong,
-.skill-button span {
+.skill-button span,
+.skill-button small {
   display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .skill-button strong {
   color: #fff0cf;
   font-size: 20px;
   line-height: 1.2;
+  white-space: normal;
 }
 
 .skill-button span {
-  margin-top: 8px;
   color: rgba(245, 227, 189, 0.72);
   font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.skill-button small {
+  color: rgba(255, 240, 207, 0.62);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.skill-progress {
+  position: absolute;
+  right: 20px;
+  bottom: 16px;
+  left: 20px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(20, 12, 16, 0.48);
+}
+
+.skill-progress b {
+  display: block;
+  width: var(--skill-progress);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #68d49a, #ffe5a7);
+  transition: width 120ms linear;
+}
+
+.skill-button.is-cooldown .skill-progress b {
+  background: linear-gradient(90deg, #8ea7d8, #f5e3bd);
+}
+
+.skill-button.is-ultimate .skill-progress b,
+.skill-button.is-ultimate-ready .skill-progress b {
+  background: linear-gradient(90deg, #ffb74a, #fff0cf);
 }
 
 .virtual-stick {
@@ -1544,12 +1611,57 @@ button:disabled {
   text-align: left;
 }
 
+.upgrade-card.is-recommended {
+  border-color: rgba(255, 214, 126, 0.94);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 178, 0.16),
+    0 16px 42px rgba(216, 168, 79, 0.16);
+}
+
+.upgrade-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.upgrade-rarity {
+  flex: 1 1 78px;
+  min-width: 0;
+}
+
+.upgrade-badges {
+  display: inline-flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.upgrade-card .upgrade-badge {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 226, 160, 0.26);
+  border-radius: 999px;
+  color: #fff0cf;
+  background: rgba(255, 248, 220, 0.1);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.upgrade-card .upgrade-badge.is-recommend {
+  border-color: rgba(255, 214, 126, 0.9);
+  color: #1d140b;
+  background: #ffd66f;
+}
+
 .upgrade-build {
   display: inline-flex;
   gap: 7px;
   align-items: center;
   width: fit-content;
-  margin-top: 10px;
+  margin-top: 2px;
   padding: 4px 8px;
   border: 1px solid rgba(245, 227, 189, 0.18);
   color: #fff0cf;
@@ -1569,13 +1681,13 @@ button:disabled {
 }
 
 .upgrade-card strong {
-  margin-top: 12px;
+  margin-top: 4px;
   font-size: 22px;
 }
 
 .upgrade-card em {
   display: block;
-  margin-top: 7px;
+  margin-top: 0;
   color: rgba(255, 229, 167, 0.86);
   font-size: 13px;
   font-style: normal;
@@ -1587,18 +1699,26 @@ button:disabled {
 }
 
 .upgrade-card.archetype-tempo .upgrade-build i,
-.upgrade-card.archetype-mobility .upgrade-build i {
+.upgrade-card.archetype-mobility .upgrade-build i,
+.upgrade-card.archetype-projectile .upgrade-build i {
   background: #8ea7d8;
 }
 
 .upgrade-card.archetype-technique .upgrade-build i,
-.upgrade-card.archetype-ultimate .upgrade-build i {
+.upgrade-card.archetype-ultimate .upgrade-build i,
+.upgrade-card.archetype-support .upgrade-build i,
+.upgrade-card.archetype-faction .upgrade-build i {
   background: #ff78b7;
 }
 
 .upgrade-card.archetype-evolution .upgrade-build i,
-.upgrade-card.archetype-crit .upgrade-build i {
+.upgrade-card.archetype-crit .upgrade-build i,
+.upgrade-card.archetype-relic .upgrade-build i {
   background: #ffd45d;
+}
+
+.upgrade-card.archetype-guard .upgrade-build i {
+  background: #83d79a;
 }
 
 .pause-panel,
@@ -2049,8 +2169,8 @@ button:disabled {
   border: 1px solid color-mix(in srgb, var(--art-accent) 42%, transparent);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--art-primary) 20%, transparent), transparent),
-    rgba(17, 11, 13, 0.84);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.42) 76%),
+    var(--owner-bg, var(--art-primary));
 }
 
 .conquest-summary span,
@@ -2088,6 +2208,100 @@ button:disabled {
   padding: 9px 10px;
   border: 1px solid rgba(255, 226, 160, 0.12);
   background: rgba(0, 0, 0, 0.22);
+}
+
+.conquest-route-guide {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1fr) auto;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--art-accent) 34%, rgba(255, 226, 160, 0.14));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.34)),
+    rgba(17, 10, 12, 0.82);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+}
+
+.conquest-route-target,
+.conquest-route-progress {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 226, 160, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.conquest-route-target span,
+.conquest-route-target small,
+.conquest-route-progress span,
+.conquest-route-progress small {
+  display: block;
+  color: rgba(255, 246, 223, 0.66);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.conquest-route-target strong,
+.conquest-route-progress strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff0cf;
+  font-size: 1.42rem;
+  line-height: 1.08;
+}
+
+.conquest-route-target small,
+.conquest-route-progress small {
+  margin-top: 6px;
+}
+
+.conquest-route-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.conquest-progress-track {
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 226, 160, 0.16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.conquest-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #68d49a, color-mix(in srgb, var(--art-accent) 78%, #fff0cf));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--art-accent) 38%, transparent);
+}
+
+.conquest-focus-controls {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 8px;
+  align-content: center;
+  justify-content: end;
+}
+
+.conquest-focus-controls .codex-button {
+  min-width: 94px;
+  min-height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.conquest-focus-controls .codex-button.is-active {
+  border-color: color-mix(in srgb, var(--art-accent) 58%, rgba(255, 226, 160, 0.24));
+  color: #fff0cf;
+  background: color-mix(in srgb, var(--art-primary) 34%, rgba(0, 0, 0, 0.22));
 }
 
 .conquest-map-shell {
@@ -2134,6 +2348,8 @@ button:disabled {
 .conquest-map {
   margin-top: 0;
   overflow-x: auto;
+  padding-right: 72px;
+  padding-left: 12px;
   padding-bottom: 0;
   cursor: grab;
   overscroll-behavior-x: contain;
@@ -2166,66 +2382,43 @@ button:disabled {
 
 .conquest-map-shell.is-fullscreen {
   position: fixed;
-  inset: auto;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   z-index: 30;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
   gap: 10px;
-  width: var(--map-shell-width, 100vw);
-  height: var(--map-shell-height, 100vh);
   margin: 0;
   padding: 12px;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 70% 18%, rgba(216, 168, 79, 0.18), transparent 34%),
-    linear-gradient(150deg, rgba(31, 16, 17, 0.98), rgba(12, 9, 8, 0.98));
-  transform: translate(-50%, -50%) rotate(var(--map-shell-rotate, 0deg));
-  transform-origin: center;
+  background: rgba(10, 6, 7, 0.96);
 }
 
 .conquest-map-shell.is-fullscreen .conquest-map-toolbar {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.34);
+  z-index: 2;
 }
 
 .conquest-map-shell.is-fullscreen .conquest-map {
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
   overflow: hidden;
-  border-radius: 8px;
-  cursor: default;
-  touch-action: manipulation;
 }
 
 .conquest-map-shell.is-fullscreen .conquest-map-fit-frame {
-  position: relative;
-  width: calc(920px * var(--map-fit-scale, 1));
-  min-width: 0;
-  height: calc(620px * var(--map-fit-scale, 1));
+  transform: rotate(var(--map-shell-rotate, 0deg)) scale(var(--map-fit-scale, 1));
+  transform-origin: center;
 }
 
 .conquest-map-shell.is-fullscreen .conquest-map-board {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 920px;
-  height: 620px;
-  min-width: 920px;
-  min-height: 620px;
-  transform: translate(-50%, -50%) scale(var(--map-fit-scale, 1));
-  transform-origin: center;
+  min-width: 1180px;
+  min-height: 760px;
 }
 
 .conquest-map-board {
   position: relative;
   isolation: isolate;
-  min-width: 920px;
-  min-height: 620px;
+  min-width: 1180px;
+  min-height: 760px;
   overflow: hidden;
   border: 1px solid rgba(255, 226, 160, 0.18);
   border-radius: 8px;
@@ -2253,15 +2446,11 @@ button:disabled {
   background:
     radial-gradient(circle at 48% 42%, rgba(255, 236, 174, 0.1), transparent 28%),
     repeating-linear-gradient(18deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 9px);
-  mix-blend-mode: soft-light;
-  opacity: 0.58;
 }
 
 .conquest-map-board::after {
   z-index: 2;
-  background:
-    radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.3) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.22));
+  background: radial-gradient(circle at 50% 50%, transparent 50%, rgba(16, 6, 6, 0.44) 100%);
 }
 
 .conquest-roads {
@@ -2274,55 +2463,23 @@ button:disabled {
 }
 
 .conquest-roads line {
-  stroke: rgba(255, 226, 160, 0.5);
-  stroke-linecap: round;
-  stroke-width: 0.72;
-  vector-effect: non-scaling-stroke;
-}
-
-.conquest-roads line.region-shu {
-  stroke: rgba(104, 212, 154, 0.72);
-}
-
-.conquest-roads line.region-wei {
-  stroke: rgba(132, 184, 255, 0.82);
-}
-
-.conquest-roads line.region-wu {
-  stroke: rgba(95, 210, 225, 0.78);
-}
-
-.conquest-roads line.region-qun {
-  stroke: rgba(210, 156, 255, 0.72);
-}
-
-.conquest-roads line.region-final {
-  stroke: rgba(255, 214, 126, 0.88);
+  stroke: rgba(255, 226, 160, 0.28);
+  stroke-width: 0.42;
+  stroke-dasharray: 2 2;
 }
 
 .conquest-roads line.is-open {
-  filter: drop-shadow(0 0 3px rgba(255, 225, 150, 0.26));
-  opacity: 0.96;
-  stroke-width: 1.05;
+  stroke: rgba(242, 200, 108, 0.7);
+  stroke-dasharray: 0;
 }
 
 .conquest-roads line.is-conquered {
-  stroke: rgba(104, 212, 154, 0.76);
-  filter: drop-shadow(0 0 4px rgba(104, 212, 154, 0.28));
-  stroke-width: 1.05;
+  stroke: rgba(104, 212, 154, 0.82);
+  stroke-dasharray: 0;
 }
 
 .conquest-roads line.is-locked {
-  filter: drop-shadow(0 0 3px rgba(255, 226, 160, 0.16));
-  opacity: 0.64;
-  stroke-dasharray: 2.6 2;
-  stroke-width: 0.95;
-}
-
-.conquest-roads line.region-wei.is-locked {
-  filter: drop-shadow(0 0 5px rgba(132, 184, 255, 0.38));
-  opacity: 0.86;
-  stroke-width: 1.16;
+  stroke: rgba(255, 226, 160, 0.2);
 }
 
 .conquest-territory-label {
@@ -2344,75 +2501,88 @@ button:disabled {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
 }
 
-.conquest-territory-label.region-shu {
-  border-color: rgba(104, 212, 154, 0.3);
-  color: rgba(190, 244, 204, 0.7);
-}
-
-.conquest-territory-label.region-wei {
-  border-color: rgba(132, 184, 255, 0.42);
-  color: rgba(202, 224, 255, 0.86);
-  background: rgba(20, 27, 42, 0.48);
-}
-
-.conquest-territory-label.region-wu {
-  border-color: rgba(95, 210, 225, 0.34);
-  color: rgba(196, 244, 250, 0.72);
-}
-
-.conquest-territory-label.region-qun {
-  border-color: rgba(210, 156, 255, 0.3);
-  color: rgba(234, 210, 255, 0.7);
-}
-
-.conquest-territory-label.region-final {
-  border-color: rgba(255, 214, 126, 0.42);
-  color: rgba(255, 226, 160, 0.82);
-  font-size: 28px;
-}
-
 .conquest-map-node {
   position: absolute;
   left: var(--x);
   top: var(--y);
+  width: 54px;
+  min-height: 26px;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 3px;
   align-items: center;
-  width: 124px;
-  min-height: 72px;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--art-primary) 34%, rgba(255, 226, 160, 0.16));
+  padding: 4px 5px;
+  border: 1px solid color-mix(in srgb, var(--art-accent) 42%, rgba(255, 226, 160, 0.18));
   border-radius: 8px;
-  color: #fff6df;
+  color: #fff0cf;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--art-primary) 20%, transparent), transparent 62%),
-    rgba(18, 12, 11, 0.9);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.28) 72%),
+    var(--owner-bg, var(--art-primary));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--art-accent) 16%, transparent),
+    0 12px 26px rgba(0, 0, 0, 0.28);
   text-align: left;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.72);
   transform: translate(-50%, -50%);
   z-index: 5;
 }
 
-.conquest-map-node:hover:not(:disabled),
+.conquest-map-node::after {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  display: none;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid rgba(255, 240, 207, 0.42);
+  border-radius: 999px;
+  color: #21140f;
+  background: #f2c86c;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+  content: "薦";
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.conquest-map-node:hover,
 .conquest-map-node.is-selected {
   border-color: color-mix(in srgb, var(--art-accent) 82%, rgba(255, 226, 160, 0.2));
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--art-primary) 28%, transparent), transparent 64%),
-    rgba(36, 20, 16, 0.94);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(0, 0, 0, 0.18) 68%),
+    var(--owner-bg, var(--art-primary));
 }
 
 .conquest-map-node.is-selected {
+  width: 122px;
+  min-height: 58px;
+  grid-template-columns: 28px 1fr;
+  gap: 7px;
+  padding: 7px;
   box-shadow:
-    0 0 0 2px rgba(255, 214, 126, 0.2),
+    0 0 0 2px color-mix(in srgb, var(--art-accent) 30%, transparent),
+    0 0 28px color-mix(in srgb, var(--art-primary) 22%, transparent),
     0 18px 34px rgba(0, 0, 0, 0.34);
 }
 
+.conquest-map-node.is-recommended {
+  border-color: #f2c86c;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--art-accent) 22%, transparent),
+    0 0 0 2px rgba(242, 200, 108, 0.32),
+    0 14px 30px rgba(0, 0, 0, 0.3);
+}
+
+.conquest-map-node.is-recommended::after {
+  display: grid;
+}
+
 .conquest-map-node.is-conquered {
-  border-color: rgba(104, 212, 154, 0.58);
+  border-color: color-mix(in srgb, var(--art-accent) 72%, rgba(255, 226, 160, 0.18));
   background:
-    linear-gradient(135deg, rgba(104, 212, 154, 0.16), color-mix(in srgb, var(--art-primary) 12%, transparent)),
-    rgba(15, 20, 15, 0.92);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.16) 68%),
+    var(--owner-bg, var(--art-primary));
 }
 
 .conquest-map-node.is-locked {
@@ -2420,8 +2590,9 @@ button:disabled {
 }
 
 .conquest-map-node img {
-  width: 38px;
-  height: 38px;
+  display: none;
+  width: 28px;
+  height: 28px;
   object-fit: cover;
   object-position: 50% 34%;
   border: 1px solid rgba(255, 226, 160, 0.18);
@@ -2431,6 +2602,10 @@ button:disabled {
 
 .conquest-map-node.is-locked img {
   filter: grayscale(0.75) brightness(0.62);
+}
+
+.conquest-map-node.is-selected img {
+  display: block;
 }
 
 .conquest-map-node strong,
@@ -2445,23 +2620,65 @@ button:disabled {
 
 .conquest-map-node strong {
   color: #fff0cf;
-  font-size: 1rem;
+  font-size: 0.66rem;
   line-height: 1.08;
 }
 
 .conquest-map-node span {
+  display: none;
   margin-top: 2px;
   color: color-mix(in srgb, var(--art-accent) 74%, #fff0cf);
+  font-size: 0.72rem;
   font-weight: 900;
 }
 
 .conquest-map-node small,
 .conquest-map-node em {
+  display: none;
   margin-top: 2px;
+  font-size: 0.68rem;
+}
+
+.conquest-map-node.is-selected span,
+.conquest-map-node.is-selected small {
+  display: block;
 }
 
 .conquest-map-node em {
   display: none;
+}
+
+.conquest-empty-city-mark {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 226, 160, 0.28);
+  border-radius: 12px;
+  color: #fff0cf;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(216, 168, 79, 0.2), transparent 58%),
+    rgba(20, 12, 10, 0.72);
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.conquest-empty-city-dot {
+  display: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(255, 226, 160, 0.26);
+  border-radius: 6px;
+  color: #fff0cf;
+  background: rgba(216, 168, 79, 0.16);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.conquest-map-node.is-selected .conquest-empty-city-dot {
+  display: grid;
 }
 
 .conquest-map-legend {
@@ -2557,6 +2774,22 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
+  .conquest-route-guide {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .conquest-focus-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .conquest-focus-controls .codex-button {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
   .conquest-map {
     margin-right: calc(-14px * var(--ui-scale, 1));
     margin-left: calc(-14px * var(--ui-scale, 1));
@@ -2564,21 +2797,29 @@ button:disabled {
     padding-left: calc(14px * var(--ui-scale, 1));
   }
 
+  .conquest-map-shell.is-embedded .conquest-map {
+    max-height: calc(100svh - 244px);
+    min-height: 420px;
+    overflow: auto;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+
   .conquest-map-board {
-    min-width: 820px;
-    min-height: 590px;
+    min-width: 1180px;
+    min-height: 760px;
   }
 
   .conquest-map-node {
-    grid-template-columns: 32px minmax(0, 1fr);
-    width: 104px;
-    min-height: 66px;
-    padding: 7px;
+    grid-template-columns: 1fr;
+    width: 54px;
+    min-height: 26px;
+    padding: 4px 5px;
   }
 
   .conquest-map-node img {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
   }
 
   .conquest-map-node strong {
@@ -2587,6 +2828,11 @@ button:disabled {
 
   .conquest-territory-label {
     font-size: 28px;
+  }
+
+  .conquest-map-legend {
+    top: 12px;
+    bottom: auto;
   }
 
   .equipment-slots {
@@ -2624,12 +2870,29 @@ button:disabled {
 
 .menu-stage.home-stage {
   width: min(1160px, calc(100vw - 32px));
+  height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+  grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
   padding-top: max(16px, env(safe-area-inset-top));
+}
+
+.home-build-panel {
+  align-self: stretch;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(245, 227, 189, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--art-primary, #d8a84f) 12%, transparent), transparent 62%),
+    rgba(24, 12, 16, 0.82);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
 }
 
 .home-topbar {
@@ -2706,13 +2969,18 @@ button:disabled {
 }
 
 .home-hero-card {
+  align-self: start;
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
   gap: 14px;
-  align-items: end;
+  align-items: center;
   min-height: 206px;
   overflow: hidden;
   padding: 14px;
+}
+
+.home-hero-copy {
+  min-width: 0;
 }
 
 .home-hero-card img {
@@ -2789,8 +3057,25 @@ button:disabled {
   overflow: visible;
 }
 
+.home-roster-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.home-stage .hero-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
 .home-skill-panel > div {
-  min-height: 92px;
+  min-height: 88px;
+}
+
+.home-stage .page-action-bar {
+  margin-top: 0;
 }
 
 .home-utility-row {
@@ -2991,6 +3276,29 @@ button:disabled {
   font-weight: 900;
 }
 
+.hud-meta .hud-ultimate {
+  border: 1px solid rgba(245, 227, 189, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hud-meta .hud-ultimate.is-ready {
+  border-color: rgba(255, 221, 122, 0.5);
+  color: #ffe5a7;
+  background: rgba(216, 168, 79, 0.16);
+}
+
+.hud-meta .hud-ultimate.is-bursting {
+  border-color: rgba(255, 120, 183, 0.56);
+  color: #fff0cf;
+  background: rgba(255, 120, 183, 0.16);
+}
+
+.hud-meta .hud-ultimate.is-charging {
+  border-color: rgba(142, 167, 216, 0.36);
+  color: rgba(218, 229, 255, 0.8);
+  background: rgba(142, 167, 216, 0.12);
+}
+
 .pause-button {
   grid-column: 2;
   grid-row: 1;
@@ -3055,6 +3363,7 @@ button:disabled {
 .upgrade-card {
   display: grid;
   align-content: start;
+  gap: 8px;
   min-height: 176px;
 }
 
@@ -3107,7 +3416,9 @@ button:disabled {
 
   .menu-stage.home-stage {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 14px;
+    overflow: hidden;
     padding-top: max(12px, env(safe-area-inset-top));
   }
 
@@ -3138,17 +3449,73 @@ button:disabled {
   }
 
   .home-hero-card {
-    grid-template-columns: 104px minmax(0, 1fr);
-    min-height: 158px;
+    grid-template-columns: 92px minmax(0, 1fr);
+    min-height: 0;
+    padding: 10px;
   }
 
   .home-hero-card img {
-    width: 104px;
-    height: 136px;
+    width: 92px;
+    height: 118px;
   }
 
   .home-hero-card h1 {
-    font-size: 32px;
+    margin: 3px 0;
+    font-size: 30px;
+  }
+
+  .home-hero-card p {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .home-hero-card .seal {
+    padding: 5px 8px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+
+  .home-hero-card .feature-ribbon {
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .home-hero-card .feature-ribbon span {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .home-build-panel {
+    min-height: 0;
+    padding: 10px;
+    gap: 9px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .home-stage .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .home-stage .character-pick {
+    grid-template-columns: 72px minmax(0, 1fr);
+    min-height: 96px;
+    padding: 8px;
+  }
+
+  .home-stage .mini-card-art {
+    width: 72px;
+    height: 72px;
+  }
+
+  .home-stage .character-pick .bond-row,
+  .home-stage .character-pick small + small,
+  .home-stage .home-skill-panel {
+    display: none;
   }
 
   .sortie-card strong {
@@ -3218,6 +3585,8 @@ button:disabled {
     bottom: max(22px, env(safe-area-inset-bottom));
     width: 98px;
     height: 98px;
+    gap: 2px;
+    padding: 14px 10px 18px;
   }
 
   .skill-button strong {
@@ -3227,6 +3596,17 @@ button:disabled {
   .skill-button span {
     margin-top: 5px;
     font-size: 11px;
+  }
+
+  .skill-button small {
+    font-size: 10px;
+  }
+
+  .skill-progress {
+    right: 16px;
+    bottom: 13px;
+    left: 16px;
+    height: 4px;
   }
 
   .virtual-stick {

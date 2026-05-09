@@ -1,4 +1,5 @@
 import { upgradeById } from "../game/content/upgrades";
+import { ultimateByHeroId } from "../game/content/ultimates";
 import type { DisplaySettings } from "../game/display/settings";
 import type { MetaRunSettlement } from "../game/meta/progression";
 import type { RunState, UpgradeDef, Vector2 } from "../game/types";
@@ -15,6 +16,27 @@ interface HudCallbacks extends AudioControlCallbacks {
   onUpgrade: (upgradeId: string) => void;
   onRestart: () => void;
   onMenu: () => void;
+}
+
+interface UpgradeIdentity {
+  key: string;
+  icon: string;
+  label: string;
+  hint: string;
+}
+
+interface UpgradeCardFit {
+  score: number;
+  badges: string[];
+  hint: string;
+  isCore: boolean;
+}
+
+interface UpgradeCardModel {
+  upgrade: UpgradeDef;
+  stacks: number;
+  identity: UpgradeIdentity;
+  fit: UpgradeCardFit;
 }
 
 export class BattleHud {
@@ -58,7 +80,8 @@ export class BattleHud {
     const moralePercent = Math.max(0, state.player.morale / state.player.maxMorale);
     const remaining = Math.max(0, state.duration - state.elapsed);
     const ultimateActive = state.player.ultimateTimer > 0;
-    const manualReady = state.doorOpen || state.player.manualCooldown <= 0;
+    const skillView = getSkillButtonView(state);
+    const ultimateStatus = getUltimateStatus(state);
     const bossName = state.conquestCityId ? (state.gatekeeperName ?? "守將") : "呂布";
     const bossText = state.bossSpawned ? `${bossName}已現身` : `${formatTime(Math.max(0, state.bossSpawnTime - state.elapsed))} ${bossName}`;
     const roomText = state.doorOpen
@@ -83,6 +106,7 @@ export class BattleHud {
         <span>${formatTime(remaining)}</span>
         <span>${state.kills}斬</span>
         <span>士氣 ${Math.floor(moralePercent * 100)}%</span>
+        <span class="hud-ultimate ${ultimateStatus.tone}">${ultimateStatus.label}</span>
         <span>${bossText}</span>
         <span>${roomText}</span>
       </div>
@@ -90,22 +114,19 @@ export class BattleHud {
     `;
     bindButtonActivation(this.status.querySelector<HTMLButtonElement>("[data-pause]"), this.callbacks.onPause);
 
-    this.skill.classList.toggle("is-ready", manualReady);
+    this.skill.classList.toggle("is-ready", skillView.kind === "door" || skillView.kind === "manual-ready" || skillView.kind === "ultimate-ready");
+    this.skill.classList.toggle("is-manual-ready", skillView.kind === "manual-ready");
+    this.skill.classList.toggle("is-ultimate-ready", skillView.kind === "ultimate-ready");
     this.skill.classList.toggle("is-ultimate", ultimateActive);
-    const skillTitle = state.doorOpen
-      ? "進下一房"
-      : ultimateActive
-        ? `無雙 ${Math.ceil(state.player.ultimateTimer)}`
-        : manualReady
-          ? state.hero.manualAbility.name
-          : Math.ceil(state.player.manualCooldown).toString();
-    const skillHint = state.doorOpen ? "Space / Tap" : ultimateActive ? "爆發中" : "Space / 技能";
+    this.skill.classList.toggle("is-cooldown", skillView.kind === "cooldown");
+    this.skill.style.setProperty("--skill-progress", `${skillView.progress * 100}%`);
+    this.skill.setAttribute("aria-label", skillView.ariaLabel);
     this.skill.innerHTML = `
-      <strong>${ultimateActive ? `無雙 ${Math.ceil(state.player.ultimateTimer)}` : manualReady ? state.hero.manualAbility.name : Math.ceil(state.player.manualCooldown)}</strong>
-      <span>${ultimateActive ? "覺醒中" : "Space / 點擊"}</span>
+      <strong>${skillView.title}</strong>
+      <span>${skillView.hint}</span>
+      <small>${skillView.detail}</small>
+      <i class="skill-progress" aria-hidden="true"><b></b></i>
     `;
-
-    this.skill.innerHTML = `<strong>${skillTitle}</strong><span>${skillHint}</span>`;
 
     if (state.status === "levelUp") {
       this.renderUpgradeModal(state);
@@ -176,16 +197,19 @@ export class BattleHud {
     this.lastUpgradeKey = key;
     this.upgradeSelectionLocked = false;
     const options = state.pendingUpgradeIds.map((id) => upgradeById[id]).filter(Boolean);
+    const cards = options.map((upgrade) => createUpgradeCardModel(upgrade, state));
+    const bestScore = Math.max(0, ...cards.map((card) => card.fit.score));
+    const recommendedUpgradeId = cards.find((card) => card.fit.score === bestScore && bestScore >= 2)?.upgrade.id;
     this.modal.className = "hud-modal is-open";
     this.modal.innerHTML = `
       <section class="upgrade-panel">
         <div class="modal-heading">
           <span class="panel-kicker">戰功已滿</span>
           <h2>選擇軍令</h2>
-          <small>挑一項強化本局流派，選定後立即回到戰場。</small>
+          <small>${renderUpgradeContextLine(state)}</small>
         </div>
         <div class="upgrade-grid">
-          ${options.map((upgrade) => renderUpgradeCard(upgrade, state.upgrades[upgrade.id] ?? 0)).join("")}
+          ${cards.map((card) => renderUpgradeCard(card, card.upgrade.id === recommendedUpgradeId)).join("")}
         </div>
       </section>
     `;
@@ -316,7 +340,11 @@ function renderConquestSettlement(settlement: MetaRunSettlement): string {
       ${settlement.conqueredCityName ? `<span><b>城池</b>攻下 ${settlement.conqueredCityName}</span>` : ""}
       ${settlement.recruitedHeroName ? `<span><b>守將加入</b>${settlement.recruitedHeroName}</span>` : ""}
       ${settlement.unlockedCityNames.length > 0 ? `<span><b>新城解鎖</b>${settlement.unlockedCityNames.join(" / ")}</span>` : ""}
-      ${settlement.unified ? "<span><b>天下</b>統一完成</span>" : ""}
+      ${
+        settlement.unified
+          ? `<span><b>天下</b>統一完成</span><span><b>全城進度</b>${settlement.conqueredCityCount}/${settlement.totalCityCount}</span>${settlement.factionName ? `<span><b>出戰陣營</b>${settlement.factionName}</span>` : ""}`
+          : ""
+      }
     </div>
   `;
 }
@@ -356,31 +384,147 @@ function bindButtonActivation(button: HTMLButtonElement | null | undefined, hand
   });
 }
 
-function renderUpgradeCard(upgrade: UpgradeDef, stacks: number): string {
+type SkillButtonKind = "door" | "manual-ready" | "ultimate-ready" | "ultimate-active" | "cooldown";
+
+interface SkillButtonView {
+  kind: SkillButtonKind;
+  title: string;
+  hint: string;
+  detail: string;
+  progress: number;
+  ariaLabel: string;
+}
+
+function getSkillButtonView(state: RunState): SkillButtonView {
+  const ultimateChargePercent = Math.floor(clamp01(state.player.ultimateCharge) * 100);
+  if (state.doorOpen) {
+    return {
+      kind: "door",
+      title: "進下一房",
+      hint: "Space / Tap",
+      detail: "門已開",
+      progress: 1,
+      ariaLabel: "進入下一房"
+    };
+  }
+  if (state.player.ultimateTimer > 0) {
+    const seconds = formatShortSeconds(state.player.ultimateTimer);
+    const ultimateDuration = Math.max(1, ultimateByHeroId[state.hero.id].duration + state.player.ultimateDurationBonus);
+    return {
+      kind: "ultimate-active",
+      title: "爆發中",
+      hint: `無雙 ${seconds}`,
+      detail: state.hero.manualAbility.name,
+      progress: clamp01(state.player.ultimateTimer / ultimateDuration),
+      ariaLabel: `無雙爆發中，剩餘 ${seconds}`
+    };
+  }
+  if (state.player.manualCooldown <= 0 && state.player.ultimateCharge >= 1) {
+    return {
+      kind: "ultimate-ready",
+      title: "無雙就緒",
+      hint: "按下開無雙",
+      detail: `同放 ${state.hero.manualAbility.name}`,
+      progress: 1,
+      ariaLabel: `技能與無雙就緒，按下會施放 ${state.hero.manualAbility.name} 並開啟無雙`
+    };
+  }
+  if (state.player.manualCooldown <= 0) {
+    return {
+      kind: "manual-ready",
+      title: state.hero.manualAbility.name,
+      hint: "技能可用",
+      detail: `無雙 ${ultimateChargePercent}%`,
+      progress: clamp01(state.player.ultimateCharge),
+      ariaLabel: `${state.hero.manualAbility.name} 可用，無雙充能 ${ultimateChargePercent}%`
+    };
+  }
+
+  const manualBaseCooldown = Math.max(0.4, state.hero.manualAbility.cooldown * state.player.cooldownScale);
+  const cooldownProgress = 1 - Math.min(1, state.player.manualCooldown / manualBaseCooldown);
+  return {
+    kind: "cooldown",
+    title: formatShortSeconds(state.player.manualCooldown),
+    hint: "冷卻中",
+    detail: state.player.ultimateCharge >= 1 ? "無雙待命" : `無雙 ${ultimateChargePercent}%`,
+    progress: clamp01(cooldownProgress),
+    ariaLabel: `技能冷卻中，剩餘 ${formatShortSeconds(state.player.manualCooldown)}`
+  };
+}
+
+function getUltimateStatus(state: RunState): { label: string; tone: string } {
+  if (state.player.ultimateTimer > 0) {
+    return { label: `無雙爆發 ${formatShortSeconds(state.player.ultimateTimer)}`, tone: "is-bursting" };
+  }
+  if (state.player.ultimateCharge >= 1) {
+    return { label: "無雙就緒", tone: "is-ready" };
+  }
+  return { label: `無雙充能 ${Math.floor(clamp01(state.player.ultimateCharge) * 100)}%`, tone: "is-charging" };
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function formatShortSeconds(seconds: number): string {
+  return `${Math.ceil(Math.max(0, seconds))}秒`;
+}
+
+function createUpgradeCardModel(upgrade: UpgradeDef, state: RunState): UpgradeCardModel {
+  const stacks = state.upgrades[upgrade.id] ?? 0;
   const identity = upgradeIdentity(upgrade);
+  return {
+    upgrade,
+    stacks,
+    identity,
+    fit: upgradeFit(upgrade, state, stacks, identity)
+  };
+}
+
+function renderUpgradeCard(card: UpgradeCardModel, recommended: boolean): string {
+  const { upgrade, stacks, identity, fit } = card;
+  const badges = upgradeBadges(fit, recommended);
   return `
-    <button class="upgrade-card rarity-${upgrade.rarity} archetype-${identity.key}" data-upgrade="${upgrade.id}">
-      <span>${rarityLabel(upgrade.rarity)} · ${stacks + 1}/${upgrade.maxStacks}</span>
+    <button class="upgrade-card rarity-${upgrade.rarity} archetype-${identity.key} ${recommended ? "is-recommended" : ""} ${fit.isCore ? "is-core" : ""}" data-upgrade="${upgrade.id}">
+      <span class="upgrade-card-top">
+        <span class="upgrade-rarity">${rarityLabel(upgrade.rarity)} · ${stacks + 1}/${upgrade.maxStacks}</span>
+        ${badges.length > 0 ? `<span class="upgrade-badges">${badges.map((badge) => `<span class="upgrade-badge ${badge === "推薦" ? "is-recommend" : ""}">${badge}</span>`).join("")}</span>` : ""}
+      </span>
       <span class="upgrade-build"><i>${identity.icon}</i>${identity.label}</span>
       <strong>${upgrade.name}</strong>
-      <em>${identity.hint}</em>
+      <em>${fit.hint}</em>
       <small>${upgrade.description}</small>
     </button>
   `;
 }
 
-function upgradeIdentity(upgrade: UpgradeDef): { key: string; icon: string; label: string; hint: string } {
+function upgradeIdentity(upgrade: UpgradeDef): UpgradeIdentity {
   if (upgrade.rarity === "build") {
+    if (upgradeHasAnyEffect(upgrade, ["frontShot", "rearShot", "extraVolley", "projectilePierce", "ricochet"])) {
+      return { key: "projectile", icon: "矢", label: "彈道", hint: "改造主武技的清線形狀" };
+    }
+    if (upgradeHasAnyEffect(upgrade, ["orbitGuard", "killHeal", "lowHpPower"])) {
+      return { key: "guard", icon: "守", label: "護身", hint: "把近身壓力轉成反打" };
+    }
+    if (upgradeHasAnyEffect(upgrade, ["companionCount", "companionDamage"])) {
+      return { key: "support", icon: "援", label: "支援", hint: "增加副將與陣營火力" };
+    }
     return { key: "build", icon: "+", label: "攻勢", hint: "改變本局攻擊型態" };
   }
   if (upgrade.rarity === "evolution") {
     return { key: "evolution", icon: "醒", label: "進化", hint: "改變武將核心招式" };
+  }
+  if (upgrade.rarity === "faction") {
+    return { key: "faction", icon: "旗", label: "陣營", hint: "放大同陣營被動與支援" };
   }
   if (upgrade.rarity === "hero") {
     return { key: "ultimate", icon: "魂", label: "名將魂", hint: "強化大招覺醒窗口" };
   }
   if (upgrade.rarity === "technique") {
     return { key: "technique", icon: "術", label: "新招式", hint: "加入自動攻擊模組" };
+  }
+  if (upgradeHasAnyEffect(upgrade, ["companionDamage", "companionCount"])) {
+    return { key: "support", icon: "援", label: "支援", hint: "提高副將與陣營火力" };
   }
   if (upgrade.apply.some((effect) => effect.stat === "regen" || effect.stat === "armor" || effect.stat === "maxHp")) {
     return { key: "survival", icon: "守", label: "生存", hint: "提高容錯與近身抗壓" };
@@ -400,16 +544,206 @@ function upgradeIdentity(upgrade: UpgradeDef): { key: string; icon: string; labe
   if (upgrade.apply.some((effect) => effect.stat === "critChance" || effect.stat === "critDamage")) {
     return { key: "crit", icon: "斬", label: "爆發", hint: "提高斬殺和 Boss 輸出" };
   }
+  if (upgrade.rarity === "relic") {
+    return { key: "relic", icon: "器", label: "遺物", hint: "提供稀有混合加成" };
+  }
   return { key: "strike", icon: "攻", label: "輸出", hint: "穩定提高殺敵效率" };
 }
 
+function upgradeFit(upgrade: UpgradeDef, state: RunState, stacks: number, identity: UpgradeIdentity): UpgradeCardFit {
+  const badges: string[] = [];
+  const hints: string[] = [];
+  let score = 0;
+  let isCore = false;
+  const heroEvolution = getUpgradeById(`evo_${state.hero.id}`);
+  const evolutionRequirement = heroEvolution?.requires;
+  const evolutionRequiredStacks = evolutionRequirement?.stacks ?? 1;
+  const isHeroEvolutionPrerequisite = evolutionRequirement?.upgradeId === upgrade.id;
+  const requiredUpgrade = getUpgradeById(upgrade.requires?.upgradeId);
+  const requiredStacks = upgrade.requires?.stacks ?? 1;
+  const requiredOwned = upgrade.requires?.upgradeId ? (state.upgrades[upgrade.requires.upgradeId] ?? 0) : 0;
+  const prerequisiteReady = Boolean(requiredUpgrade && requiredOwned >= requiredStacks);
+
+  if (upgrade.heroId === state.hero.id && upgrade.rarity === "evolution") {
+    addUnique(badges, "本局核心");
+    hints.push(`${state.hero.name}核心招式進化`);
+    score += 10;
+    isCore = true;
+  } else if (upgrade.heroId === state.hero.id && upgrade.rarity === "hero") {
+    addUnique(badges, "本局核心");
+    hints.push(`${state.hero.name}無雙窗口升級`);
+    score += 9;
+    isCore = true;
+  } else if (upgrade.heroId === state.hero.id) {
+    addUnique(badges, `與${state.hero.name}相性高`);
+    hints.push(`貼合${state.hero.name}專屬成長`);
+    score += 5;
+  }
+
+  if (stacks > 0) {
+    addUnique(badges, "已投入");
+    hints.push(`延續已堆疊的${identity.label}`);
+    score += Math.min(4, stacks + 2);
+  }
+
+  if (isHeroEvolutionPrerequisite) {
+    addUnique(badges, stacks >= evolutionRequiredStacks ? "前置已滿" : "進化前置");
+    hints.push(`${state.hero.name}覺醒前置`);
+    score += stacks >= evolutionRequiredStacks ? 3 : 6;
+    isCore = true;
+  }
+
+  if (prerequisiteReady && requiredUpgrade) {
+    addUnique(badges, "前置已滿");
+    hints.push(`承接${requiredUpgrade.name}`);
+    score += 4;
+  }
+
+  if (upgrade.factionId === state.faction.id) {
+    addUnique(badges, `同${state.faction.name}`);
+    hints.push(`${state.faction.name}陣營加成`);
+    score += 5;
+  }
+
+  const investedIdentityStacks = countInvestedIdentityStacks(state, identity.key, upgrade.id);
+  if (investedIdentityStacks > 0) {
+    addUnique(badges, "延續流派");
+    hints.push(`本局已走${identity.label}`);
+    score += Math.min(3, investedIdentityStacks);
+  }
+
+  const effectFit = heroEffectFit(upgrade, state);
+  score += effectFit.score;
+  if (effectFit.score >= 2) {
+    addUnique(badges, `與${state.hero.name}相性高`);
+  }
+  if (effectFit.hint) {
+    hints.push(effectFit.hint);
+  }
+
+  if (upgrade.rarity === "build" || upgrade.rarity === "technique") {
+    score += 2;
+  } else if (upgrade.rarity === "relic") {
+    score += 1;
+  }
+
+  return {
+    score,
+    badges,
+    hint: hints[0] ?? identity.hint,
+    isCore
+  };
+}
+
+function heroEffectFit(upgrade: UpgradeDef, state: RunState): { score: number; hint?: string } {
+  const hero = state.hero;
+  const auto = hero.autoAbility;
+  const manual = hero.manualAbility;
+  const heroTags = [...auto.damageTags, ...manual.damageTags];
+  const hasTag = (tag: (typeof heroTags)[number]) => heroTags.includes(tag);
+  const closeRange = auto.range <= 300 || manual.range <= 280;
+  let score = 0;
+  const hints: string[] = [];
+
+  if (upgradeHasAnyEffect(upgrade, ["damageScale"])) {
+    score += 2;
+    hints.push("直接提高主要輸出");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["cooldownScale"])) {
+    score += auto.cooldown <= 0.9 || manual.cooldown <= 7 || hasTag("command") || hasTag("charm") ? 3 : 2;
+    hints.push("高頻招式更吃冷卻");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["areaScale"])) {
+    score += auto.radius >= 64 || manual.radius >= 84 || hasTag("fire") || hasTag("shock") || hasTag("charm") ? 3 : 2;
+    hints.push("放大範圍與控場覆蓋");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["critChance", "critDamage"])) {
+    score += hasTag("blade") || hasTag("pierce") || hasTag("arrow") || manual.damage >= 72 ? 3 : 2;
+    hints.push("爆發斬殺更穩");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["moveSpeed"])) {
+    score += hero.baseStats.moveSpeed >= 240 || closeRange || manual.effectId.includes("dash") ? 3 : 1;
+    hints.push("強化拉扯與突進角度");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["maxHp", "armor", "regen", "killHeal", "lowHpPower"])) {
+    score += closeRange || hero.baseStats.armor <= 2 || hero.baseStats.maxHp <= 126 || manual.effectId === "blood_rage" ? 3 : 1;
+    hints.push("補足近身容錯");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["pickupRadius", "xpScale"])) {
+    score += state.player.level <= 3 ? 2 : 1;
+    hints.push("前期成長更快");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["companionDamage", "companionCount"])) {
+    score += state.player.companionCount > 0 || state.faction.id === "wei" || state.faction.id === "wu" ? 3 : 2;
+    hints.push("支援火力成形更快");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["frontShot", "rearShot", "extraVolley", "projectilePierce", "ricochet"])) {
+    score += auto.range >= 400 || hasTag("arrow") || hasTag("pierce") || hasTag("command") ? 3 : 1;
+    hints.push("改造遠程清線角度");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["orbitGuard"])) {
+    score += closeRange ? 3 : 1;
+    hints.push("處理貼身包圍");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["evolvedPower", "ultimateDuration", "ultimatePower"])) {
+    score += 4;
+    hints.push("推進覺醒與無雙爆發");
+  }
+  if (upgradeHasAnyEffect(upgrade, ["bossDamage"])) {
+    score += state.bossSpawned || state.bossSpawnTime - state.elapsed < 90 ? 3 : 1;
+    hints.push("提高守將與 Boss 壓制");
+  }
+
+  return { score, hint: hints[0] };
+}
+
+function upgradeBadges(fit: UpgradeCardFit, recommended: boolean): string[] {
+  const badges = recommended ? ["推薦", ...fit.badges] : fit.badges;
+  return badges.slice(0, 3);
+}
+
+function renderUpgradeContextLine(state: RunState): string {
+  const buildText = getBuildChips(state)
+    .map((chip) => chip.label)
+    .join(" / ");
+  return `${state.hero.name} · ${state.faction.name} · ${buildText}`;
+}
+
+function countInvestedIdentityStacks(state: RunState, identityKey: string, currentUpgradeId: string): number {
+  return Object.entries(state.upgrades).reduce((total, [id, stacks]) => {
+    const ownedUpgrade = getUpgradeById(id);
+    if (!ownedUpgrade || id === currentUpgradeId || stacks <= 0 || upgradeIdentity(ownedUpgrade).key !== identityKey) {
+      return total;
+    }
+    return total + stacks;
+  }, 0);
+}
+
+type UpgradeEffectStat = UpgradeDef["apply"][number]["stat"];
+
+function upgradeHasAnyEffect(upgrade: UpgradeDef, stats: UpgradeEffectStat[]): boolean {
+  return upgrade.apply.some((effect) => stats.includes(effect.stat));
+}
+
+function getUpgradeById(id: string | undefined): UpgradeDef | undefined {
+  return id ? (upgradeById as Record<string, UpgradeDef | undefined>)[id] : undefined;
+}
+
+function addUnique(items: string[], item: string): void {
+  if (!items.includes(item)) {
+    items.push(item);
+  }
+}
+
 function getBuildChips(state: RunState): Array<{ label: string; tone: string }> {
-  const chips: Array<{ label: string; tone: string }> = [];
+  const coreChips: Array<{ label: string; tone: string }> = [];
+  const investedArchetypes = new Map<string, { label: string; stacks: number }>();
   for (const [id, stacks] of Object.entries(state.upgrades)) {
     const upgrade = upgradeById[id];
     if (!upgrade || stacks <= 0) {
       continue;
     }
+    const identity = upgradeIdentity(upgrade);
     if (
       upgrade.rarity === "evolution" ||
       upgrade.rarity === "build" ||
@@ -418,13 +752,22 @@ function getBuildChips(state: RunState): Array<{ label: string; tone: string }> 
       upgrade.rarity === "faction" ||
       upgrade.rarity === "relic"
     ) {
-      chips.push({ label: `${upgrade.name}${stacks > 1 ? ` ${stacks}` : ""}`, tone: `tone-${upgrade.rarity}` });
+      coreChips.push({ label: `${upgrade.name}${stacks > 1 ? ` ${stacks}` : ""}`, tone: `tone-${upgrade.rarity}` });
+      continue;
+    }
+    const invested = investedArchetypes.get(identity.key);
+    if (invested) {
+      invested.stacks += stacks;
+    } else {
+      investedArchetypes.set(identity.key, { label: identity.label, stacks });
     }
   }
+  const archetypeChips = [...investedArchetypes.values()].map((item) => ({ label: `${item.label} ${item.stacks}`, tone: "tone-common" }));
+  const chips = [...coreChips.slice(-2), ...archetypeChips].slice(0, 3);
   if (chips.length === 0) {
     chips.push({ label: "尋找進化軍令", tone: "tone-common" });
   }
-  return chips.slice(-3);
+  return chips;
 }
 
 function renderCurrentBuildList(state: RunState): string {

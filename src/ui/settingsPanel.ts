@@ -17,6 +17,7 @@ interface SettingsPanelOptions {
   closeLabel?: string;
   closeData?: string;
   showAudio?: boolean;
+  showClose?: boolean;
   gameSettings?: GameSettings;
 }
 
@@ -78,7 +79,7 @@ export function renderSettingsPanel(
         </div>
         <div class="settings-top-actions">
           <button data-settings-reset="true">恢復預設</button>
-          <button class="settings-close" data-${closeData}="true">${options.closeLabel ?? "返回"}</button>
+          ${options.showClose === false ? "" : `<button class="settings-close" data-${closeData}="true">${options.closeLabel ?? "\u8fd4\u56de"}</button>`}
         </div>
       </div>
       <div class="settings-grid">

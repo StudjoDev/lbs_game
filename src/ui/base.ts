@@ -43,7 +43,6 @@ export function renderBasePanel(state: MetaProgressionState, selectedHeroId: Her
           <span class="panel-kicker">Base</span>
           <h2>武將基地</h2>
         </div>
-        <button class="codex-back" data-base-back="true">返回</button>
       </section>
       <nav class="base-tabs">
         ${renderTab("overview", "概況", activeTab)}
@@ -59,7 +58,6 @@ export function renderBasePanel(state: MetaProgressionState, selectedHeroId: Her
 }
 
 export function bindBasePanel(root: HTMLElement, callbacks: BasePanelCallbacks): void {
-  root.querySelector<HTMLButtonElement>("[data-base-back]")?.addEventListener("click", callbacks.onBack);
   root.querySelector<HTMLButtonElement>("[data-claim-idle]")?.addEventListener("click", callbacks.onClaimIdle);
   root.querySelectorAll<HTMLButtonElement>("[data-base-tab]").forEach((button) => {
     button.addEventListener("click", () => callbacks.onTab(button.dataset.baseTab as BaseTab));
