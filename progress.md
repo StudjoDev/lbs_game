@@ -9,6 +9,43 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Implement quick cultivation art pass inspired by 一念逍遙 while keeping Three Kingdoms combat/conquest.
+Notes:
+- Added `src/ui/cultivation.ts` with pure display helpers for realm labels and cultivation-themed resource text; no localStorage schema or combat math changed.
+- Reworked the main menu into a 洞府出關 surface with realm display, offline cultivation preview, and an 入洞府 shortcut while preserving the existing sortie path.
+- Reworded the base page tabs and panels into 洞府 / 古寶 / 神通 / 機緣 / 秘藏, with UI-only display names for facilities, talents, equipment, resources, and mastery realm.
+- Reworded chapter/conquest surfaces into 秘境卷軸 and 山河星圖, using derived realm labels for recommended power without changing unlock logic.
+- Reworked the battle HUD, upgrade modal, pause/result copy, and skill button states around 氣血 / 修為 / 道心 / 神通 / 無雙.
+- Added a final CSS cultivation theme pass: ink-black background, parchment-gold panels, cinnabar seals, jade/gold progress accents, and desktop side navigation to keep content unobscured.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 11 files, 85 tests.
+- `npm run build` passed after the final CSS changes; Vite still reports the existing large chunk warning.
+- develop-web-game client ran against localhost:5185; its known screenshot path captured black, but state output confirmed gameplay loaded and ultimate state worked.
+- Direct Playwright QA passed on desktop 1280x720 and mobile 390x844 for home, base tabs, chapter launch, battle HUD, and upgrade modal with no console/page errors and no critical overflow issues. Screenshots/results are under `output/web-game/cultivation-v1-qa-rerun/`, with a final desktop nav-overlap check under `output/web-game/cultivation-v1-qa-final/`.
+
+TODO:
+- None for this request.
+
+Follow-up request: Remove cultivation styling because it does not fit the game.
+Notes:
+- Deleted the temporary `src/ui/cultivation.ts` helper and removed all imports from menu, base, and HUD code.
+- Reworded the visible UI away from 洞府 / 神通 / 境界 / 修為 / 秘境 / 功德 / 靈石 into 三國軍略 terms: 武將出戰, 章節戰役, 天下戰圖, 武將基地, 裝備, 天賦, 任務, 寶箱, 戰功, 軍糧, 聲望, 熟練, 武技, 軍令.
+- Retuned the CSS theme from starry cultivation to a darker war-scroll style: military parchment panels, battle-map grid texture, bronze/olive progress accents, cinnabar command seals, and side navigation retained for desktop readability.
+- No localStorage schema or combat/conquest logic changed.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 11 files, 85 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- `rg` over `src/ui` and `src/styles.css` found no cultivation-specific visible keywords or helper references.
+- develop-web-game Playwright client smoke ran against localhost:5186.
+- Direct Playwright QA passed on desktop 1280x720 and mobile 390x844 for home, all base tabs, chapter, conquest, and battle HUD with no page/console errors and no cultivation keyword matches. Screenshots/results are under `output/web-game/war-scroll-pivot-qa/`.
+
+TODO:
+- None for this follow-up.
+
 Current request: Full combat upgrade v1 with five prototype heroes and crowd-combat feel.
 Notes:
 - Added a shared combat director with 2.8s chain tracking, 8/20/45 chain tiers, pressure waves, short visual freeze, and chain/threat combat events.
