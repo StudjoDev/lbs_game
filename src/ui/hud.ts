@@ -105,7 +105,7 @@ export class BattleHud {
         <span>${state.hero.name}</span>
         <span>${formatTime(remaining)}</span>
         <span>${state.kills}斬</span>
-        <span>士氣 ${Math.floor(moralePercent * 100)}%</span>
+          <span>士氣 ${Math.floor(moralePercent * 100)}%</span>
         <span class="hud-ultimate ${ultimateStatus.tone}">${ultimateStatus.label}</span>
         <span>${bossText}</span>
         <span>${roomText}</span>
@@ -287,8 +287,8 @@ export class BattleHud {
     this.modal.innerHTML = `
       <section class="result-panel ${won ? "won" : "lost"}">
         <div class="modal-heading">
-          <span class="panel-kicker">${won ? "虎牢告捷" : "兵敗虎牢"}</span>
-          <h2>${won ? "呂布已敗" : "亂軍壓境"}</h2>
+          <span class="panel-kicker">${won ? "戰役告捷" : "軍勢受挫"}</span>
+          <h2>${won ? "凱旋回營" : "撤回整軍"}</h2>
           <small>${state.hero.name} 斬敵 ${state.kills}，戰功 ${state.score}</small>
         </div>
         ${settlement ? renderSettlementRewards(settlement) : ""}
@@ -337,7 +337,7 @@ function renderConquestSettlement(settlement: MetaRunSettlement): string {
   }
   return `
     <div class="settlement-rewards conquest-settlement">
-      ${settlement.conqueredCityName ? `<span><b>城池</b>攻下 ${settlement.conqueredCityName}</span>` : ""}
+      ${settlement.conqueredCityName ? `<span><b>城池</b>${settlement.conqueredCityName} 歸附</span>` : ""}
       ${settlement.recruitedHeroName ? `<span><b>守將加入</b>${settlement.recruitedHeroName}</span>` : ""}
       ${settlement.unlockedCityNames.length > 0 ? `<span><b>新城解鎖</b>${settlement.unlockedCityNames.join(" / ")}</span>` : ""}
       ${
@@ -412,7 +412,7 @@ function getSkillButtonView(state: RunState): SkillButtonView {
     const ultimateDuration = Math.max(1, ultimateByHeroId[state.hero.id].duration + state.player.ultimateDurationBonus);
     return {
       kind: "ultimate-active",
-      title: "爆發中",
+      title: "無雙中",
       hint: `無雙 ${seconds}`,
       detail: state.hero.manualAbility.name,
       progress: clamp01(state.player.ultimateTimer / ultimateDuration),
@@ -422,18 +422,18 @@ function getSkillButtonView(state: RunState): SkillButtonView {
   if (state.player.manualCooldown <= 0 && state.player.ultimateCharge >= 1) {
     return {
       kind: "ultimate-ready",
-      title: "無雙就緒",
-      hint: "按下開無雙",
+      title: "無雙",
+      hint: "爆發就緒",
       detail: `同放 ${state.hero.manualAbility.name}`,
       progress: 1,
-      ariaLabel: `技能與無雙就緒，按下會施放 ${state.hero.manualAbility.name} 並開啟無雙`
+      ariaLabel: `武技與無雙就緒，按下會施放 ${state.hero.manualAbility.name} 並開啟無雙`
     };
   }
   if (state.player.manualCooldown <= 0) {
     return {
       kind: "manual-ready",
-      title: state.hero.manualAbility.name,
-      hint: "技能可用",
+      title: "武技",
+      hint: state.hero.manualAbility.name,
       detail: `無雙 ${ultimateChargePercent}%`,
       progress: clamp01(state.player.ultimateCharge),
       ariaLabel: `${state.hero.manualAbility.name} 可用，無雙充能 ${ultimateChargePercent}%`
@@ -444,11 +444,11 @@ function getSkillButtonView(state: RunState): SkillButtonView {
   const cooldownProgress = 1 - Math.min(1, state.player.manualCooldown / manualBaseCooldown);
   return {
     kind: "cooldown",
-    title: formatShortSeconds(state.player.manualCooldown),
-    hint: "冷卻中",
+    title: "冷卻",
+    hint: formatShortSeconds(state.player.manualCooldown),
     detail: state.player.ultimateCharge >= 1 ? "無雙待命" : `無雙 ${ultimateChargePercent}%`,
     progress: clamp01(cooldownProgress),
-    ariaLabel: `技能冷卻中，剩餘 ${formatShortSeconds(state.player.manualCooldown)}`
+    ariaLabel: `武技冷卻中，剩餘 ${formatShortSeconds(state.player.manualCooldown)}`
   };
 }
 
@@ -459,7 +459,7 @@ function getUltimateStatus(state: RunState): { label: string; tone: string } {
   if (state.player.ultimateCharge >= 1) {
     return { label: "無雙就緒", tone: "is-ready" };
   }
-  return { label: `無雙充能 ${Math.floor(clamp01(state.player.ultimateCharge) * 100)}%`, tone: "is-charging" };
+  return { label: `無雙蓄氣 ${Math.floor(clamp01(state.player.ultimateCharge) * 100)}%`, tone: "is-charging" };
 }
 
 function clamp01(value: number): number {
@@ -521,7 +521,7 @@ function upgradeIdentity(upgrade: UpgradeDef): UpgradeIdentity {
     return { key: "ultimate", icon: "魂", label: "名將魂", hint: "強化大招覺醒窗口" };
   }
   if (upgrade.rarity === "technique") {
-    return { key: "technique", icon: "術", label: "新招式", hint: "加入自動攻擊模組" };
+    return { key: "technique", icon: "技", label: "新武技", hint: "加入自動攻擊模組" };
   }
   if (upgradeHasAnyEffect(upgrade, ["companionDamage", "companionCount"])) {
     return { key: "support", icon: "援", label: "支援", hint: "提高副將與陣營火力" };
@@ -536,7 +536,7 @@ function upgradeIdentity(upgrade: UpgradeDef): UpgradeIdentity {
     return { key: "field", icon: "域", label: "範圍", hint: "擴大清場覆蓋" };
   }
   if (upgrade.apply.some((effect) => effect.stat === "moveSpeed")) {
-    return { key: "mobility", icon: "行", label: "走位", hint: "拉扯、撿戰功更安全" };
+    return { key: "mobility", icon: "行", label: "走位", hint: "拉扯、拾取戰利更安全" };
   }
   if (upgrade.apply.some((effect) => effect.stat === "pickupRadius" || effect.stat === "xpScale")) {
     return { key: "growth", icon: "功", label: "成長", hint: "加速升級和資源回收" };
@@ -651,7 +651,7 @@ function heroEffectFit(upgrade: UpgradeDef, state: RunState): { score: number; h
   }
   if (upgradeHasAnyEffect(upgrade, ["cooldownScale"])) {
     score += auto.cooldown <= 0.9 || manual.cooldown <= 7 || hasTag("command") || hasTag("charm") ? 3 : 2;
-    hints.push("高頻招式更吃冷卻");
+    hints.push("高頻武技更吃冷卻");
   }
   if (upgradeHasAnyEffect(upgrade, ["areaScale"])) {
     score += auto.radius >= 64 || manual.radius >= 84 || hasTag("fire") || hasTag("shock") || hasTag("charm") ? 3 : 2;
@@ -765,7 +765,7 @@ function getBuildChips(state: RunState): Array<{ label: string; tone: string }> 
   const archetypeChips = [...investedArchetypes.values()].map((item) => ({ label: `${item.label} ${item.stacks}`, tone: "tone-common" }));
   const chips = [...coreChips.slice(-2), ...archetypeChips].slice(0, 3);
   if (chips.length === 0) {
-    chips.push({ label: "尋找進化軍令", tone: "tone-common" });
+    chips.push({ label: "尋找進化武技", tone: "tone-common" });
   }
   return chips;
 }
@@ -776,9 +776,9 @@ function renderCurrentBuildList(state: RunState): string {
     .filter((item): item is { upgrade: UpgradeDef; stacks: number } => Boolean(item.upgrade) && item.stacks > 0);
   return `
     <div class="pause-build-list">
-      <strong>本局技能</strong>
+      <strong>本局戰法</strong>
       <div>
-        ${owned.length > 0 ? owned.map((item) => `<span>${item.upgrade.name}${item.stacks > 1 ? ` x${item.stacks}` : ""}</span>`).join("") : "<span>尚未取得技能</span>"}
+        ${owned.length > 0 ? owned.map((item) => `<span>${item.upgrade.name}${item.stacks > 1 ? ` x${item.stacks}` : ""}</span>`).join("") : "<span>尚未取得戰法</span>"}
       </div>
     </div>
   `;
@@ -795,7 +795,7 @@ function rarityLabel(rarity: UpgradeDef["rarity"]): string {
     return "陣營";
   }
   if (rarity === "technique") {
-    return "招式";
+    return "武技";
   }
   if (rarity === "relic") {
     return "遺物";
@@ -817,7 +817,7 @@ function roomTypeLabel(type: RunState["roomType"]): string {
     return "休整房";
   }
   if (type === "boss") {
-    return "Boss 房";
+    return "守將房";
   }
   return "普通房";
 }

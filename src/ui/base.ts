@@ -40,7 +40,7 @@ export function renderBasePanel(state: MetaProgressionState, selectedHeroId: Her
     <main class="base-stage" style="--art-primary:${selectedArt.palette.primary}; --art-secondary:${selectedArt.palette.secondary}; --art-accent:${selectedArt.palette.accent};">
       <section class="base-topline">
         <div>
-          <span class="panel-kicker">Base</span>
+          <span class="panel-kicker">Camp</span>
           <h2>武將基地</h2>
         </div>
       </section>
@@ -108,23 +108,23 @@ function renderOverview(state: MetaProgressionState, selectedHeroId: HeroId): st
   return `
     <section class="base-grid">
       <div class="base-panel base-resources">
-        <div class="panel-heading"><span>Idle</span><strong>離線收益</strong></div>
+        <div class="panel-heading"><span>Idle</span><strong>離線軍備</strong></div>
         <div class="idle-claim">
           <div>
-            <strong>可領取</strong>
+            <strong>可領取收益</strong>
             <span>${formatResources(state.idle.unclaimed)}</span>
           </div>
           <button class="start-button" data-claim-idle="true" ${hasAnyResource(state.idle.unclaimed) ? "" : "disabled"}>領取</button>
         </div>
         <div class="base-stats">
           <span>出戰 ${state.stats.runsPlayed}</span>
-          <span>通關 ${state.stats.wins}</span>
+          <span>勝場 ${state.stats.wins}</span>
           <span>最高斬敵 ${state.stats.bestKills}</span>
-          <span>Boss ${state.stats.bossDefeats}</span>
+          <span>破將 ${state.stats.bossDefeats}</span>
         </div>
       </div>
       <div class="base-panel base-facilities">
-        <div class="panel-heading"><span>Facilities</span><strong>設施升級</strong></div>
+        <div class="panel-heading"><span>Facilities</span><strong>營地建設</strong></div>
         <div class="facility-list">
           ${facilityDefs.map((facility) => renderFacility(state, facility.id)).join("")}
         </div>
@@ -135,10 +135,10 @@ function renderOverview(state: MetaProgressionState, selectedHeroId: HeroId): st
           <img src="${selectedArt.cardImage}" alt="${selectedArt.name}" draggable="false" />
           <div>
             <span>${selectedHero.title}</span>
-            <strong>Lv.${selectedMastery.level}</strong>
-            <small>永久生命 +${selectedMastery.level}% / 傷害 +${selectedMastery.level}%</small>
+            <strong>熟練 Lv.${selectedMastery.level}</strong>
+            <small>熟練 Lv.${selectedMastery.level} · 永久生命 +${selectedMastery.level}% / 傷害 +${selectedMastery.level}%</small>
             <div class="mastery-bar"><i style="width:${masteryPercent}%"></i></div>
-            <small>${xpToNext > 0 ? `${selectedMastery.xp}/${xpToNext} 熟練 XP` : "熟練已滿"}</small>
+            <small>${xpToNext > 0 ? `${selectedMastery.xp}/${xpToNext} 武將熟練` : "熟練已滿"}</small>
           </div>
         </div>
         <div class="mastery-roster">
@@ -152,7 +152,7 @@ function renderOverview(state: MetaProgressionState, selectedHeroId: HeroId): st
 function renderEquipment(state: MetaProgressionState): string {
   return `
     <section class="base-panel base-wide-panel">
-      <div class="panel-heading"><span>Equipment</span><strong>六格裝備</strong></div>
+      <div class="panel-heading"><span>Gear</span><strong>裝備欄位</strong></div>
       <div class="equipment-slots">
         ${(["weapon", "armor", "ring", "charm", "mount", "book"] as EquipmentSlot[]).map((slot) => renderEquipmentSlot(state, slot)).join("")}
       </div>
@@ -166,7 +166,7 @@ function renderEquipment(state: MetaProgressionState): string {
 function renderTalents(state: MetaProgressionState): string {
   return `
     <section class="base-panel base-wide-panel">
-      <div class="panel-heading"><span>Talents</span><strong>帳號天賦</strong></div>
+      <div class="panel-heading"><span>Talents</span><strong>天賦操典</strong></div>
       <div class="talent-grid">
         ${talentDefs.map((talent) => {
           const level = state.talents[talent.id];
@@ -175,9 +175,9 @@ function renderTalents(state: MetaProgressionState): string {
           return `
             <div class="talent-row">
               <div>
-                <span>${talent.category} · Lv.${level}/${talent.maxLevel}</span>
+                <span>${talentCategoryLabel(talent.category)} · Lv.${level}/${talent.maxLevel}</span>
                 <strong>${talent.name}</strong>
-                <small>${talent.description} · ${maxed ? "已滿級" : formatResources(cost)}</small>
+                <small>${talent.description} · ${maxed ? "已滿" : formatResources(cost)}</small>
               </div>
               <button data-upgrade-talent="${talent.id}" ${maxed || !canAfford(state.resources, cost) ? "disabled" : ""}>升級</button>
             </div>
@@ -191,7 +191,7 @@ function renderTalents(state: MetaProgressionState): string {
 function renderMissions(state: MetaProgressionState): string {
   return `
     <section class="base-panel base-wide-panel">
-      <div class="panel-heading"><span>Daily</span><strong>今日任務</strong></div>
+      <div class="panel-heading"><span>Missions</span><strong>今日任務</strong></div>
       <div class="mission-list">
         ${Object.values(state.dailyMissions.missions)
           .map((mission) => {
@@ -204,7 +204,7 @@ function renderMissions(state: MetaProgressionState): string {
                   <div class="mastery-bar"><i style="width:${Math.min(100, (mission.progress / mission.goal) * 100)}%"></i></div>
                 </div>
                 <button data-claim-mission="${mission.id}" ${!complete || mission.claimed ? "disabled" : ""}>
-                  ${mission.claimed ? "已領" : "領鑰匙"}
+                  ${mission.claimed ? "已領" : "領取"}
                 </button>
               </div>
             `;
@@ -224,9 +224,9 @@ function renderChests(state: MetaProgressionState): string {
       <div class="panel-heading"><span>Chests</span><strong>章節寶箱</strong></div>
       <div class="chest-panel">
         <div>
-          <span>可用鑰匙</span>
+          <span>寶箱鑰匙</span>
           <strong>${state.chapterChests.keys}</strong>
-          <small>通關章節與每日任務可取得鑰匙。</small>
+          <small>通關章節與完成任務可取得鑰匙。</small>
         </div>
         <button class="start-button" data-open-chest="true" ${state.chapterChests.keys > 0 ? "" : "disabled"}>開啟寶箱</button>
       </div>
@@ -270,7 +270,7 @@ function renderFacility(state: MetaProgressionState, facilityId: FacilityId): st
       <div>
         <span>${facility.name} Lv.${level}/${facility.maxLevel}</span>
         <strong>${facility.description}</strong>
-        <small>${maxed ? "已滿級" : `下級成本 ${formatResources(cost)}`}</small>
+        <small>${maxed ? "已滿" : `下級消耗 ${formatResources(cost)}`}</small>
       </div>
       <button data-upgrade-facility="${facility.id}" ${maxed || !affordable ? "disabled" : ""}>升級</button>
     </div>
@@ -315,8 +315,8 @@ function renderEquipmentItem(state: MetaProgressionState, key: string, defId: st
         <strong>${def.name}</strong>
         <small>${def.passive}</small>
       </div>
-      <button data-equip-item="${key}" ${equipped ? "disabled" : ""}>${equipped ? "已裝" : "裝備"}</button>
-      <button data-merge-equipment="${key}" ${mergeable ? "" : "disabled"}>3合1</button>
+      <button data-equip-item="${key}" ${equipped ? "disabled" : ""}>${equipped ? "已裝備" : "裝備"}</button>
+      <button data-merge-equipment="${key}" ${mergeable ? "" : "disabled"}>三合一</button>
     </div>
   `;
 }
@@ -326,7 +326,7 @@ function hasAnyResource(resources: MetaResources): boolean {
 }
 
 function formatResources(resources: MetaResources): string {
-  const parts = [];
+  const parts: string[] = [];
   if (resources.merit > 0) {
     parts.push(`戰功 ${resources.merit}`);
   }
@@ -344,18 +344,31 @@ function slotLabel(slot: EquipmentSlot): string {
     return "武器";
   }
   if (slot === "armor") {
-    return "甲";
+    return "甲冑";
   }
   if (slot === "ring") {
-    return "戒";
+    return "戒指";
   }
   if (slot === "charm") {
-    return "符";
+    return "符令";
   }
   if (slot === "mount") {
     return "坐騎";
   }
   return "兵書";
+}
+
+function talentCategoryLabel(category: string): string {
+  if (category === "attack") {
+    return "攻擊";
+  }
+  if (category === "survival") {
+    return "防守";
+  }
+  if (category === "resource") {
+    return "後勤";
+  }
+  return "開局";
 }
 
 function rarityLabel(rarity: string): string {
