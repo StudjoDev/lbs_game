@@ -9,6 +9,24 @@ Notes:
 TODO:
 - None for this request.
 
+Current request: Add idle-game elements to the home screen with a visible training-ground feel.
+Notes:
+- Added `MenuTrainingGroundView` for the MenuScene canvas: selected hero appears in the center, companion heroes drill nearby, training dummies react to periodic strikes, and attack/effect assets are reused when available with static fallback.
+- Wired MenuController to sync the selected hero and two same-faction/owned companions into the Phaser preview, and to hide the preview when leaving the home tab.
+- Reworked the home DOM into left-side hero/idle reward panels and a right-side sortie/roster panel so the canvas training ground remains visible on desktop.
+- Added a home idle reward claim button that uses the existing `claimIdleRewards` / `saveMetaProgression` flow without changing localStorage schema.
+- Adjusted mobile home layout to hide the long roster and keep a compact selected-hero action panel, leaving the main training scene visible between top status and bottom controls.
+
+Verification:
+- `npm run typecheck` passed.
+- `npm test` passed: 11 files, 85 tests.
+- `npm run build` passed; Vite still reports the existing large chunk warning.
+- develop-web-game client ran against localhost:5191; its known screenshot path still captured black.
+- Direct Playwright QA passed on desktop 1366x768 and mobile 390x844: home training ground visible, selected hero switch updated `render_game_to_text`, idle rewards claimed into resources and reset to zero, chapter/conquest tabs hid the preview, and chapter battle launch still reached BattleScene with no console/page errors. Screenshots/results are under `output/web-game/home-training-qa/`.
+
+TODO:
+- None for this request.
+
 Current request: Implement quick cultivation art pass inspired by 一念逍遙 while keeping Three Kingdoms combat/conquest.
 Notes:
 - Added `src/ui/cultivation.ts` with pure display helpers for realm labels and cultivation-themed resource text; no localStorage schema or combat math changed.

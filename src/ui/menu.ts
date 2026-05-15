@@ -34,6 +34,7 @@ import { createUiLayer, removeUiLayer } from "./layer";
 import { bindSettingsPanel, renderSettingsPanel } from "./settingsPanel";
 
 interface MenuCallbacks extends AudioControlCallbacks {
+  onHomePreviewChange?: (state: HomePreviewState) => void;
   getDisplaySettings: () => DisplaySettings;
   onDisplaySettingsChange: (settings: DisplaySettings) => void;
   getGameSettings: () => GameSettings;
@@ -43,6 +44,7 @@ interface MenuCallbacks extends AudioControlCallbacks {
 
 type MenuMode = "select" | "collection" | "settings" | "base" | "chapter" | "conquest";
 type RunTarget = { kind: "chapter"; chapterId: ChapterId } | { kind: "conquest"; cityId: ConquestCityId };
+type HomePreviewState = { visible: boolean; heroId?: HeroId; companionHeroIds?: readonly HeroId[] };
 
 export class MenuController {
   private readonly root = createUiLayer("menu-ui");
@@ -72,6 +74,9 @@ export class MenuController {
     this.conquestMapLayoutAbort = undefined;
     this.root.style.setProperty("--ui-scale", this.callbacks.getDisplaySettings().uiScale.toString());
     const collection = loadCollection();
+    if (this.mode !== "select") {
+      this.callbacks.onHomePreviewChange?.({ visible: false });
+    }
     if (this.mode === "settings") {
       this.renderSettings();
       return;
@@ -136,26 +141,66 @@ export class MenuController {
     const mastery = this.meta.heroMastery[selectedHero.id];
     const idlePreview = accrueIdleRewards(this.meta).idle.unclaimed;
     const testMode = this.callbacks.getGameSettings().testMode;
+    const idleAvailable = hasAnyMenuResource(idlePreview);
+    const companionHeroIds = getTrainingCompanionHeroIds(selectedHero.id, collection, testMode);
+    this.callbacks.onHomePreviewChange?.({ visible: true, heroId: selectedHero.id, companionHeroIds });
 
     this.root.innerHTML = `
       <main class="menu-stage home-stage" style="${artVars(selectedArt)}">
-        <section class="menu-hero home-hero-card">
-          <img src="${selectedArt.cardImage}" alt="${selectedHero.name}" draggable="false" />
-          <div class="home-hero-copy">
-            <span class="seal">整軍出陣 · 熟練 Lv.${mastery.level}</span>
-            <h1>${selectedHero.name}</h1>
-            <p>${selectedHero.title}。選擇武將後可挑戰章節或攻打城池，保留無雙、征服與收集養成的核心節奏。</p>
-            <div class="feature-ribbon war-ribbon">
-              <span>${selectedFaction.name} · ${selectedHero.role}</span>
-              <span>熟練 Lv.${mastery.level}</span>
-              <span>離線 ${formatMenuResources(idlePreview)}</span>
+        <section class="home-left-rail">
+          <section class="menu-hero home-hero-card">
+            <img src="${selectedArt.cardImage}" alt="${selectedHero.name}" draggable="false" />
+            <div class="home-hero-copy">
+              <span class="seal">演武修行 · 熟練 Lv.${mastery.level}</span>
+              <h1>${selectedHero.name}</h1>
+              <p>${selectedHero.title}正在校場練功，離線時也會累積戰功與軍糧。</p>
+              <div class="feature-ribbon war-ribbon">
+                <span>${selectedFaction.name} · ${selectedHero.role}</span>
+                <span>熟練 Lv.${mastery.level}</span>
+                <span>收益 ${formatMenuResources(idlePreview)}</span>
+              </div>
             </div>
-          </div>
+          </section>
+          <section class="home-idle-card">
+            <div class="panel-heading">
+              <span>Idle</span>
+              <strong>修行收益</strong>
+            </div>
+            <div class="home-idle-rewards" aria-label="目前可領取的修行收益">
+              <div>
+                <span>戰功</span>
+                <strong>${idlePreview.merit}</strong>
+              </div>
+              <div>
+                <span>軍糧</span>
+                <strong>${idlePreview.provisions}</strong>
+              </div>
+              <div>
+                <span>聲望</span>
+                <strong>${idlePreview.renown}</strong>
+              </div>
+            </div>
+            <button class="codex-button home-claim-button" data-claim-home-idle="true" ${idleAvailable ? "" : "disabled"}>
+              ${idleAvailable ? "領取修行收益" : "暫無收益"}
+            </button>
+          </section>
+          <section class="skill-panel home-skill-panel">
+            <div>
+              <span>自動武技</span>
+              <strong>${selectedHero.autoAbility.name}</strong>
+              <small>${selectedHero.autoAbility.description}</small>
+            </div>
+            <div>
+              <span>手動無雙</span>
+              <strong>${selectedHero.manualAbility.name}</strong>
+              <small>${selectedHero.manualAbility.description}</small>
+            </div>
+          </section>
         </section>
         <section class="build-panel home-build-panel">
           <div class="panel-heading">
-            <span>Sortie</span>
-            <strong>武將出戰</strong>
+            <span>Roster</span>
+            <strong>演武編隊</strong>
           </div>
           <div class="page-action-bar">
             <div>
@@ -173,18 +218,6 @@ export class MenuController {
               ${heroes.map((hero) => renderHeroPick(hero.id, collection, hero.id === selectedHero.id, this.meta, testMode)).join("")}
             </div>
           </div>
-          <div class="skill-panel home-skill-panel">
-            <div>
-              <span>自動武技</span>
-              <strong>${selectedHero.autoAbility.name}</strong>
-              <small>${selectedHero.autoAbility.description}</small>
-            </div>
-            <div>
-              <span>手動無雙</span>
-              <strong>${selectedHero.manualAbility.name}</strong>
-              <small>${selectedHero.manualAbility.description}</small>
-            </div>
-          </div>
         </section>
       </main>
       ${this.renderBottomNav("select")}
@@ -197,6 +230,12 @@ export class MenuController {
       });
     });
     this.root.querySelector<HTMLButtonElement>("[data-start-selected]")?.addEventListener("click", () => this.startSelectedRun());
+    this.root.querySelector<HTMLButtonElement>("[data-claim-home-idle]")?.addEventListener("click", () => {
+      const result = claimIdleRewards(this.meta);
+      this.meta = saveMetaProgression(result.state);
+      this.callbacks.onAudioCue(hasAnyMenuResource(result.rewards) ? "sfx_ui_confirm" : "sfx_ui_select");
+      this.render();
+    });
     this.root.querySelector<HTMLButtonElement>("[data-open-base]")?.addEventListener("click", () => {
       this.mode = "base";
       this.callbacks.onAudioCue("sfx_ui_select");
@@ -1022,4 +1061,32 @@ function formatMenuResources(resources: MetaResources): string {
     parts.push(`聲望 ${resources.renown}`);
   }
   return parts.length > 0 ? parts.join(" / ") : "無可領取";
+}
+
+function hasAnyMenuResource(resources: MetaResources): boolean {
+  return resources.merit > 0 || resources.provisions > 0 || resources.renown > 0;
+}
+
+function getTrainingCompanionHeroIds(selectedHeroId: HeroId, collection: CollectionState, testMode: boolean): HeroId[] {
+  const selectedHero = heroes.find((hero) => hero.id === selectedHeroId) ?? heroes[0];
+  const ownedOrAvailable = (heroId: HeroId) => {
+    const art = characterArtById[heroId];
+    return testMode || Boolean(collection[art.id]?.owned);
+  };
+  const candidates = [
+    ...heroes.filter((hero) => hero.id !== selectedHeroId && hero.factionId === selectedHero.factionId && ownedOrAvailable(hero.id)),
+    ...heroes.filter((hero) => hero.id !== selectedHeroId && ownedOrAvailable(hero.id)),
+    ...heroes.filter((hero) => hero.id !== selectedHeroId && hero.factionId === selectedHero.factionId),
+    ...heroes.filter((hero) => hero.id !== selectedHeroId)
+  ];
+  const unique: HeroId[] = [];
+  for (const hero of candidates) {
+    if (!unique.includes(hero.id)) {
+      unique.push(hero.id);
+    }
+    if (unique.length >= 2) {
+      break;
+    }
+  }
+  return unique;
 }

@@ -4065,3 +4065,268 @@ button:disabled {
     inset: 7px;
   }
 }
+
+/* Home training-ground overlay */
+#game-ui.menu-ui {
+  background:
+    linear-gradient(90deg, rgba(9, 11, 9, 0.72), rgba(9, 11, 9, 0.16) 32%, rgba(9, 11, 9, 0.18) 68%, rgba(9, 11, 9, 0.76)),
+    linear-gradient(180deg, rgba(16, 17, 14, 0.28), rgba(16, 17, 14, 0.04) 42%, rgba(16, 17, 14, 0.48));
+}
+
+#game-ui.menu-ui::before {
+  opacity: 0.22;
+  background:
+    repeating-linear-gradient(115deg, rgba(240, 223, 185, 0.03) 0 1px, transparent 1px 22px),
+    linear-gradient(180deg, rgba(240, 223, 185, 0.07), transparent 46%);
+}
+
+#game-ui.menu-ui::after {
+  opacity: 0.18;
+  background:
+    linear-gradient(90deg, rgba(217, 173, 95, 0.08), transparent 22%, transparent 78%, rgba(217, 173, 95, 0.08)),
+    repeating-linear-gradient(0deg, rgba(234, 217, 181, 0.03) 0 1px, transparent 1px 28px);
+}
+
+.menu-stage.home-stage {
+  grid-template-columns: minmax(280px, 320px) minmax(300px, 1fr) minmax(330px, 390px);
+  gap: 16px;
+  pointer-events: none;
+}
+
+.home-left-rail,
+.home-build-panel {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.home-left-rail {
+  display: grid;
+  grid-column: 1;
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  align-self: start;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.home-build-panel {
+  grid-column: 3;
+  max-height: calc(100vh - 56px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background:
+    linear-gradient(145deg, rgba(240, 223, 185, 0.11), rgba(12, 15, 14, 0.18) 52%),
+    rgba(15, 17, 14, 0.78);
+}
+
+.home-hero-card {
+  min-height: 0;
+  grid-template-columns: 96px minmax(0, 1fr);
+  padding: 12px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--art-primary, #c89b52) 16%, transparent), rgba(12, 15, 14, 0.12) 52%),
+    rgba(16, 18, 15, 0.76);
+}
+
+.home-hero-card img {
+  width: 96px;
+  height: 128px;
+}
+
+.home-hero-card h1 {
+  font-size: 34px;
+}
+
+.home-hero-card .seal {
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.home-hero-card p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.home-idle-card {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(217, 173, 95, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(240, 223, 185, 0.1), rgba(12, 15, 14, 0.2) 52%),
+    rgba(20, 22, 18, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 18px 52px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(13px);
+}
+
+.home-idle-rewards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.home-idle-rewards div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(217, 173, 95, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.home-idle-rewards span {
+  display: block;
+  color: rgba(240, 223, 185, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.home-idle-rewards strong {
+  display: block;
+  margin-top: 3px;
+  color: #fff2cf;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.home-claim-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.home-left-rail .home-skill-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.home-left-rail .home-skill-panel > div {
+  min-height: 0;
+  padding: 12px;
+}
+
+.home-stage .page-action-bar {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.home-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-content: stretch;
+}
+
+.home-action-buttons .codex-button,
+.home-action-buttons .start-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.home-stage .hero-grid {
+  grid-template-columns: 1fr;
+}
+
+.home-stage .character-pick {
+  min-height: 116px;
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+
+.home-stage .mini-card-art {
+  width: 82px;
+  height: 82px;
+}
+
+@media (min-width: 861px) {
+  .menu-stage.home-stage {
+    width: min(1260px, calc(100vw - 150px));
+  }
+}
+
+@media (max-width: 860px) {
+  #game-ui.menu-ui {
+    background:
+      linear-gradient(180deg, rgba(9, 11, 9, 0.78), rgba(9, 11, 9, 0.08) 35%, rgba(9, 11, 9, 0.2) 62%, rgba(9, 11, 9, 0.82)),
+      linear-gradient(90deg, rgba(16, 17, 14, 0.22), rgba(16, 17, 14, 0.04), rgba(16, 17, 14, 0.22));
+  }
+
+  .menu-stage.home-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .home-left-rail {
+    grid-column: 1;
+    grid-row: 1;
+    max-height: none;
+    overflow: visible;
+    gap: 8px;
+  }
+
+  .home-build-panel {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    max-height: none;
+    min-height: 0;
+    padding: 10px;
+    gap: 8px;
+    grid-template-rows: auto;
+  }
+
+  .home-build-panel > .panel-heading,
+  .home-build-panel .home-roster-scroll {
+    display: none;
+  }
+
+  .home-hero-card {
+    grid-template-columns: 74px minmax(0, 1fr);
+    padding: 9px;
+  }
+
+  .home-hero-card img {
+    width: 74px;
+    height: 96px;
+  }
+
+  .home-hero-card h1 {
+    font-size: 28px;
+  }
+
+  .home-idle-card {
+    padding: 9px;
+    gap: 8px;
+  }
+
+  .home-idle-rewards div {
+    padding: 7px;
+  }
+
+  .home-idle-rewards strong {
+    font-size: 18px;
+  }
+
+  .home-left-rail .home-skill-panel {
+    display: none;
+  }
+
+  .home-action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .home-stage .character-pick {
+    min-height: 92px;
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .home-stage .mini-card-art {
+    width: 68px;
+    height: 68px;
+  }
+}
